@@ -34,7 +34,7 @@ end
 
 local config = { mode = "auto", book_id = "", book_title = "" }
 local picker_options
-local stopped, started, notice
+local stopped, started, notice, rescheduled
 local host = setmetatable({
     settings = {
         get = function(_self, key)
@@ -49,6 +49,9 @@ local host = setmetatable({
     refreshBookshelf = function(_self, _view, options) picker_options = options end,
     stopReadReport = function(_self, reason) stopped = reason end,
     maybeStartReadReport = function() started = true end,
+    read_report = {
+        reschedule = function(_self, reason) rescheduled = reason end,
+    },
     showTransientInfo = function(_self, text) notice = text end,
     safeCallback = function(_self, _label, callback) return callback end,
 }, { __index = ReadReportUI })
@@ -56,7 +59,7 @@ local host = setmetatable({
 local report_items = host:getReadReportMenuItems()
 expect(report_items[1].keep_menu_open == true
         and report_items[2].keep_menu_open == true
-        and report_items[4].keep_menu_open == true,
+        and report_items[5].keep_menu_open == true,
     "reading report actions keep their menu open")
 local target_items = host:getReportTargetMenuItems()
 expect(target_items[1].keep_menu_open == true
@@ -75,6 +78,36 @@ target_items[1].callback(touchmenu)
 target_items[2].callback(touchmenu)
 expect(menu_refreshes == 4,
     "reading report toggles did not refresh the open menu")
+
+-- Reporting interval presets: 30 s (default) and 60 s.
+local interval_items = host:getReportIntervalMenuItems()
+expect(#interval_items == 2, "report interval menu should offer two presets")
+expect(interval_items[1].checked_func() == true,
+    "report interval should fall back to 30 seconds when unset")
+expect(interval_items[2].checked_func() == false,
+    "60 seconds should not be selected by default")
+
+config.enabled = true
+stopped, started, rescheduled = nil, nil, nil
+interval_items[2].callback(touchmenu)
+expect(config.interval_seconds == 60,
+    "selecting 60 seconds did not persist the interval")
+expect(rescheduled == "interval_changed",
+    "changing the interval did not hand it to the running report")
+expect(stopped == nil and started == nil,
+    "changing the interval must not stop and restart the report")
+expect(interval_items[2].checked_func() == true,
+    "60 seconds should be checked after selection")
+
+-- Selecting the value that is already stored must be a no-op: it must not
+-- touch the settings file nor disturb the running report.
+rescheduled = nil
+local stored_before = config.interval_seconds
+interval_items[2].callback(touchmenu)
+expect(rescheduled == nil,
+    "re-selecting the current interval must not reschedule the report")
+expect(config.interval_seconds == stored_before,
+    "re-selecting the current interval changed the stored value")
 
 host:showReadReportBookPicker()
 expect(picker_options and picker_options.mode == "books",
@@ -108,7 +141,7 @@ expect(status_text == "Report book: Book One\nStatus: Stopped\nReported: 0 times
     "status gesture displays the manual target before the first report")
 local gesture_text = status_text
 status_text = nil
-report_items[4].callback()
+report_items[5].callback()
 expect(status_text == gesture_text, "menu and gesture show the same report status")
 
 config.mode = "auto"
