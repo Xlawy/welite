@@ -14,3 +14,25 @@ Third-party material:
 This is an unofficial project. It is not affiliated with, endorsed by, or
 sponsored by WeRead, Tencent, or KOReader. All product names and trademarks
 belong to their respective owners.
+
+WeLite modified distribution
+Copyright (C) 2026 Xlawy and contributors (WeLite modifications)
+Modification date: 2026-10-21
+SPDX-License-Identifier: AGPL-3.0-only
+
+Upstream project: WeRead KOReader Plugin, by finlater and contributors
+Upstream source: https://github.com/finlater/weread.koplugin
+Upstream baseline: ae3930fa91e59ac72152fa709029e39fe6bcd1d6 (1.6.0)
+Modified source: https://github.com/Xlawy/weread-based-welite
+WeLite UI origin: https://github.com/Xlawy/welite
+
+This is an independently maintained modified version, not an upstream release.
+Changes include the WeLite bookshelf, filters, pull-down controls and settings,
+community data adapters, regression tests, documentation and fork update URLs.
+The modified work remains under AGPL-3.0-only. Upstream copyright, license,
+no-warranty and third-party notices are retained.
+
+When distributing a release, make the complete Corresponding Source for that
+exact modified version available under the applicable terms of LICENSE.
+The modified-source URL must not be used as a substitute for providing the
+actual release source if those modifications have not yet been published.

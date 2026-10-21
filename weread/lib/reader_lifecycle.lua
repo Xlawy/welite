@@ -104,6 +104,7 @@ function M:handleEndOfBook(status_self)
 end
 
 function M:onReaderReady()
+    require("weread.ui.welite.reader_controls").install(self)
     self._reader_session_gen = (self._reader_session_gen or 0) + 1
     local perf = PluginUtil.reader_open_perf
     local opened = perf("reader_ready_begin", nil, "session=", self._reader_session_gen)
@@ -178,6 +179,7 @@ function M:onPosUpdate()
 end
 
 function M:onCloseDocument()
+    require("weread.ui.welite.reader_controls").close(self)
     -- Capture the immutable local position while the document is still alive.
     -- The network upload is scheduled; stopping ReadReport below also frees any
     -- in-flight report slot before that scheduled upload begins.
@@ -327,6 +329,8 @@ function M:stopReadReport(reason)
 end
 
 function M:onSuspend()
+    require("weread.ui.welite.reader_controls").close(self)
+    if self.welite_stats_worker then self.welite_stats_worker:cancel(nil, "suspend") end
     if self._cancelUnifiedAnnotationSync then self:_cancelUnifiedAnnotationSync() end
     self._annotation_pending_prefetch = nil
     self.progress_sync:on_suspend()

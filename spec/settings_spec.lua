@@ -103,8 +103,9 @@ expect(thought_popup.height_ratio == 0.70
     and thought_popup.contrast == 9
     and thought_popup.tap_to_page == false,
     "thought popup preferences should use the defaults")
-expect(settings:get("shelf").view_mode == "list",
-    "bookshelf should default to the low-overhead list view")
+expect(settings:get("shelf").sort_order == "default", "new installations preserve cloud order like WeLite")
+expect(settings:get("shelf").view_mode == "cover",
+    "new installations default to the bounded cover view")
 expect(created_dirs[1] == "/data/weread"
     and created_dirs[2] == "/data/weread/cache",
     "settings directories were not initialized")

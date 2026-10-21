@@ -1,0 +1,33 @@
+describe('welite filter draft form',function()
+    local F,UI,dialog
+    setup(function() require('commonrequire');package.path='plugins/weread.koplugin/?.lua;'..package.path;F=require('weread.ui.welite.filter');UI=require('ui/uimanager') end)
+    after_each(function() if dialog then UI:close(dialog);dialog=nil end end)
+    it('applies search and choices once, and leaves cancelled choices untouched',function()
+        local applied=0;local result
+        local function close() UI:close(dialog);dialog=nil end
+        dialog=F.new({sort='cloud'},function(...) applied=applied+1;result={...} end,close)
+        UI:show(dialog)
+        dialog.button_table:getButtonById('sort:title').callback()
+        dialog.button_table:getButtonById('download:partial').callback()
+        dialog:setInputText('三体')
+        assert.equals(0,applied)
+        UI:forceRePaint()
+        local path=os.getenv('WELITE_SCREENSHOT');if path then require('device').screen.bb:writePNG(path:gsub('plugin%-smoke','filter-panel')) end
+        dialog:onShowKeyboard();UI:forceRePaint()
+        assert.is_true(dialog:getSize().h<=require('device').screen:getHeight())
+        dialog:onCloseKeyboard()
+        dialog.button_table:getButtonById('apply').callback()
+        assert.same({'三体','title','partial'},result);assert.equals(1,applied)
+        dialog=F.new({category='local'},function() applied=applied+1 end,close);UI:show(dialog)
+        assert.is_nil(dialog.button_table:getButtonById('download:none'))
+        dialog.button_table:getButtonById('sort:recent').callback();dialog.button_table:getButtonById('close').callback()
+        assert.equals(1,applied)
+    end)
+    it('resets only the draft until applied',function()
+        local result
+        dialog=F.new({query='a',sort='recent',download_filter='full'},function(...) result={...} end,function() end)
+        UI:show(dialog);dialog.button_table:getButtonById('reset').callback()
+        assert.is_nil(result);dialog.button_table:getButtonById('apply').callback()
+        assert.same({'','cloud','all'},result)
+    end)
+end)

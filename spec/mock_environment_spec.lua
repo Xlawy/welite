@@ -71,7 +71,7 @@ assert(mock.mock_endpoint == "http://192.168.31.111:8765")
 assert(mock.data_dir == "/data/weread-mock" and mock.cache_dir == "/data/weread-mock/cache")
 assert(mock.settings_file == "/settings/weread-mock.lua" and mock.collection_name == "weread-mock")
 assert(mock:get("api_key") == "mock-api-key" and mock:get("account").login_method == "mock")
-assert(next(mock:get("books")) == nil and mock:get("shelf").view_mode == "list")
+assert(next(mock:get("books")) == nil and mock:get("shelf").view_mode == "cover")
 assert(mock:set_download_dir("/real/downloads") == "/data/weread-mock/cache")
 mock:set("shelf", { view_mode = "mock-only" })
 config.host, config.port, config.enabled = "192.168.31.112", 8766, false

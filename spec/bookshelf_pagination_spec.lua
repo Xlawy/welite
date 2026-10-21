@@ -363,3 +363,37 @@ host:onWeReadAccountChanged()
 expect(host.shelf_groups == nil and host.shelf_group_key == nil, "account switch retained old groups")
 
 print(("bookshelf_pagination_spec: %d checks"):format(checks))
+
+-- WeLite local tab reuses known records and must not revalidate every file on paging.
+local local_checks=0
+local local_settings={shelf={view_mode='list',paginated=true,sort_order='default'},books={
+    ['local-only']={title='Offline chapter',cached_chapters={['1']='chapter.epub'}},
+}}
+local local_host=setmetatable({
+    ui={},settings={get=function(_,key,default) return local_settings[key] or default end},
+    shelf_regular={},shelf_mp={},shelf_groups={},
+    bookRecordHasDownload=function() local_checks=local_checks+1;return true end,
+    bookMatchesFilters=function() return true end,isBookDownloaded=function() return true end,
+    shelfSortSummary=function() return 'Default' end,shelfFilterSummary=function() return 'All' end,
+}, {__index=Library})
+local_host:showShelfView('books',nil,nil,{local_only=true})
+local local_view=shown[#shown]
+expect(local_view.data.books[1].bookId=='local-only','local view lost cloud-removed downloaded chapters')
+expect(local_view.data.local_only and local_checks==1,'local view did not validate the known record once')
+local_view.callbacks.on_page_changed(1)
+expect(local_checks==1,'paging rescanned local file metadata')
+shown[#shown].callbacks.on_cloud()
+expect(#shown[#shown].data.books==0 and not shown[#shown].data.local_only,'cloud tab retained local-only state')
+
+-- Original WeLite interaction: tap opens validated local reading; hold retains details.
+local reads,details=0,0
+local_host.openBookForReading=function(_,record)
+    expect(record==local_settings.books['local-only'],'tap did not use the community stored reading record')
+    reads=reads+1
+end
+local_host.showBookRecord=function() details=details+1 end
+local_host:showShelfView('books',nil,nil,{local_only=true})
+local shelf_call=shown[#shown]
+shelf_call.callbacks.on_select(shelf_call.data.books[1],'books')
+shelf_call.callbacks.on_hold(shelf_call.data.books[1],'books')
+expect(reads==1 and details==1,'tap/hold lost separate reading and detail routes')

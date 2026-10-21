@@ -1141,7 +1141,8 @@ end
 local M = {}
 
 -- Measure before fetching covers, so the worker and the visible grid agree.
-function M.getLayout(cover_mode, count, mode)
+function M.getLayout(cover_mode, count, mode, welite)
+    if welite and cover_mode then return require("weread.ui.welite.shelf_adapter").getLayout() end
     local width, height = Screen:getWidth(), Screen:getHeight()
     local header_height = Screen:scaleBySize(HEADER_SIZE) + Size.border.thin
     local page_bar_height = Screen:scaleBySize(54)
@@ -1165,6 +1166,7 @@ end
 
 function M.show(data, callbacks)
     callbacks = callbacks or {}
+    if data.welite and data.cover_mode then return require("weread.ui.welite.shelf_adapter").show(data, callbacks) end
     local view = LibraryView:new{
         mode = data.mode,
         title = data.title,
@@ -1202,4 +1204,6 @@ function M.show(data, callbacks)
     return view
 end
 
+function M.showSourceMenu(view) return LibraryView.showSourceMenu(view) end
+function M.showOptions(view) return LibraryView.showOptions(view) end
 return M

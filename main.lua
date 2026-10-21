@@ -204,6 +204,9 @@ function WeReadPlugin:init()
     }
     self:onDispatcherRegisterActions()
     self.ui.menu:registerToMainMenu(self)
+    if self.ui.postInitCallback and self.ui.registerPostInitCallback then
+        self.ui:registerPostInitCallback(function() require("weread.ui.welite.home").queueStartup(self) end)
+    end
     self.integrations = Integrations
     self.integrations.register(self)
     local read_report = self.settings:get("read_report")

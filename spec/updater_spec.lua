@@ -65,16 +65,16 @@ local release, release_err = Updater.parse_release({
     draft = false,
     prerelease = false,
     body = "## What's Changed\n\n**Added** `updates`",
-    html_url = "https://github.com/finlater/weread.koplugin/releases/tag/v0.7.0",
+    html_url = "https://github.com/Xlawy/weread-based-welite/releases/tag/v0.7.0",
     assets = {
         {
             name = "weread.koplugin-v0.7.0.zip",
-            browser_download_url = "https://github.com/finlater/weread.koplugin/releases/download/v0.7.0/weread.koplugin-v0.7.0.zip",
+            browser_download_url = "https://github.com/Xlawy/weread-based-welite/releases/download/v0.7.0/weread.koplugin-v0.7.0.zip",
             size = 1234,
         },
         {
             name = "weread.koplugin-v0.7.0.zip.sha256",
-            browser_download_url = "https://github.com/finlater/weread.koplugin/releases/download/v0.7.0/weread.koplugin-v0.7.0.zip.sha256",
+            browser_download_url = "https://github.com/Xlawy/weread-based-welite/releases/download/v0.7.0/weread.koplugin-v0.7.0.zip.sha256",
         },
     },
 })

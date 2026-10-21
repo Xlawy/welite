@@ -1,0 +1,108 @@
+{
+  "modules": {
+    "weread/ui/welite/reading.lua": [
+      "spec/koreader/welite_reading_spec.lua"
+    ],
+    "weread/ui/welite/display.lua": [
+      "spec/koreader/welite_display_spec.lua"
+    ],
+    "weread/ui/welite/preferences.lua": [
+      "spec/koreader/welite_preferences_spec.lua"
+    ],
+    "weread/ui/welite/clock.lua": [
+      "spec/koreader/welite_clock_spec.lua"
+    ],
+    "weread/ui/welite/battery.lua": [
+      "spec/koreader/welite_battery_spec.lua"
+    ],
+    "weread/ui/welite/controls.lua": [
+      "spec/koreader/welite_controls_spec.lua"
+    ],
+    "weread/ui/welite/pulldown.lua": [
+      "spec/koreader/welite_pulldown_spec.lua"
+    ],
+    "weread/ui/welite/lightslider.lua": [
+      "spec/koreader/welite_lightslider_spec.lua"
+    ],
+    "weread/ui/welite/controlicon.lua": [
+      "spec/koreader/welite_pulldown_spec.lua"
+    ],
+    "weread/ui/welite/wifi.lua": [
+      "spec/koreader/welite_wifi_spec.lua"
+    ],
+    "weread/ui/welite/worker.lua": [
+      "spec/koreader/welite_worker_spec.lua"
+    ],
+    "weread/ui/welite/home.lua": [
+      "spec/koreader/welite_home_spec.lua"
+    ],
+    "weread/ui/welite/statistics.lua": [
+      "spec/welite_statistics_spec.lua"
+    ],
+    "weread/ui/library.lua": [
+      "spec/bookshelf_pagination_spec.lua",
+      "spec/library_ui_cleanup_spec.lua",
+      "spec/koreader/welite_home_spec.lua"
+    ],
+    "weread/ui/library_view.lua": [
+      "spec/bookshelf_pagination_spec.lua",
+      "spec/koreader/welite_home_spec.lua"
+    ],
+    "weread/lib/settings.lua": [
+      "spec/settings_spec.lua",
+      "spec/mock_environment_spec.lua"
+    ],
+    "scripts/test_welite.py": [
+      "tests/test_welite_runner.py"
+    ],
+    "weread/ui/welite/reader_controls.lua": [
+      "spec/koreader/welite_reader_controls_spec.lua"
+    ],
+    "weread/lib/reader_lifecycle.lua": [
+      "spec/reader_lifecycle_catalog_spec.lua",
+      "spec/reader_lifecycle_highlight_spec.lua",
+      "spec/koreader/welite_reader_controls_spec.lua"
+    ],
+    "weread/ui/menu.lua": [
+      "spec/menu_prefetch_spec.lua",
+      "spec/koreader/welite_reader_controls_spec.lua"
+    ],
+    "weread/lib/updater.lua": [
+      "spec/updater_spec.lua"
+    ],
+    "weread/ui/welite/local_shelf.lua": [
+      "spec/welite_local_shelf_spec.lua"
+    ],
+    "weread/ui/welite/filter.lua": [
+      "spec/koreader/welite_filter_spec.lua"
+    ],
+    "weread/ui/welite/shelf.lua": [
+      "spec/koreader/welite_shelf_spec.lua",
+      "spec/koreader/welite_parity_spec.lua"
+    ],
+    "weread/ui/welite/shelf_adapter.lua": [
+      "spec/koreader/welite_home_spec.lua",
+      "spec/koreader/welite_parity_spec.lua"
+    ],
+    "weread/ui/welite/collection.lua": [
+      "spec/koreader/welite_collection_spec.lua"
+    ],
+    "main.lua": [
+      "spec/plugin_load_spec.lua",
+      "spec/koreader/weread_plugin_spec.lua"
+    ],
+    "weread/ui/welite/settingsui.lua": [
+      "spec/koreader/welite_settingsui_spec.lua"
+    ],
+    "weread/ui/welite/startup.lua": [
+      "spec/koreader/welite_startup_spec.lua"
+    ]
+  },
+  "exemptions": {
+    "unchanged_upstream": "Community modules not modified by this fork retain their upstream spec suite; no claim of full one-to-one coverage.",
+    "Makefile": "Only forwards commands; exercised by make test/package.",
+    "icons/welite/*.svg": "Declarative assets rendered by welite_pulldown_spec.",
+    "weread/ui/welite/messages.lua": "Declarative login/status copy; rendered in pixel parity tests.",
+    "spec/reference": "Frozen original renderer fixture, independent baseline; not runtime code or shipped."
+  }
+}

@@ -92,9 +92,9 @@ local defaults = {
         release_url = "",
     },
     shelf = {
-        sort_order = "time_desc",
+        sort_order = "default",
         paginated = true,
-        view_mode = "list",
+        view_mode = "cover",
     },
     download_dir = "",
 }

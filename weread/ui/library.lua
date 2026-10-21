@@ -117,6 +117,9 @@ function M:closeWeReadUI()
 end
 
 function M:onWeReadAccountChanged()
+    self.welite_overview = nil
+    self.welite_shelf_status = nil
+    if self.welite_stats_worker then self.welite_stats_worker:cancel(nil, "account_changed") end
     self:closeWeReadUI()
     self.shelf_regular = nil
     self.shelf_mp = nil
@@ -166,6 +169,8 @@ function M:refreshBookshelf(old_view, view_options)
         end)
         done()
         if not ok then
+            self.welite_shelf_status="同步失败"
+            if old_view and old_view.setSyncStatus then old_view:setSyncStatus("同步失败") end
             logger.err("load bookshelf failed:", log_error(result))
             self:showInfo(T(
                 _("Load bookshelf failed:\n%1\n\nIf other account features still work, use Search to find and download books."),
@@ -173,6 +178,7 @@ function M:refreshBookshelf(old_view, view_options)
             ))
             return
         end
+        self.welite_shelf_status="已同步"
         local all_books = type(result) == "table"
             and type(result.books) == "table"
             and result.books
@@ -385,22 +391,33 @@ function M:showShelfView(mode, keyword, old_view, options)
             if matches_filters and shelf_search_match(book, keyword) then
                 if with_download_state then
                     book._cached = self:isBookDownloaded(book, saved_books, downloaded_cache)
+                    local record=saved_books[book.book_id or book.bookId]
+                    local full=book._cached and record and self.getFullBookCachePath and self:getFullBookCachePath(record)
+                    book._download_state=book._cached and (file_exists(full) and "full" or "partial") or nil
                 end
-                result[#result + 1] = book
+                local download=(self.shelf_filters or {}).download
+                if (download~="full" and download~="partial") or book._download_state==download then
+                    result[#result + 1] = book
+                end
             end
         end
         return result
     end
     local group = ShelfGroups.find(self.shelf_groups, self.shelf_group_key)
     local prepared = options.prepared_shelf
-    local books = prepared and prepared.books or filtered(group and group.books or self.shelf_regular, true)
+    local local_source
+    if options.local_only and not prepared then
+        local_source = require("weread.ui.welite.local_shelf").select(self.shelf_regular, saved_books,
+            function(record) return self:bookRecordHasDownload(record) end)
+    end
+    local books = prepared and prepared.books or filtered(local_source or (group and group.books or self.shelf_regular), true)
     local accounts = prepared and prepared.accounts or filtered(self.shelf_mp, false)
     local shelf_settings = self.settings:get("shelf")
     local cover_mode = shelf_settings.view_mode == "cover"
     local paged = cover_mode or shelf_settings.paginated ~= false
     local page = paged and (options.page or self.shelf_view_pages[mode] or 1) or 1
     local source = mode == "public_account" and accounts or books
-    local layout = LibraryView.getLayout(cover_mode, #source, mode)
+    local layout = LibraryView.getLayout(cover_mode, #source, mode, not options.on_select)
     local cover_layout = cover_mode and layout or nil
     local page_size = layout.page_size
     local cover_paths, cover_loading
@@ -422,6 +439,11 @@ function M:showShelfView(mode, keyword, old_view, options)
     if old_view then UIManager:close(old_view) end
     local view
     view = LibraryView.show({
+        welite = not options.on_select, local_only = options.local_only, welite_host = self.ui, welite_overview = self.welite_overview,
+        logged_in = (self.settings:get("account",{}).login_method or "") ~= "",
+        sync_status = self.welite_shelf_status,
+        sort_key = shelf_settings.sort_order,
+        download_filter = (self.shelf_filters or {}).download,
         mode = mode,
         title = options.title,
         wp_enable = options.wp_enable,
@@ -445,6 +467,48 @@ function M:showShelfView(mode, keyword, old_view, options)
         cover_paths = cover_paths,
         cover_loading = cover_loading,
     }, {
+        on_filter_draft = function()
+            local dialog
+            local filters=self.shelf_filters or {}
+            dialog=require("weread.ui.welite.filter").new({query=keyword,sort=require("weread.ui.welite.shelf_adapter").sorts[shelf_settings.sort_order],
+                download_filter=require("weread.ui.welite.shelf_adapter").downloads[filters.download],category=options.local_only and "local" or "shelf"},
+                function(query,sort,download)
+                    local shelf=self.settings:get("shelf")
+                    shelf.sort_order=({cloud="default",recent="time_desc",added="added_desc",title="name_asc"})[sort]
+                    self.shelf_filters=self.shelf_filters or {}
+                    self.shelf_filters.download=download=="none" and "not_downloaded" or download~="all" and download or nil
+                    shelf.filter_download=self.shelf_filters.download
+                    self.settings:set("shelf",shelf);self.settings:flush()
+                    local next_options={}
+                    for key,value in pairs(options) do next_options[key]=value end
+                    next_options.prepared_shelf=nil;next_options.page=1;next_options.scroll_offset=nil
+                    self:showShelfView(mode,query,view,next_options)
+                end,function() UIManager:close(dialog) end)
+            UIManager:show(dialog)
+        end,
+        on_retry_covers = function()
+            self:fetchVisibleShelfCovers(view, source, {mode=mode,keyword=keyword,
+                local_only=options.local_only,prepared_books=books,prepared_accounts=accounts})
+        end,
+        on_switch_account = function() self.qr_login:start() end,
+        on_logout = function() self:confirmClearAccount() end,
+        on_login = function()
+            local account=self.settings:get("account",{})
+            if account.login_method and account.login_method~="" then self:showAccountStatus()
+            else self.qr_login:start() end
+        end,
+        on_hold = function(book, selected_mode)
+            if selected_mode=="public_account" then self:showMPAccount(book) else self:showBookRecord(book) end
+        end,
+        on_main_menu = function()
+            require("weread.ui.welite.home").mainMenu(self)
+        end,
+        on_local = function()
+            self:showShelfView("books",keyword,view,{local_only=true,page=1})
+        end,
+        on_cloud = function() self:showShelfView("books",keyword,view,{page=1}) end,
+        on_statistics = function(period) self:loadReadStats(period, nil, nil) end,
+        on_refresh_statistics = function() require("weread.ui.welite.statistics").refresh(self, view) end,
         on_switch = function(new_mode)
             local next_options = {}
             for key, value in pairs(options) do next_options[key] = value end
@@ -456,6 +520,7 @@ function M:showShelfView(mode, keyword, old_view, options)
         on_select_group = function(key)
             if key and not ShelfGroups.find(self.shelf_groups, key) then return end
             self.shelf_group_key = key
+            options.local_only = nil
             local next_options = {}
             for name, value in pairs(options) do next_options[name] = value end
             next_options.prepared_shelf, next_options.scroll_offset = nil, nil
@@ -502,6 +567,8 @@ function M:showShelfView(mode, keyword, old_view, options)
                 options.on_select(book, selected_mode, view)
             elseif selected_mode == "public_account" then
                 self:showMPAccount(book)
+            elseif book._cached and saved_books[book.book_id or book.bookId] then
+                self:openBookForReading(saved_books[book.book_id or book.bookId])
             else
                 self:showBookRecord(book)
             end
@@ -573,6 +640,13 @@ sortBooks = function(books, sort_order)
     if sort_order == "time_desc" then
         table.sort(sorted, function(a, b)
             return (a.readUpdateTime or 0) > (b.readUpdateTime or 0)
+        end)
+    elseif sort_order == "added_desc" then
+        local rank={};for index,book in ipairs(sorted) do rank[book]=index end
+        table.sort(sorted,function(a,b)
+            local x,y=tonumber(a.shelfTime or a.shelfUpdateTime),tonumber(b.shelfTime or b.shelfUpdateTime)
+            if x~=y then return (x or -1)>(y or -1) end
+            return rank[a]<rank[b]
         end)
     elseif sort_order == "time_asc" then
         table.sort(sorted, function(a, b)
@@ -674,7 +748,7 @@ function M:showBookRecord(book)
         if saved[key] == nil then saved[key] = value end
     end
     for key, value in pairs(book) do
-        if value ~= nil and key ~= "_cached" then saved[key] = value end
+        if value ~= nil and key ~= "_cached" and key ~= "_download_state" then saved[key] = value end
     end
     saved.book_id = book_id
     saved._library_account_key = account_key

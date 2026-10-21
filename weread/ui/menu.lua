@@ -161,7 +161,9 @@ function M:getMainMenuItems()
 
     if self.ui.document then
         local book_id = self:detectWeReadBook()
-        local reader_items = {}
+        local reader_items = {{text="WeLite · 快捷控制",callback=function()
+            require("weread.ui.welite.reader_controls").show(self)
+        end}}
         if book_id ~= nil then
             if not WeRead.is_mp_book(book_id) then
                 reader_items[#reader_items + 1] = {

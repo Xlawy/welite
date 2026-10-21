@@ -1,0 +1,14 @@
+{
+  "welite/shelf.lua": "06213ca2832006f6b3a3a256ff5cce74c882edc66248882551ebda450da528ed",
+  "welite/collection.lua": "970a088679faeb7df70b89f8a32b812a1fb8793b23b5298d5c8ef0a4bca2b095",
+  "welite/reading.lua": "ab03959203e31ee04bfbe8a9d0f05aa3b5a44022cbd9b495e341a146f1dab86e",
+  "welite/display.lua": "5fce9fcd9608eda4709ef814c64b5c0b777e5806c0e147ed8d50ad1131c0e920",
+  "welite/preferences.lua": "fb6042c7eb694b9b6f1870f6573d1e562fe0d43fe0fe91b97de735cedb5ae16f",
+  "welite/clock.lua": "fa0a781bf0fa2920cc349d35f7264fbcbc6d85dde931f1073e0eeff8d575b769",
+  "welite/battery.lua": "f7dc809c8ae76dc455725e576b5040b1fbf2695bbb7172be1641a0ecc7f029eb",
+  "welite/pulldown.lua": "373cc700d529c8b0566faefc36d523c990e00ba17e2dd4648f709354035f0fb2",
+  "welite/controls.lua": "f5c082686b3ab5ebfe69c3f058c2dc9c3c56c0d696e36802757f22ae314dfdda",
+  "welite/lightslider.lua": "3f507577a23aaa4b1af3173369951d181b48dd56955267f798e34a03912b5da1",
+  "welite/controlicon.lua": "59851b3f6a3c513bfd27eb6f1e4e35d12753ca511f7bb2e6fdf96423bbc83f76",
+  "welite/filter.lua": "40ce2468a3bae90aff93236535f8ab5c8da8065efd5ca6088393c226b64df295"
+}

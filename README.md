@@ -1,175 +1,120 @@
-# WeRead KOReader Plugin
+# WeLite
 
-> **免责声明**：本项目仅供个人学习和技术研究使用，不得用于商业用途。使用本项目所产生的一切后果（包括但不限于账号封禁、数据丢失等）由使用者自行承担，项目作者概不负责。请遵守微信读书的用户协议和相关法律法规。
+面向 KOReader 的微信读书插件，以清晰的黑白界面呈现书架、阅读统计和快捷控制，优先适配 Kindle 等墨水屏设备。
 
-在 KOReader 上阅读微信读书中的书籍、公众号文章的插件。支持同步进度同步，阅读时长同步和统计，查看书评、划线和想法。让Kindle、Kobo等封闭系统设备也能体验微信读书！
+WeLite 基于 **[finlater/weread.koplugin](https://github.com/finlater/weread.koplugin)** 开发，沿用上游的登录、下载、同步、公众号、书评和划线想法等功能，在此基础上接入 WeLite 的界面与交互。感谢 **finlater 及上游贡献者** 提供的功能实现。
 
-## 安装
+> **修改版本声明 · 2026-10-21**：本仓库由 Xlawy 维护，是上游项目的独立修改版本，不是上游官方发行版。本次修改包括 WeLite 书架、筛选与下拉界面、数据适配、对应测试及 fork 更新源。项目继续采用 **AGPL-3.0-only**；原作者版权与许可证声明保留，详见本文末尾和 [NOTICE](NOTICE)。
 
-> ⚠️ 建议使用 **KOReader 2026.03 或更高版本**。旧版本可能无法正常加载或使用插件，例如「工具」菜单中找不到「微信读书」。详见 [#14](https://github.com/finlater/weread.koplugin/issues/14)。
-
-1. 前往 [GitHub Releases](https://github.com/finlater/weread.koplugin/releases) 下载最新的 `weread.koplugin-vX.Y.Z.zip` 安装包。
-2. 解压安装包，得到 `weread.koplugin` 文件夹。
-3. 将该文件夹复制到 KOReader 的 `plugins` 目录：
-
-```
-koreader/plugins/weread.koplugin/
-```
-
-4. 重启 KOReader，在菜单中找到：
-
-```
-工具 → 微信读书
-```
-
-后续更新插件可在 **微信读书 → 设置 → 更新管理** 菜单中在线更新。
-
-## 登录与认证
-
-插件只支持微信扫码登录，扫码前需要先为账号开通微信读书 Skill：
-
-1. 手机打开**微信读书 App**。
-2. 进入 **我 → 设置 → 微信读书 Skill**。
-3. 点击 **获取 API Key**，确认已经生成个人官方 API Key。
-4. 在 KOReader 打开 **工具 → 微信读书 → 微信扫码登录**。
-5. 使用微信扫码并在手机端确认；若手机显示四位验证码，请在 KOReader 中输入。
+[WeLite 源码](https://github.com/Xlawy/weread-based-welite) · [版本发布](https://github.com/Xlawy/weread-based-welite/releases) · [问题反馈](https://github.com/Xlawy/weread-based-welite/issues)
 
 ## 功能
 
-| 主菜单 | 书架 | 公众号 |
-|:---:|:---:|:---:|
-| ![主菜单](screenshots/main_manu.png) | ![微信读书书架](screenshots/bookshelf.png) | ![公众号](screenshots/bookshelf_wp.png) |
+- **WeLite 书架**：分页封面、阅读进度、全书 / 部分下载标记、书名与作者；支持本地搜索、排序和下载状态筛选。
+- **本地阅读**：本地分类包含全书和已下载章节，也保留从云端书架移除的下载记录；点击已下载书籍阅读，长按打开书籍操作。
+- **阅读统计**：主页展示本月、本周和今日数据，支持进入社区版统计详情；缺失数据显示「—」。
+- **下拉快捷控制**：WIFI、夜间模式、全屏刷新、KOReader 设置、WeLite 设置和背光调节；阅读时显示章节、页数及目录导航。
+- **社区功能**：保留扫码登录、公众号、书籍详情、书评、划线想法、多选章节 / 全书下载、章节预下载、阅读进度与时长上报，以及 SimpleUI / ZenUI 集成。
 
-| 阅读时间上报 | 阅读统计 | 阅读进度同步 |
-|:---:|:---:|:---:|
-| ![阅读时间上报](screenshots/read_report.png) | ![阅读统计](screenshots/read_stats.png) | ![阅读进度同步](screenshots/read_progress.png) |
+书架使用 KOReader 原生控件，当前页最多显示六张封面。设备能力不足时，对应控制会禁用或显示未知状态。
 
-| 多选章节下载 | 章节预下载 | 下载全书 |
-|:---:|:---:|:---:|
-| ![多选章节下载](screenshots/download_multi_chapter.png) | ![章节预下载](screenshots/pre_download_next_chapter.png) | ![下载全书](screenshots/download.png) |
+## 安装与更新
 
-| 书籍详情 | 书评 | 划线和想法 |
-|:---:|:---:|:---:|
-| ![书籍详情](screenshots/book_detail.png) | ![书评](screenshots/book_review.png) | ![划线和想法](screenshots/thought.png) |
+建议使用 **KOReader 2026.03 或更高版本**。
 
-| 搜索书籍 | 快捷菜单 | 设置 |
-|:---:|:---:|:---:|
-| ![搜索书籍](screenshots/book_search.png) | ![快捷菜单](screenshots/quick_menu.png) | ![设置](screenshots/setting.png) |
+1. 从 [WeLite Releases](https://github.com/Xlawy/weread-based-welite/releases) 获取本 fork 的安装包；如尚无可用发行版，可在源码目录执行 `make package`。
+2. 退出 KOReader，备份已有插件目录与个人配置。
+3. 解压 `weread.koplugin-vX.Y.Z.zip`，将其中的 `weread.koplugin` 放入 `koreader/plugins/`。
+4. 重启 KOReader，从 **工具 → 微信读书 → 书架** 打开 WeLite。
 
-
-## SimpleUI / Zen_UI 集成
-
-插件提供统一的“微信读书书架”入口并支持集成到 SimpleUI和 ZenUI的快捷按钮中。(需要安装最新版 [SimpleUI](https://github.com/doctorhetfield-cmd/simpleui.koplugin) 和 [ZenUI](https://github.com/AnthonyGress/zen_ui.koplugin)插件)。
-
-- **SimpleUI**：进入 `快捷操作` 新建操作，类型选择 `插件 → 微信读书`，再把该操作加入底部栏即可。如需使用本项目图标，将 `icons/weread-w-book.svg` 或 `icons/weread-ink.png` 复制到 SimpleUI 的自定义图标目录`koreader/setting/simpleui/sui_icons`后，在快捷操作中选中它。
-- **Zen_UI 底栏**：进入 `控件 → 按钮 → ➕ → 插件 → 微信读书`，点击后直接打开微信读书书架。注册时会把 `weread-w-book.svg` 同步到 KOReader 用户图标目录，供 ZenUI 自动匹配或手动选择；不会自动修改、添加或启用 Tab。
-- **Zen_UI 首页**：进入 `主页 → 小组件`，启用“微信读书”组件。组件默认关闭，可由用户自行排序。
-
-原生 KOReader 的 “工具 → 微信读书” 菜单保持不变。
-
-|                     SimpleUI                     |                   Zen_UI                   |
-|:------------------------------------------------:|:------------------------------------------:|
-| ![simpleui](screenshots/simpleui_quick_menu.png) | ![ZenUI](screenshots/zenui_quick_menu.png) |
-
-## 菜单结构
-
-```
-微信读书
-├── 微信扫码登录 / 已经登录 · 账号名
-├── 立即同步进度       （阅读微信读书缓存书籍时显示）
-├── 书籍详情           （阅读微信读书缓存书籍时显示）
-├── 显示划线和想法     （阅读书籍时显示，开关）
-├── 划线和想法管理     （本地书与微信下载书共用；不修改 EPUB/KOReader 笔记）
-│   ├── 匹配微信读书书目 / 已关联微信书籍：书名（下载书自动关联）
-│   ├── 继续匹配（手动续传、定位；开书仅显示已保存结果）
-│   ├── 选择章节匹配（完整本地目录，可手动对应；勾选章节获取最新想法）
-│   └── 清理划线和想法（再次匹配时下载最新数据）
-├── 书架               单行顶栏：内容与分组 / 搜索 / 获取最新 / 菜单
-│   ├── 内容与分组      书籍 / 公众号；书籍内选择微信读书分组，支持离线缓存
-│   └── 菜单            排序、筛选、列表 / 封面；列表支持分页 / 连续滚动，分页支持滑动与按钮
-├── weread收藏夹        已下载书籍（不包含单章）的本地入口
-├── 搜索               搜索微信读书
-├── 阅读时间上报        后台上报阅读时长
-│   ├── 启用阅读时间上报
-│   ├── 仅在阅读时上报
-│   ├── 上报间隔
-│   │   ├── 30 秒（默认）
-│   │   └── 60 秒
-│   ├── 选择目标书籍
-│   │   ├── 自动关联微信读书书籍
-│   │   └── 手动设置上报书籍
-│   └── 上报状态
-├── 阅读统计            阅读时长/天数/排行/偏好可视化（页内 周/月/年/总 tab 切换，可翻阅历史周期）
-├── 设置
-│   ├── 书架视图
-│   │   ├── 列表模式（默认；适合连续滚动）
-│   │   └── 封面模式（按屏幕自适应行列；仅加载当前页封面）
-│   ├── 分页书架（仅列表模式；默认开启，关闭后使用连续滚动）
-│   ├── 缓存管理
-│   │   ├── 扫描并关联本地书籍
-│   │   ├── 缓存清理
-│   │   └── 缓存目录
-│   ├── 进度管理
-│   │   ├── 打开时拉取进度（默认关闭）
-│   │   └── 关闭时上传进度（默认关闭）
-│   ├── 下载设置
-│   │   ├── 书籍图片（默认开启）
-│   │   ├── 公众号文章图片（默认关闭）
-│   │   ├── 隐藏脚注文本（默认关闭；开启需同时启用 KOReader 脚注弹框；仅影响新下载书籍）
-│   │   └── 章节预下载
-│   │       ├── 自动预下载下一章（默认关闭，后台下载）
-│   │       ├── 预下载划线和想法（默认关闭；需同时开启总开关，位置匹配仍手动触发）
-│   │       └── 显示预下载提示（默认开启，总开关关闭时不可操作）
-│   ├── 划线设置
-│   │   ├── 划线边缘防误触（默认开启）
-│   │   ├── 边缘区域：20%（可调 10%–40%）
-│   │   └── 想法弹窗设置
-│   │       ├── 位置：居中（可切换为 底部）
-│   │       ├── 高度：62%（可调 20%–90%）
-│   │       ├── 宽度：80%（仅居中时可用，40%–100%）
-│   │       ├── 字体大小（相对文档字号，默认 -2；可切换为绝对字号）
-│   │       ├── 字体对比度：默认（可调 -3–+9，最大为纯黑）
-│   │       └── 点击左右区域翻页（默认关闭，底部与居中弹窗均生效）
-│   │   └── 想法弹窗宽度：80%（仅居中时可用，40%–100%）
-│   ├── 账号管理
-│   │   ├── 账号状态
-│   │   ├── 立即续期 Cookie
-│   │   └── 清除账号数据
-│   ├── 高级选项
-│   │   └── Mock 服务
-│   │       ├── 当前生效环境
-│   │       ├── 重启后启用 Mock（默认关闭，测试数据独立保存）
-│   │       ├── 服务器 IP：192.168.31.111（可修改）
-│   │       ├── 服务器端口：8765（可修改）
-│   │       └── 测试连接
-│   └── 关于
-│       ├── 版本 x.y.z
-│       ├── 作者：finlater
-│       ├── 检查更新
-│       ├── 每小时自动检查一次（默认关闭）
-│       └── 更新时优先使用代理（默认开启；代理失败会自动回退 GitHub）
+```text
+koreader/plugins/weread.koplugin/
 ```
 
-## 贡献
+当前保留 `weread.koplugin` 目录名及「微信读书」宿主菜单名称，以兼容上游的数据与集成入口。该目录会替换已安装的同名社区插件；原作者 Releases 中的安装包不包含 WeLite 界面。
 
-欢迎提交 issue 和 PR。提交前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。
+在线更新源指向本 fork。只有本仓库发布符合更新器要求的安装包及校验文件后，在线更新才可用。
 
-XPointer 外部标注层仍是实验性功能，测试步骤和限制见
-[原型说明](docs/xpointer-overlay-prototype.md)。
+## 登录
 
-## 许可证
+1. 在手机微信读书 App 中进入 **我 → 设置 → 微信读书 Skill**，获取个人 API Key。
+2. 在设备上打开 **工具 → 微信读书 → 微信扫码登录**，或点击 WeLite 顶栏的「未登录」。
+3. 使用微信扫码确认；如手机显示四位验证码，在设备上输入。
 
-本项目代码采用 [GNU Affero General Public License v3.0](LICENSE)，SPDX 标识为 `AGPL-3.0-only`，与 KOReader 使用的许可证保持一致。
+账号认证与缓存管理沿用社区版实现。请勿在问题反馈、截图或日志中公开 Cookie、API Key、个人批注及受版权保护的书籍内容。
 
-修改、整合或再分发本项目时，必须遵守 AGPL-3.0，保留版权和许可证声明，并按许可证要求将本项目代码或其衍生作品开源。
+## 界面与操作
 
-`fonts/NotoEmoji-Regular.ttf` 是第三方字体，采用 [SIL Open Font License 1.1](fonts/LICENSE)，不适用本项目的 AGPL-3.0。
+| 入口 | 操作 |
+| --- | --- |
+| 书架 / 本地 | 切换云端书架与已下载内容 |
+| 同步 | 显式刷新书架 |
+| 筛选 / 排序 | 输入书名或作者，选择排序与下载状态；「应用」生效，「取消」不改变列表 |
+| 点击书籍 | 已下载书籍直接阅读；未下载书籍进入社区版书籍详情 |
+| 长按书籍 | 打开社区版书籍操作，保留下载、详情等入口 |
+| 左上角 WeLite | 下载书籍、重载本页封面、切换账号、退出登录及社区功能 |
+| 顶部下拉 / Menu 键 | 打开主页快捷控制；阅读器也支持顶部点击、下滑与拖动释放 |
+| 下拉 → WeLite 设置 | 调整时间显示与启动时自动打开的偏好 |
 
-Copyright © 2026 finlater and contributors.
+公众号、微信分组、列表视图及全部社区功能位于 **WeLite → 社区功能…**。原生 KOReader 的「工具 → 微信读书」菜单也继续可用。
 
-## 项目推荐
+主页统计使用会话缓存，首次无数据时显示「—」；通过 **WeLite → 社区功能… → 刷新阅读统计** 获取汇总。今日数据按 UTC+8 自然日计算。书架刷新、统计刷新和阅读同步是不同操作，翻页不会隐式触发全量同步。
 
-| 插件 | 简介                                                  |
-|------|-----------------------------------------------------|
-| [kindlebtcontroller.koplugin](https://github.com/finlater/kindlebtcontroller.koplugin) | 蓝牙手柄/遥控器控制 Kindle —— 翻页、调节亮度、章节跳转等 20+ 操作，按键完全可自定义。 |
-| [one.koplugin](https://github.com/finlater/one.koplugin) | 在 KOReader 上离线阅读「ONE · 一个」每日更新：一图、一文、一问答。           |
+SimpleUI / ZenUI 继续使用其「微信读书」插件入口。WeLite 没有另建一套账号、下载或阅读记录存储。
+
+## 开发与测试
+
+所有开发遵守 [AGENTS.md](AGENTS.md)：轻量化、模块职责清晰、行为模块对应测试，发行包排除开发依赖与测试数据。
+
+```sh
+make check    # 模块测试映射与 Lua 命名空间检查
+make test     # Lua 测试、Python 工具测试及真实 KOReader 集成测试
+make package  # 生成 dist/weread.koplugin-vX.Y.Z.zip
+```
+
+`make test` 需要已经构建好的 KOReader 运行目录。本机可自动发现相邻 `welite/.dev/koreader/` 下的唯一模拟器构建；其他环境显式指定：
+
+```sh
+KOREADER_RUNTIME=/绝对路径/koreader make test
+```
+
+测试入口不会自动下载或编译 KOReader。测试报告和渲染预览写入 `.dev/reports/`，不进入发行包。
+
+- [原版 WeLite UI 精确迁移与像素验证](docs/welite-ui-parity.md)
+- [社区版功能评估与首次迁移记录](docs/welite-migration.md)
+- [模块与测试映射](tests/module-map.json)
+- [上游贡献指南](CONTRIBUTING.md)
+
+当前已验证桌面模拟器中的布局与交互，不代表 Kindle 真机性能验收。部分上游网络路径仍在 UI 线程执行；真实设备的耗时、内存、无线连接、休眠与墨水屏刷新仍需验证。
+
+## 来源、署名与许可证
+
+### 上游与修改来源
+
+| 项目 | 作者 / 维护者 | 在 WeLite 中的作用 |
+| --- | --- | --- |
+| [WeRead KOReader Plugin](https://github.com/finlater/weread.koplugin) | finlater and contributors | 登录、协议、下载、同步、公众号、书评、划线想法及集成等功能底座 |
+| [原 WeLite 项目](https://github.com/Xlawy/welite) | Xlawy and contributors | 书架、筛选、下拉控制及相关界面设计与实现 |
+| [本 WeLite fork](https://github.com/Xlawy/weread-based-welite) | Xlawy and contributors | 界面迁移、社区数据适配、测试与维护 |
+
+本 fork 的迁移基线为上游提交 [`ae3930fa91e59ac72152fa709029e39fe6bcd1d6`](https://github.com/finlater/weread.koplugin/tree/ae3930fa91e59ac72152fa709029e39fe6bcd1d6)（1.6.0）。上游已有工作不归为本 fork 原创；原作者的版权、许可证和第三方声明继续保留。
+
+```text
+Upstream: Copyright (C) 2026 finlater and contributors
+WeLite modifications: Copyright (C) 2026 Xlawy and contributors
+SPDX-License-Identifier: AGPL-3.0-only
+```
+
+### 代码许可与源码获取
+
+本项目作为上游的修改版本，整体继续按 **[GNU Affero General Public License v3.0](LICENSE)** 分发，SPDX 标识为 **`AGPL-3.0-only`**。许可证正文未修改；[NOTICE](NOTICE) 记录来源、修改日期与第三方材料。
+
+修改和再分发时，请保留版权、许可和无担保声明，显著标明修改及日期，并按许可证适用条款提供对应版本的完整源码。发行包应与 [本仓库](https://github.com/Xlawy/weread-based-welite) 对应发布标签的源码一致；发布前需确保实际修改已包含在该标签及可获取的源码中，不能仅提供上游源码或与发行包不匹配的仓库链接。
+
+若修改版本支持用户通过网络远程交互，还须依 AGPL 第 13 条向这些用户显著提供免费获取对应源码的机会。具体条件以 [许可证全文](LICENSE) 和 [GNU 官方说明](https://www.gnu.org/licenses/gpl-faq.en.html) 为准。本项目不另加「禁止商业用途」等限制 AGPL 授权的条款。
+
+### 第三方材料与无担保声明
+
+`fonts/NotoEmoji-Regular.ttf` 的版权属于 **Google LLC（2013）**，按 **[SIL Open Font License 1.1](fonts/LICENSE)** 分发；该字体不改用 AGPL，字体许可证随发行包保留。
+
+本软件按许可证约定提供，不附带适销性、特定用途适用性等担保。WeLite 是非官方项目，与微信读书、腾讯或 KOReader 不存在官方隶属、授权背书关系；相关名称与商标归各自权利人所有。软件许可证不授予书籍内容或第三方服务的使用权。
