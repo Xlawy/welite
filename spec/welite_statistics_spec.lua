@@ -13,7 +13,7 @@ local plugin={settings={data_dir='/tmp',get=function() return {user_vid=account}
     client={get_read_stats=function(_,mode) calls=calls+1;return {totalReadTime=3600,readTimes={}} end},
     showInfo=function(self,error) self.error=error end,
     showShelfView=function(self) self.rebuilt=true end}
-local view={mode='books',page=2};plugin.shelf_view=view
+local view={mode='books',page=2,redraw=function() plugin.rebuilt=true end};plugin.shelf_view=view
 local Stats=require('weread.ui.welite.statistics')
 assert(Stats.refresh(plugin,view));assert(calls==0,'UI callback must not make requests')
 local result=task.task{checkCancelled=function() end}
@@ -38,3 +38,13 @@ for _,reason in ipairs({'timeout','disconnected','authentication_expired','rate_
 end
 plugin.client.get_read_stats=function() return {} end
 assert(not pcall(task.task,{checkCancelled=function() end}),'missing total is unknown, not zero')
+
+plugin.settings.is_api_configured=function() return true end
+plugin.welite_stats_attempt=os.time()
+local before=launches
+assert(Stats.ensure(plugin,view)==false and launches==before,'page redraw must not refetch statistics')
+
+worker.busy=function() return false end
+plugin.welite_stats_attempt=nil
+assert(Stats.ensure(plugin,view)==true and launches==before+1,'first home visit fetches summary automatically')
+assert(Stats.ensure(plugin,view)==false and launches==before+1,'automatic load is bounded across rebuilds')

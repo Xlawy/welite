@@ -124,13 +124,13 @@ expect(registered.weread_show == nil,
     "generic WeRead shortcut action is no longer registered")
 local sync_action = registered.weread_sync_progress
 expect(sync_action and sync_action.event == "WeReadSyncProgress"
-        and sync_action.title == "WeRead · Sync progress now"
+        and sync_action.title == "WeLite · Sync progress now"
         and sync_action.category == "none"
         and sync_action.reader == true and sync_action.general ~= true,
     "sync gesture reuses the quick-menu event as a reader-only action")
 local report_action = registered.weread_read_report_status
 expect(report_action and report_action.event == "ShowWeReadReportStatus"
-        and report_action.title == "WeRead · Reading time report status"
+        and report_action.title == "WeLite · Reading time report status"
         and report_action.category == "none"
         and report_action.reader == true and report_action.general ~= true,
     "reading report status is registered as a reader-only action")
@@ -141,7 +141,7 @@ expect(quick_action and quick_action.event == "ShowWeReadQuickMenu",
 expect(quick_action and quick_action.reader == true
         and quick_action.general ~= true,
     "quick menu action remains reader-only")
-expect(quick_action and quick_action.title == "WeRead · Quick menu",
+expect(quick_action and quick_action.title == "WeLite · Quick menu",
     "quick menu action has the requested title")
 local toggle_action = registered.weread_toggle_annotations
 expect(toggle_action and toggle_action.event == "ToggleWeReadAnnotations",
@@ -150,7 +150,7 @@ expect(toggle_action and toggle_action.reader == true
         and toggle_action.general ~= true,
     "annotation visibility action is reader-only")
 expect(toggle_action
-        and toggle_action.title == "WeRead · Toggle underlines and thoughts",
+        and toggle_action.title == "WeLite · Toggle underlines and thoughts",
     "annotation visibility action has a gesture-friendly title")
 local continue_action = registered.weread_continue_annotation_matching
 expect(continue_action
@@ -160,7 +160,7 @@ expect(continue_action and continue_action.reader == true
         and continue_action.general ~= true,
     "continue-matching action is reader-only")
 expect(continue_action
-        and continue_action.title == "WeRead · Continue matching underlines and thoughts",
+        and continue_action.title == "WeLite · Continue matching underlines and thoughts",
     "continue-matching action has a gesture-friendly title")
 expect(registered.weread_current_page_thoughts == nil,
     "current-page thoughts is no longer exposed as a separate shortcut action")
@@ -170,20 +170,20 @@ expect(bookshelf_action and bookshelf_action.event == "ShowWeReadBookshelf",
 expect(bookshelf_action and bookshelf_action.general == true
         and bookshelf_action.reader ~= true,
     "bookshelf action is grouped with the general WeRead actions")
-expect(bookshelf_action and bookshelf_action.title == "WeRead · Bookshelf",
+expect(bookshelf_action and bookshelf_action.title == "WeLite · Bookshelf",
     "bookshelf gesture action has the requested title")
 local general_actions = {
     weread_local_bookshelf = {
         event = "ShowWeReadLocalBookshelf",
-        title = "WeRead · Local bookshelf",
+        title = "WeLite · Local bookshelf",
     },
     weread_reading_statistics = {
         event = "ShowWeReadReadingStatistics",
-        title = "WeRead · Reading statistics",
+        title = "WeLite · Reading statistics",
     },
     weread_search = {
         event = "ShowWeReadSearch",
-        title = "WeRead · Search",
+        title = "WeLite · Search",
     },
 }
 for name, expected in pairs(general_actions) do
@@ -262,8 +262,18 @@ expect(#update_available_items == 5
     "available update replaces the check item without adding a sixth item")
 available_version = nil
 about_items[1].callback()
-expect(shown_widget and shown_widget.text:find("Disclaimer", 1, true),
-    "version item preserves the previous about dialog behavior")
+expect(shown_widget and shown_widget.text:find("AGPL-3.0-only", 1, true),
+    "version item shows the applicable license")
+expect(shown_widget.text:find("finlater/weread.koplugin", 1, true), "about retains upstream attribution")
+expect(shown_widget.text:find("Xlawy/weread-based-welite", 1, true), "about links modified source")
+expect(not shown_widget.text:find("not for commercial use", 1, true), "about must not add noncommercial restrictions")
+local toolbar = {}
+host:addToMainMenu(toolbar)
+expect(toolbar.weread.text == "WeLite", "KOReader toolbar displays fork name")
+host.settings.mock_endpoint = true
+host:addToMainMenu(toolbar)
+expect(toolbar.weread.text == "WeLite [MOCK]", "mock mode preserves fork name")
+host.settings.mock_endpoint = nil
 local main_items = host:getMainMenuItems()
 expect(main_items[#main_items] and main_items[#main_items].text == "Settings",
     "about is no longer present in the outer menu")
@@ -281,7 +291,7 @@ local function menu_has(items, text)
     return false
 end
 
-expect(menu_has(main_items, "WeRead favorites"),
+expect(menu_has(main_items, "WeLite favorites"),
     "main menu did not rename the local collection entry")
 
 host.ui.document = { file = "/books/local.epub" }

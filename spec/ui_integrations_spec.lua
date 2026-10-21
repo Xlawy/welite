@@ -39,7 +39,7 @@ expect(ZenUI:onZenUIReady(plugin) == true,
 expect(registered_id == "weread.bookshelf"
     and type(registered_builder) == "function",
     "ZenUI registration used the wrong item descriptor")
-expect(registered_options.label == "WeRead",
+expect(registered_options.label == "WeLite",
     "ZenUI registration used the wrong label")
 expect(ZenUI:_openBookshelf() == true and opened == 1,
     "ZenUI entry did not call the stable bookshelf method")

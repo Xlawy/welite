@@ -9,6 +9,9 @@ function M.install(plugin)
     local ui=plugin.ui
     if not ui or not ui.registerTouchZones then return end
     ui:registerTouchZones{{id='welite_community_pulldown',ges='swipe',screen_zone={ratio_x=0,ratio_y=0,ratio_w=1,ratio_h=0.12},
+        -- Native reader/menu zones consume swipe events even when registered
+        -- earlier. Declare priority just like the top tap and drag zones.
+        overrides={'readermenu_swipe','readermenu_ext_swipe','rolling_swipe','paging_swipe'},
         handler=function(gesture)
             if gesture.direction=='south' then return M.show(plugin) end
             return false

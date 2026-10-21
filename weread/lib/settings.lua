@@ -8,6 +8,11 @@ local Settings = {}
 Settings.__index = Settings
 Settings.AUTH_SCHEMA_VERSION = 1
 
+-- File manager and ReaderUI coexist. Independent snapshots can overwrite a
+-- newer login when the older instance flushes an unrelated preference.
+-- Share only stores for the same profile file; weak values release closed profiles.
+local live_stores = setmetatable({}, { __mode = "v" })
+
 local defaults = {
     auth_schema_version = Settings.AUTH_SCHEMA_VERSION,
     device_fingerprint = "",
@@ -142,7 +147,11 @@ function Settings:new()
         mock_endpoint = mock_endpoint,
         collection_name = name,
     }
-    obj.store = LuaSettings:open(obj.settings_file)
+    obj.store = live_stores[obj.settings_file]
+    if not obj.store then
+        obj.store = LuaSettings:open(obj.settings_file)
+        live_stores[obj.settings_file] = obj.store
+    end
     if mock_endpoint then
         obj.store:saveSetting("auth_schema_version", Settings.AUTH_SCHEMA_VERSION)
         obj.store:saveSetting("api_key", "mock-api-key")

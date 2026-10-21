@@ -1,4 +1,4 @@
-.PHONY: test check package
+.PHONY: test check package run migrate-emulator
 test:
 	python3 scripts/test_welite.py
 check:
@@ -6,3 +6,8 @@ check:
 	bash scripts/check_lua_namespace.sh
 package:
 	bash scripts/package_release.sh
+
+run:
+	python3 scripts/emulator.py run $(ARGS)
+migrate-emulator:
+	python3 scripts/emulator.py migrate $(ARGS)

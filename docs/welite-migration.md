@@ -35,7 +35,7 @@ make test
 make package
 ```
 
-本机 `make test` 可发现相邻 `welite/.dev/koreader/koreader-emulator-*/koreader` 的唯一构建；其他机器使用 `KOREADER_RUNTIME=/绝对路径/koreader make test`。测试不会自动下载或编译。启动器临时链接插件并复制独立测试，拒绝覆盖已有测试目标，完成后清理；结果与截图位于 `.dev/reports/`。
+当前通过 `make migrate-emulator` 导入旧项目构建后，`make run` 与 `make test` 默认使用独立的 `.dev/emulator`；其他机器使用 `KOREADER_RUNTIME=/绝对路径/koreader make test`。测试不会自动下载或编译。启动器临时链接插件并复制独立测试，拒绝覆盖已有测试目标，完成后清理；结果与截图位于 `.dev/reports/`。
 
 ## 验证证据与范围
 

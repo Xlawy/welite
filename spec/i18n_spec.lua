@@ -13,7 +13,10 @@ package.loaded["gettext"] = gettext
 local I18n = require("weread.lib.i18n")
 
 assert(I18n.tr("Bookshelf") == "书架", "automatic Chinese locale must translate plugin menus")
-assert(require("_meta").fullname == "微信读书", "plugin metadata must follow the automatic locale")
+assert(require("_meta").fullname == "WeLite", "plugin metadata must follow the automatic locale")
+
+assert(I18n.tr("WeLite · Bookshelf") == "WeLite·书架")
+assert(I18n.tr("WeLite [MOCK]") == "WeLite [MOCK]")
 
 gettext.current_lang = "C"
 assert(I18n.tr("Bookshelf") == "Bookshelf", "runtime language changes must not be cached")

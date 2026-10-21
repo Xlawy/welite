@@ -5,6 +5,8 @@ from pathlib import Path
 import subprocess
 import sys
 
+from emulator import find_runtime
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -58,12 +60,7 @@ def integration(runtime):
 def main():
     check()
     if len(sys.argv)>1 and sys.argv[1]=='check': return
-    runtime=os.environ.get('KOREADER_RUNTIME')
-    if not runtime:
-        candidates=list((ROOT.parent / 'welite/.dev/koreader').glob('koreader-emulator-*/koreader'))
-        if len(candidates)==1: runtime=str(candidates[0])
-    if not runtime:
-        raise ValueError('Set KOREADER_RUNTIME to a built KOReader runtime (see docs/welite-migration.md)')
+    runtime=find_runtime()
     env=dict(os.environ,LUAJIT_BIN=str(Path(runtime).resolve() / 'luajit'))
     subprocess.run(['bash','scripts/check_lua_namespace.sh'],cwd=ROOT,check=True)
     subprocess.run(['bash','scripts/run_lua_specs.sh'],cwd=ROOT,env=env,check=True)

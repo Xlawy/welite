@@ -72,4 +72,39 @@ describe('WeLite community shelf integration',function()
         Device.screen.screen_size=original_size
         assert.is_true(ok,tostring(err))
     end)
+    it('paints background reading totals and progress into the visible home',function()
+        view=View.show({welite=true,mode='books',books={{bookId='fixture',title='测试'}},
+            cover_mode=true,paged=true,page=1,total_books=1},{})
+        local task
+        local worker={busy=function() return false end,start=function(_,options) task=options;return true end}
+        local now=os.time()
+        local Reading=require('weread.ui.welite.reading')
+        local plugin={shelf_view=view,welite_stats_worker=worker,
+            settings={data_dir='/tmp',is_api_configured=function() return true end,
+                get=function(_,key,default) if key=='account' then return {user_vid='fixture'} end;return default end},
+            requireLogin=function() return true end,
+            client={get_read_stats=function() return {totalReadTime=3600,
+                readTimes={[tostring(Reading.dayStart(now))]=600}} end,
+                get_progress=function() return {book={progress=42}} end}}
+        local Stats=require('weread.ui.welite.statistics')
+        assert.is_true(Stats.ensure(plugin,view))
+        task.on_done{ok=true,value=task.task{checkCancelled=function() end}}
+        UI:forceRePaint()
+        assert.equals(3600,view.overview.monthly.total_seconds)
+        assert.equals(600,Reading.today(view.overview).total_seconds)
+        assert.is_true(view.stat_values.monthly.text~='—')
+        plugin.welite_progress={fingerprint=require('weread.lib.worker_settings').fingerprint(plugin.settings),
+            values={},order={},worker=worker}
+        require('weread.ui.welite.progress').ensure(plugin,view)
+        task.on_done{ok=true,value=task.task{checkCancelled=function() end}}
+        UI:forceRePaint()
+        local function contains(widget,text)
+            if widget.text==text then return true end
+            for _,child in ipairs(widget) do
+                if type(child)=='table' and contains(child,text) then return true end
+            end
+            return false
+        end
+        assert.is_true(contains(view,'42%'))
+    end)
 end)

@@ -118,6 +118,11 @@ end
 
 function M:onWeReadAccountChanged()
     self.welite_overview = nil
+    self.welite_stats_attempt = nil
+    if self.welite_progress and self.welite_progress.worker then
+        self.welite_progress.worker:cancel(nil, "account_changed")
+    end
+    self.welite_progress = nil
     self.welite_shelf_status = nil
     if self.welite_stats_worker then self.welite_stats_worker:cancel(nil, "account_changed") end
     self:closeWeReadUI()
@@ -153,6 +158,10 @@ end
 function M:refreshBookshelf(old_view, view_options)
     if self.shelf_refreshing or not self:requireLogin(false, true) then return end
     self.shelf_refreshing = true
+    if self.welite_progress and self.welite_progress.worker then
+        self.welite_progress.worker:cancel(nil, "shelf_refresh")
+    end
+    self.welite_progress = nil
     -- A finishing thumbnail batch must not replace the view being refreshed.
     self.shelf_cover_generation = (self.shelf_cover_generation or 0) + 1
     self.shelf_cover_pending = nil
@@ -584,6 +593,11 @@ function M:showShelfView(mode, keyword, old_view, options)
     })
     if paged then self.shelf_view_pages[mode] = view.page end
     self.shelf_view = view
+    if not options.on_select and cover_mode and self.client and self.client.get_read_stats
+        and self.settings.is_api_configured then
+        require("weread.ui.welite.statistics").ensure(self,view)
+        if self.client.get_progress then require("weread.ui.welite.progress").ensure(self,view) end
+    end
     if cover_mode and not skip_cover_fetch_once then
         local fetch_options = {}
         for key, value in pairs(options) do fetch_options[key] = value end

@@ -28,62 +28,62 @@ function M:onDispatcherRegisterActions()
     Dispatcher:registerAction("weread_quick_menu", {
         category = "none",
         event = "ShowWeReadQuickMenu",
-        title = _("WeRead · Quick menu"),
+        title = _("WeLite · Quick menu"),
         reader = true,
     })
     Dispatcher:registerAction("weread_sync_progress", {
         category = "none",
         event = "WeReadSyncProgress",
-        title = _("WeRead · Sync progress now"),
+        title = _("WeLite · Sync progress now"),
         reader = true,
     })
     Dispatcher:registerAction("weread_read_report_status", {
         category = "none",
         event = "ShowWeReadReportStatus",
-        title = _("WeRead · Reading time report status"),
+        title = _("WeLite · Reading time report status"),
         reader = true,
     })
     Dispatcher:registerAction("weread_bookshelf", {
         category = "none",
         event = "ShowWeReadBookshelf",
-        title = _("WeRead · Bookshelf"),
+        title = _("WeLite · Bookshelf"),
         general = true,
     })
     Dispatcher:registerAction("weread_local_bookshelf", {
         category = "none",
         event = "ShowWeReadLocalBookshelf",
-        title = _("WeRead · Local bookshelf"),
+        title = _("WeLite · Local bookshelf"),
         general = true,
     })
     Dispatcher:registerAction("weread_reading_statistics", {
         category = "none",
         event = "ShowWeReadReadingStatistics",
-        title = _("WeRead · Reading statistics"),
+        title = _("WeLite · Reading statistics"),
         general = true,
     })
     Dispatcher:registerAction("weread_search", {
         category = "none",
         event = "ShowWeReadSearch",
-        title = _("WeRead · Search"),
+        title = _("WeLite · Search"),
         general = true,
     })
     Dispatcher:registerAction("weread_toggle_annotations", {
         category = "none",
         event = "ToggleWeReadAnnotations",
-        title = _("WeRead · Toggle underlines and thoughts"),
+        title = _("WeLite · Toggle underlines and thoughts"),
         reader = true,
     })
     Dispatcher:registerAction("weread_continue_annotation_matching", {
         category = "none",
         event = "WeReadContinueAnnotationMatching",
-        title = _("WeRead · Continue matching underlines and thoughts"),
+        title = _("WeLite · Continue matching underlines and thoughts"),
         reader = true,
     })
 end
 
 function M:addToMainMenu(menu_items)
     menu_items.weread = {
-        text = self.settings.mock_endpoint and _("WeRead [MOCK]") or _("WeRead"),
+        text = self.settings.mock_endpoint and _("WeLite [MOCK]") or _("WeLite"),
         sorting_hint = "tools",
         sub_item_table_func = function()
             return self:getMainMenuItems()
@@ -123,8 +123,8 @@ function M:getMainMenuItems()
             end),
         },
         {
-            text = _("WeRead favorites"),
-            callback = self:safeCallback(_("WeRead favorites"), function()
+            text = _("WeLite favorites"),
+            callback = self:safeCallback(_("WeLite favorites"), function()
                 self:showWereadCollection()
             end),
         },
@@ -823,7 +823,7 @@ end
 
 function M:showAbout()
     UIManager:show(InfoMessage:new{
-        text = T(_("WeRead Plugin v%1\n\nDisclaimer: This project is for personal learning and technical research only, not for commercial use. All consequences arising from the use of this project (including but not limited to account bans, data loss, etc.) are borne by the user. The project author assumes no responsibility. Please comply with WeRead's user agreement and applicable laws and regulations.\n\nhttps://github.com/finlater/weread.koplugin"), self.version),
+        text = T(_("WeLite v%1\n\nBased on finlater/weread.koplugin. Copyright (C) 2026 finlater and contributors. WeLite modifications: Xlawy and contributors, 2026-10-21.\n\nLicensed under AGPL-3.0-only; see LICENSE and NOTICE in the plugin directory. You may redistribute this software under that license. No warranty is provided. Third-party fonts retain their OFL license.\n\nSource: https://github.com/Xlawy/weread-based-welite\nUpstream: https://github.com/finlater/weread.koplugin"), self.version),
     })
 end
 

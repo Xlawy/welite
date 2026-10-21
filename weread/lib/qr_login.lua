@@ -555,12 +555,13 @@ function QRLogin:_complete(login_result, generation)
         end
         logger.info("login completed")
         self.host:refreshLoginMenu()
-        self.host:showInfo(T(
+        self.host:showTransientInfo(T(
             _("WeRead login successful.\n\nAccount: %1\nCookie: %2\nOfficial API key: %3"),
             account_name,
             _("configured"),
             _("configured")
-        ))
+        ), 2)
+        self.host:showBookshelf()
     end)
 end
 

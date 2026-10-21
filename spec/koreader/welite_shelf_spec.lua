@@ -47,7 +47,8 @@ describe("welite cover shelf",function()
         assert.is_true(view.collection_sync_button.enabled)
     end)
     it("renders cached image cards with correctly scoped reading totals",function()
-        local path=require("ffi/util").realpath("plugins/welite.koplugin").."/spec/fixtures/cover.png"
+        local path=require("ffi/util").realpath("plugins/weread.koplugin").."/spec/fixtures/cover.png"
+        local fixture=assert(io.open(path, "rb"));fixture:close()
         local items={
             {id="a",kind="book",title="很长很长的书名，用于验证中文标题单行截断与居中对齐",author="测试作者"},
             {id="b",kind="book",title="山间来信",author="林知远",percent=42},

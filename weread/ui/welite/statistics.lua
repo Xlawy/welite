@@ -1,6 +1,13 @@
 -- Explicit, bounded summary refresh. No requests on paint, paging, or filtering.
 local M = {}
-function M.refresh(plugin, view)
+function M.ensure(plugin, view)
+    if not plugin.settings:is_api_configured() then return false end
+    local now=os.time()
+    if plugin.welite_stats_attempt and now-plugin.welite_stats_attempt<3600 then return false end
+    plugin.welite_stats_attempt=now
+    return M.refresh(plugin,view,true)
+end
+function M.refresh(plugin, view, quiet)
     if plugin.welite_stats_worker and plugin.welite_stats_worker:busy() then return false end
     if not plugin:requireLogin(false, true) then return false end
     local account=plugin.settings:get('account',{}).user_vid
@@ -27,13 +34,15 @@ function M.refresh(plugin, view)
         if plugin.settings:get('account',{}).user_vid~=account then return end
         if WorkerSettings.fingerprint(plugin.settings)~=fingerprint then return end
         if not result.ok then
-            if not result.cancelled then plugin:showInfo('[welite.statistics] '..tostring(result.error)) end
+            if not quiet and not result.cancelled then plugin:showInfo('[welite.statistics] '..tostring(result.error)) end
             return
         end
         WorkerSettings.merge(plugin.settings,fingerprint,result.value.auth)
         plugin.welite_overview=result.value.overview
-        if plugin.shelf_view==view and not view.welite_closed then
-            plugin:showShelfView(view.mode,view.keyword,view,{page=view.page,local_only=view.local_only})
+        local current=plugin.shelf_view
+        if current and not current.welite_closed then
+            current.overview=plugin.welite_overview
+            current:redraw()
         end
     end}
 end

@@ -37,7 +37,8 @@
       "spec/koreader/welite_home_spec.lua"
     ],
     "weread/ui/welite/statistics.lua": [
-      "spec/welite_statistics_spec.lua"
+      "spec/welite_statistics_spec.lua",
+      "spec/koreader/welite_home_spec.lua"
     ],
     "weread/ui/library.lua": [
       "spec/bookshelf_pagination_spec.lua",
@@ -50,7 +51,8 @@
     ],
     "weread/lib/settings.lua": [
       "spec/settings_spec.lua",
-      "spec/mock_environment_spec.lua"
+      "spec/mock_environment_spec.lua",
+      "spec/koreader/welite_auth_lifecycle_spec.lua"
     ],
     "scripts/test_welite.py": [
       "tests/test_welite_runner.py"
@@ -96,6 +98,22 @@
     ],
     "weread/ui/welite/startup.lua": [
       "spec/koreader/welite_startup_spec.lua"
+    ],
+    "scripts/emulator.py": [
+      "tests/test_emulator.py"
+    ],
+    "weread/lib/i18n.lua": [
+      "spec/i18n_spec.lua"
+    ],
+    "integrations/zenui.lua": [
+      "spec/ui_integrations_spec.lua"
+    ],
+    "weread/lib/qr_login.lua": [
+      "spec/qr_login_spec.lua"
+    ],
+    "weread/ui/welite/progress.lua": [
+      "spec/welite_progress_spec.lua",
+      "spec/koreader/welite_home_spec.lua"
     ]
   },
   "exemptions": {
@@ -103,6 +121,7 @@
     "Makefile": "Only forwards commands; exercised by make test/package.",
     "icons/welite/*.svg": "Declarative assets rendered by welite_pulldown_spec.",
     "weread/ui/welite/messages.lua": "Declarative login/status copy; rendered in pixel parity tests.",
-    "spec/reference": "Frozen original renderer fixture, independent baseline; not runtime code or shipped."
+    "spec/reference": "Frozen original renderer fixture, independent baseline; not runtime code or shipped.",
+    "_meta.lua": "Declarative metadata; verified by i18n_spec and native weread_plugin_spec."
   }
 }

@@ -17,7 +17,7 @@ package.preload["ui/widget/inputdialog"] = function() return {} end
 package.preload["weread.lib.logger"] = function()
     return {
         scoped = function()
-            return { warn = function() end, err = function() end }
+            return { warn = function() end, err = function() end, info = function() end }
         end,
     }
 end
@@ -114,5 +114,32 @@ end
 
 expect(run_login("1234567890") ~= run_login("2345678901"),
     "separate device fingerprints must reach the server independently")
+
+-- Exercise the actual completion chain with deterministic transport responses.
+do
+    local saved, opened, errors, transient = nil, 0, 0, 0
+    local host = {
+        showBusy=function() end, closeBusy=function() end,
+        runOnlineTask=function(_, _, callback) callback() end,
+        refreshLoginMenu=function() end,
+        showInfo=function() errors=errors+1 end,
+        showTransientInfo=function() transient=transient+1 end,
+        showBookshelf=function()
+            expect(saved and saved.api_key=="fixture-api", "home must open after credentials are saved")
+            opened=opened+1
+        end,
+    }
+    local responses={{name="Fixture"},{apikey="fixture-api"}}
+    local transport={request=function() return table.remove(responses,1),200,{} end,
+        decode_http_json=function(_,body) return body end}
+    local settings={update_auth=function(_, credentials) saved=credentials end}
+    local flow=QRLogin:new(host,transport,settings)
+    flow:_complete({succeed=true,webLoginVid="fixture-user",accessToken="fixture-session"},flow.generation)
+    expect(opened==1 and transient==1 and errors==0, "successful QR login must enter home without a blocking dialog")
+    flow:_complete({succeed=false},flow.generation)
+    expect(opened==1 and errors==1, "failed login must not open home or report success")
+    flow:_complete({succeed=true},flow.generation-1)
+    expect(opened==1 and errors==1, "stale completion must not navigate")
+end
 
 print("qr_login_spec: " .. checks .. " checks passed")

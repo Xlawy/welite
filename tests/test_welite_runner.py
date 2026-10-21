@@ -5,6 +5,8 @@ import tempfile
 import unittest
 import subprocess
 import zipfile
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 spec=importlib.util.spec_from_file_location('runner',Path(__file__).resolve().parents[1]/'scripts/test_welite.py')
 runner=importlib.util.module_from_spec(spec)
