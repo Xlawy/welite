@@ -1,388 +1,167 @@
--- Structured, offline-first book detail page.
+-- WeLite book details: cached cover, bounded preview, native scrolling/actions.
+local BB=require('ffi/blitbuffer')
+local Button=require('ui/widget/button')
+local Device=require('device')
+local Font=require('ui/font')
+local Focus=require('ui/widget/focusmanager')
+local Center=require('ui/widget/container/centercontainer')
+local Frame=require('ui/widget/container/framecontainer')
+local Geom=require('ui/geometry')
+local H=require('ui/widget/horizontalgroup')
+local HS=require('ui/widget/horizontalspan')
+local Line=require('ui/widget/linewidget')
+local Scroll=require('ui/widget/container/scrollablecontainer')
+local Box=require('ui/widget/textboxwidget')
+local Text=require('ui/widget/textwidget')
+local UI=require('ui/uimanager')
+local V=require('ui/widget/verticalgroup')
+local VS=require('ui/widget/verticalspan')
+local FocusNav=require('weread.ui.focus_nav')
+local _=require('weread.lib.i18n').tr
+local View=Focus:extend{modal=true}
 
-local Blitbuffer = require("ffi/blitbuffer")
-local Button = require("ui/widget/button")
-local Device = require("device")
-local Font = require("ui/font")
-local FocusManager = require("ui/widget/focusmanager")
-local CenterContainer = require("ui/widget/container/centercontainer")
-local FrameContainer = require("ui/widget/container/framecontainer")
-local Geom = require("ui/geometry")
-local GestureRange = require("ui/gesturerange")
-local HorizontalGroup = require("ui/widget/horizontalgroup")
-local HorizontalSpan = require("ui/widget/horizontalspan")
-local InputContainer = require("ui/widget/container/inputcontainer")
-local LineWidget = require("ui/widget/linewidget")
-local ScrollableContainer = require("ui/widget/container/scrollablecontainer")
-local Size = require("ui/size")
-local TextBoxWidget = require("ui/widget/textboxwidget")
-local TextWidget = require("ui/widget/textwidget")
-local TitleBar = require("ui/widget/titlebar")
-local UIManager = require("ui/uimanager")
-local VerticalGroup = require("ui/widget/verticalgroup")
-local VerticalSpan = require("ui/widget/verticalspan")
-local Screen = Device.screen
-local FocusNav = require("weread.ui.focus_nav")
-local I18n = require("weread.lib.i18n")
-
-local function _(text) return I18n.tr(text) end
-
-local FooterAction = InputContainer:extend{
-    text = "",
-    subtitle = nil,
-    width = nil,
-    height = nil,
-    enabled = true,
-    callback = nil,
-    show_parent = nil,
-}
-
-function FooterAction:init()
-    local color = self.enabled and Blitbuffer.COLOR_BLACK or Blitbuffer.COLOR_GRAY
-    local content = VerticalGroup:new{
-        align = "center",
-        TextWidget:new{
-            text = self.text,
-            face = Font:getFace("cfont", 20),
-            bold = true,
-            fgcolor = color,
-            max_width = self.width - 2 * Size.padding.small,
-        },
-    }
-    if self.subtitle and self.subtitle ~= "" then
-        table.insert(content, VerticalSpan:new{ width = Screen:scaleBySize(2) })
-        table.insert(content, TextWidget:new{
-            text = self.subtitle,
-            face = Font:getFace("cfont", 13),
-            fgcolor = color,
-            max_width = self.width - 2 * Size.padding.small,
-        })
+local function bounded(text,limit)
+    text=tostring(text or '')
+    if #text<=limit then return text end
+    return text:sub(1,limit):gsub('[\194-\244][\128-\191]*$','')..'…'
+end
+function View:label(text,size,bold,width)
+    return Text:new{text=text,face=Font:getFace('cfont',size),bold=bold,
+        max_width=width or self.content_width,padding=0}
+end
+function View:space(height) return VS:new{width=self:px(height)} end
+function View:px(value) return math.floor(value*self.scale+0.5) end
+function View:line() return Line:new{dimen=Geom:new{w=self.content_width,h=1}} end
+function View:button(text,width,callback,enabled)
+    return Button:new{text=text,width=width,height=self:px(42),padding=0,
+        bordersize=1,radius=self:px(8),text_font_size=self.screen_w<400 and 13 or 16,
+        text_font_bold=false,enabled=enabled~=false,show_parent=self,
+        callback=function() if not self.closed and enabled~=false and callback then callback() end end}
+end
+function View:section(title)
+    return V:new{align='left',self:space(22),self:label(title,17,true),self:space(10)}
+end
+function View:showText(title,text)
+    UI:show(require('ui/widget/textviewer'):new{title=title,text=text})
+end
+function View:hero()
+    local cover_w,cover_h=self:px(100),self:px(150)
+    local image
+    if self.data.cover_path then
+        image=require('ui/widget/imagewidget'):new{file=self.data.cover_path,width=cover_w,height=cover_h,
+            file_do_cache=false,scale_factor=0,alpha=true}
+    else
+        image=Frame:new{padding=self:px(8),bordersize=1,background=BB.COLOR_WHITE,
+            Center:new{dimen=Geom:new{w=cover_w-self:px(16)-2,h=cover_h-self:px(16)-2},
+                Box:new{text=bounded(self.data.title,512),width=cover_w-self:px(20),height=cover_h-self:px(20),
+                    height_adjust=true,height_overflow_show_ellipsis=true,alignment='center',face=Font:getFace('cfont',15)}}}
     end
-    self.frame = FrameContainer:new{
-        width = self.width,
-        height = self.height,
-        radius = 0,
-        margin = 0,
-        padding = 0,
-        bordersize = Size.border.thin,
-        background = Blitbuffer.COLOR_WHITE,
-        show_parent = self.show_parent,
-        CenterContainer:new{
-            dimen = Geom:new{ w = self.width, h = self.height },
-            content,
-        },
-    }
-    self[1] = self.frame
-    self.dimen = self.frame:getSize()
-    self.ges_events = {
-        TapFooterAction = { GestureRange:new{ ges = "tap", range = self.dimen } },
-    }
+    self.cover=image
+    local text_w=self.content_width-cover_w-self:px(24)
+    local title=Box:new{text=bounded(self.data.title,1024),face=Font:getFace('cfont',self.screen_w<400 and 22 or 28),
+        bold=true,width=text_w,height=self:px(90),height_adjust=true,height_overflow_show_ellipsis=true}
+    local author=Box:new{text=bounded(self.data.author_line,512),face=Font:getFace('cfont',15),
+        width=text_w,height=self:px(40),height_adjust=true,height_overflow_show_ellipsis=true}
+    self._title_button=Button:new{text='',width=text_w,height=cover_h,padding=0,bordersize=0,
+        show_parent=self,callback=function()
+            if not self.closed then self:showText(self.data.title,(self.data.title or '')..'\n\n'..(self.data.author_line or '')) end
+        end}
+    self._title_button.label_widget:free()
+    self._title_button.label_container[1]=V:new{align='left',title,self:space(10),author}
+    return H:new{align='top',Center:new{dimen=Geom:new{w=cover_w,h=cover_h},image},HS:new{width=self:px(24)},
+        self._title_button}
 end
-
-function FooterAction:onTapFooterAction()
-    if not self.enabled or not self.callback then return true end
-    self.frame.invert = true
-    UIManager:widgetRepaint(self.frame, self.frame.dimen.x, self.frame.dimen.y)
-    UIManager:forceRePaint()
-    self.frame.invert = false
-    UIManager:widgetRepaint(self.frame, self.frame.dimen.x, self.frame.dimen.y)
-    UIManager:setDirty(nil, "fast", self.frame.dimen)
-    self.callback()
-    return true
-end
-
-function FooterAction:onFocus()
-    self.frame.invert = true
-    return true
-end
-
-function FooterAction:onUnfocus()
-    self.frame.invert = false
-    return true
-end
-
-local BookDetailView = FocusManager:extend{
-    data = nil,
-    on_refresh = nil,
-}
-
-function BookDetailView:sectionTitle(text)
-    return VerticalGroup:new{
-        align = "left",
-        TextWidget:new{
-            text = text,
-            face = Font:getFace("tfont", 20),
-            bold = true,
-            max_width = self.content_width,
-        },
-        VerticalSpan:new{ width = Size.padding.small },
-        LineWidget:new{
-            dimen = Geom:new{ w = self.content_width, h = Size.line.thin },
-            background = Blitbuffer.COLOR_GRAY,
-        },
-        VerticalSpan:new{ width = Size.padding.default },
-    }
-end
-
-function BookDetailView:metadataBlock()
-    local group = VerticalGroup:new{
-        align = "left",
-        HorizontalSpan:new{ width = self.content_width },
-    }
-    for _i, item in ipairs(self.data.metadata or {}) do
-        if item.left or item.right then
-            local face = Font:getFace("cfont", 18)
-            local half = math.floor((self.content_width - Size.padding.large) / 2)
-            local left = TextBoxWidget:new{
-                text = item.left or "",
-                face = face,
-                width = half,
-                alignment = "left",
-            }
-            local right = TextBoxWidget:new{
-                text = item.right or "",
-                face = face,
-                width = half,
-                alignment = "left",
-            }
-            table.insert(group, HorizontalGroup:new{
-                left,
-                HorizontalSpan:new{ width = Size.padding.large },
-                right,
-            })
-        else
-            table.insert(group, TextBoxWidget:new{
-                text = item.text or (item.label .. "  " .. item.value),
-                face = Font:getFace("cfont", 18),
-                width = self.content_width,
-            })
+function View:content()
+    local body=V:new{align='left',HS:new{width=self.content_width},self:space(22),self:hero(),self:space(20),self:line(),self:space(14)}
+    if #(self.data.metadata or {})>0 then
+        body[#body+1]=self:section(_('Book information'))
+        for index,item in ipairs(self.data.metadata) do
+            if index>16 then break end
+            local text=item.text or table.concat({item.left or '',item.right or ''},'    ')
+            body[#body+1]=Box:new{text=bounded(text,1024),width=self.content_width,
+                face=Font:getFace('cfont',15),height=self:px(60),height_adjust=true,height_overflow_show_ellipsis=true}
+            body[#body+1]=self:space(10)
         end
-        table.insert(group, VerticalSpan:new{ width = Size.padding.small })
     end
-    return group
+    local function add_action(action)
+        local button=self:button(action.text,self.content_width,action.callback,action.enabled)
+        self._action_buttons[#self._action_buttons+1]=button
+        body[#body+1]=button;body[#body+1]=self:space(10)
+    end
+    body[#body+1]=self:space(22)
+    for _,action in ipairs(self.data.actions or {}) do add_action(action) end
+    body[#body+1]=self:space(24)
+    return body
 end
-
-function BookDetailView:actionBlock(actions)
-    local group = VerticalGroup:new{
-        align = "left",
-        HorizontalSpan:new{ width = self.content_width },
-    }
-    for _i, action in ipairs(actions or {}) do
-        local button = Button:new{
-            text = action.text,
-            width = self.content_width,
-            height = Screen:scaleBySize(54),
-            align = "left",
-            radius = 0,
-            margin = 0,
-            padding_h = Size.padding.large,
-            bordersize = 0,
-            text_font_size = 20,
-            text_font_bold = action.bold == true,
-            enabled = action.enabled ~= false,
-            show_parent = self,
-            callback = action.callback,
-        }
-        self._action_buttons[#self._action_buttons + 1] = button
-        table.insert(group, button)
-        table.insert(group, LineWidget:new{
-            dimen = Geom:new{ w = self.content_width, h = 1 },
-            background = Blitbuffer.COLOR_GRAY,
-        })
+function View:footer()
+    local actions=self.data.bottom_actions or {}
+    local row=H:new{}
+    local gap=self:px(10)
+    local count=math.max(1,#actions)
+    local width=math.floor((self.content_width-gap*(count-1))/count)
+    self._footer_actions={}
+    for index,action in ipairs(actions) do
+        local button=self:button(action.text,width,action.callback,action.enabled)
+        self._footer_actions[#self._footer_actions+1]=button
+        row[#row+1]=button
+        if index<#actions then row[#row+1]=HS:new{width=gap} end
     end
-    return group
+    return Frame:new{padding_left=self.outer_margin,padding_right=self.outer_margin,
+        padding_top=self:px(12),padding_bottom=self:px(18),bordersize=0,
+        V:new{align='left',self:line(),self:space(12),row}}
 end
-
-function BookDetailView:footer()
-    local actions = self.data.bottom_actions or {}
-    local count = math.max(1, #actions)
-    local cell_width = math.floor(self.screen_w / count)
-    local footer_height = Screen:scaleBySize(66)
-    local row = HorizontalGroup:new{}
-    self._footer_actions = {}
-    for index, action in ipairs(actions) do
-        local footer_action = FooterAction:new{
-            text = action.text,
-            subtitle = action.subtitle,
-            width = index == count
-                and self.screen_w - cell_width * (count - 1) or cell_width,
-            height = footer_height,
-            enabled = action.enabled ~= false,
-            show_parent = self,
-            callback = action.callback,
-        }
-        self._footer_actions[#self._footer_actions + 1] = footer_action
-        table.insert(row, footer_action)
-    end
-    return FrameContainer:new{ bordersize = 0, padding = 0, margin = 0, row }
+function View:init()
+    local screen=Device.screen
+    local viewport_w,viewport_h=screen:getWidth(),screen:getHeight()
+    self.scale=math.min(viewport_w,viewport_h)/600
+    self.panel_height=math.floor(viewport_h*0.82)
+    self.panel_border=math.max(1,self:px(2))
+    self.screen_w=viewport_w-2*self:px(24)-2*self.panel_border
+    self.screen_h=self.panel_height-2*self.panel_border
+    self.outer_margin=self:px(24)
+    self.content_width=self.screen_w-2*self.outer_margin
+    self.dimen=Geom:new{x=0,y=0,w=viewport_w,h=viewport_h}
+    self.covers_fullscreen=false
+    self.ges_events.Outside={require('ui/gesturerange'):new{ges='tap',range=self.dimen}}
+    self.key_events.Close={{Device.input.group.Back}}
+    self._close_button=self:button(_('Back'),self:px(80),function() self:onClose() end)
+    local head=H:new{require('ui/widget/container/leftcontainer'):new{dimen=Geom:new{w=self.content_width-self:px(80),h=self:px(44)},
+        H:new{self:label('WeLite',21,true,self:px(100)),HS:new{width=self:px(16)},
+            self:label(_('Book details'),18,false,self.content_width-self:px(196))}},self._close_button}
+    self.header=Frame:new{padding_left=self.outer_margin,padding_right=self.outer_margin,
+        padding_top=self.outer_margin,padding_bottom=0,bordersize=0,
+        V:new{align='left',head,self:space(10),self:line()}}
+    self._action_buttons={}
+    local footer=self:footer()
+    self.scroll=Scroll:new{dimen=Geom:new{w=self.screen_w,h=self.screen_h-self.header:getSize().h-footer:getSize().h},
+        show_parent=self,H:new{HS:new{width=self.outer_margin},self:content()}}
+    local rows={{self._close_button},{self._title_button}}
+    for _,button in ipairs(self._action_buttons) do rows[#rows+1]={button} end
+    if #self._footer_actions>0 then rows[#rows+1]=self._footer_actions end
+    local outside={[self._close_button]=true}
+    for _,button in ipairs(self._footer_actions) do outside[button]=true end
+    FocusNav.apply(self,rows,{scroll=self.scroll,outside_scroll=outside})
+    self.panel_frame=Frame:new{background=BB.COLOR_WHITE,bordersize=self.panel_border,padding=0,margin=0,radius=self:px(8),
+        V:new{align='left',self.header,self.scroll,footer}}
+    self[1]=Center:new{dimen=self.dimen:copy(),self.panel_frame}
 end
-
-function BookDetailView:content()
-    local data = self.data
-    local content = VerticalGroup:new{
-        align = "left",
-        HorizontalSpan:new{ width = self.content_width },
-    }
-    local refresh_width = math.floor(self.content_width * 0.34)
-    local summary_width = self.content_width - refresh_width - Size.padding.large
-    local summary = VerticalGroup:new{ align = "left" }
-    if data.author_line and data.author_line ~= "" then
-        table.insert(summary, TextBoxWidget:new{
-            text = data.author_line,
-            face = Font:getFace("cfont", 19),
-            bold = true,
-            width = summary_width,
-        })
-        table.insert(summary, VerticalSpan:new{ width = Size.padding.small })
-    end
-    if data.status_line and data.status_line ~= "" then
-        table.insert(summary, TextBoxWidget:new{
-            text = data.status_line,
-            face = Font:getFace("cfont", 16),
-            width = summary_width,
-        })
-    end
-    self._refresh_button = Button:new{
-        text = data.refresh_label,
-        width = refresh_width,
-        height = Screen:scaleBySize(38),
-        radius = Screen:scaleBySize(7),
-        margin = 0,
-        bordersize = Size.border.thin,
-        text_font_size = 16,
-        text_font_bold = false,
-        show_parent = self,
-        callback = function() if self.on_refresh then self.on_refresh() end end,
-    }
-    local refresh = VerticalGroup:new{
-        align = "center",
-        self._refresh_button,
-        VerticalSpan:new{ width = Size.padding.small },
-        TextBoxWidget:new{
-            text = _("Last updated") .. " " .. data.refresh_date,
-            face = Font:getFace("cfont", 12),
-            fgcolor = Blitbuffer.COLOR_DARK_GRAY,
-            width = refresh_width,
-            alignment = "center",
-        },
-    }
-    table.insert(content, HorizontalGroup:new{
-        align = "center",
-        summary,
-        HorizontalSpan:new{ width = Size.padding.large },
-        refresh,
-    })
-    table.insert(content, VerticalSpan:new{ width = Size.padding.large })
-
-    if #(data.metadata or {}) > 0 then
-        table.insert(content, self:sectionTitle(_("Book information")))
-        table.insert(content, self:metadataBlock())
-        table.insert(content, VerticalSpan:new{ width = Size.padding.default })
-    end
-    if data.intro and data.intro ~= "" then
-        table.insert(content, self:sectionTitle(_("Introduction")))
-        table.insert(content, TextBoxWidget:new{
-            text = data.intro,
-            face = Font:getFace("cfont", 17),
-            width = self.content_width,
-        })
-        table.insert(content, VerticalSpan:new{ width = Size.padding.large })
-    end
-    if data.review_action then
-        table.insert(content, self:sectionTitle(_("Book reviews")))
-        table.insert(content, self:actionBlock({ data.review_action }))
-        table.insert(content, VerticalSpan:new{ width = Size.padding.large })
-    end
-    if #(data.actions or {}) > 0 then
-        table.insert(content, self:sectionTitle(_("More actions")))
-        table.insert(content, self:actionBlock(data.actions))
-    end
-    return content
+-- Opaque neutral backing makes the modal distinct on e-ink without allocating
+-- a screenshot buffer, blurring, or repeatedly blending the existing framebuffer.
+function View:paintTo(bb,x,y)
+    bb:paintRect(x,y,self.dimen.w,self.dimen.h,BB.Color8(0xCC))
+    Focus.paintTo(self,bb,x,y)
 end
-
-function BookDetailView:init()
-    self.screen_w = Screen:getWidth()
-    self.screen_h = Screen:getHeight()
-    self.dimen = Geom:new{ x = 0, y = 0, w = self.screen_w, h = self.screen_h }
-    self.covers_fullscreen = true
-    self.outer_margin = Size.padding.large
-    self.content_width = self.screen_w - 2 * self.outer_margin
-        - 3 * Screen:scaleBySize(6)
-    if Device:hasKeys() then self.key_events.Close = { { Device.input.group.Back } } end
-
-    self.title_bar = TitleBar:new{
-        width = self.screen_w,
-        title = self.data.title or _("Book details"),
-        title_face = Font:getFace("tfont", 28),
-        title_multilines = true,
-        align = "center",
-        with_bottom_line = true,
-        close_callback = function() self:onClose() end,
-        show_parent = self,
-    }
-    self._action_buttons = {}
-    self._refresh_button = nil
-    local footer = self:footer()
-    local scroll = ScrollableContainer:new{
-        dimen = Geom:new{
-            w = self.screen_w,
-            h = self.screen_h - self.title_bar:getHeight() - footer:getSize().h,
-        },
-        show_parent = self,
-        HorizontalGroup:new{
-            HorizontalSpan:new{ width = self.outer_margin },
-            VerticalGroup:new{
-                align = "left",
-                VerticalSpan:new{ width = self.outer_margin },
-                self:content(),
-                VerticalSpan:new{ width = self.outer_margin },
-            },
-        },
-    }
-    local rows = {}
-    if self._refresh_button then rows[#rows + 1] = { self._refresh_button } end
-    for _i, action_button in ipairs(self._action_buttons) do
-        rows[#rows + 1] = { action_button }
-    end
-    if #self._footer_actions > 0 then rows[#rows + 1] = self._footer_actions end
-    local outside_scroll = {}
-    for _i, footer_action in ipairs(self._footer_actions) do
-        outside_scroll[footer_action] = true
-    end
-    FocusNav.apply(self, rows, { scroll = scroll, outside_scroll = outside_scroll })
-    -- The footer holds the primary actions (download / chapter list / read).
-    FocusNav.initialFocus(self, 1, #rows)
-    self[1] = FrameContainer:new{
-        background = Blitbuffer.COLOR_WHITE,
-        bordersize = 0, padding = 0, margin = 0,
-        dimen = self.dimen:copy(),
-        VerticalGroup:new{ align = "left", self.title_bar, scroll, footer },
-    }
-end
-
-function BookDetailView:onShow()
-    UIManager:setDirty(self, function() return "ui", self.dimen end)
+function View:onOutside(_,gesture)
+    if not self.panel_frame.dimen:contains(gesture.pos) then self:onClose() end
     return true
 end
-
-function BookDetailView:onCloseWidget()
-    UIManager:setDirty(nil, function() return "ui", self.dimen end)
-end
-
-function BookDetailView:onClose()
-    UIManager:close(self)
-    return true
-end
-
-local M = {}
-function M.show(data, callbacks)
-    callbacks = callbacks or {}
-    local view = BookDetailView:new{
-        data = data,
-        on_refresh = callbacks.on_refresh,
-    }
-    UIManager:show(view)
+function View:onShow() UI:setDirty(self,'ui');return true end
+function View:onCloseWidget() self.closed=true;UI:setDirty(nil,'ui',self.dimen) end
+function View:onClose() if not self.closed then self.closed=true;UI:close(self) end;return true end
+local M={}
+function M.show(data,callbacks)
+    local view=View:new{data=data,on_refresh=callbacks and callbacks.on_refresh}
+    UI:show(view)
     return view
 end
-
 return M

@@ -76,7 +76,7 @@ make package  # 生成 dist/weread.koplugin-vX.Y.Z.zip
 
 `make run` 和 `make test` 默认使用当前仓库的 `.dev/emulator`。首次执行 `make migrate-emulator` 将旧 WeLite 的已编译运行环境复制到这里，展开构建软链接，排除旧插件、旧测试和用户配置；迁移后不再依赖旧项目。已有目标不会被覆盖，也不会复制账号凭证。可通过 `make migrate-emulator ARGS="--source /绝对路径/koreader"` 指定来源。
 
-窗口默认 600×800、167 DPI，可执行 `make run ARGS="--width 1072 --height 1448 --dpi 300"` 调整。配置保存在 `.dev/profile`，首次启动按提示选择是否自动打开 WeLite，或从「工具 → WeLite → 书架」进入。退出模拟器后再运行测试，避免同时占用插件链接。
+模拟器默认使用简体中文；已在 KOReader 中保存的语言选择优先，也可用 `LANGUAGE=en_US make run` 指定启动语言。窗口默认 600×800、167 DPI，可执行 `make run ARGS="--width 1072 --height 1448 --dpi 300"` 调整。配置保存在 `.dev/profile`，首次启动按提示选择是否自动打开 WeLite，或从「工具 → WeLite → 书架」进入。退出模拟器后再运行测试，避免同时占用插件链接。
 
 其他环境也可显式指定已编译运行目录：
 

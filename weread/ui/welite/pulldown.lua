@@ -73,7 +73,10 @@ function Panel:build()
         slot(self.clock,cell,px(44)),slot(self.battery,width-5*cell,px(44),'right')}
     self.layout[#self.layout+1]={self.login_button,self.sync_button}
     local body=V:new{align='left'}
-    local info=require('weread.ui.welite.controls').reading(self.host,self.result)
+    -- The bookshelf may be opened over a live ReaderUI. Its panel is still
+    -- a home panel, regardless of whether the host retains an open document.
+    self.reading_info,self.home_button,self.chapter_buttons=nil,nil,nil
+    local info=not self.shelf and require('weread.ui.welite.controls').reading(self.host,self.result)
     if info then
         self.reading_info=info
         local title=button('',width-px(112),px(44),function()

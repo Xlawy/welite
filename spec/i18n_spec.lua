@@ -13,6 +13,9 @@ package.loaded["gettext"] = gettext
 local I18n = require("weread.lib.i18n")
 
 assert(I18n.tr("Bookshelf") == "书架", "automatic Chinese locale must translate plugin menus")
+assert(I18n.tr("Back") == "返回")
+assert(I18n.tr("Book details") == "书籍详情")
+assert(I18n.tr("Book information") == "书籍信息")
 assert(require("_meta").fullname == "WeLite", "plugin metadata must follow the automatic locale")
 
 assert(I18n.tr("WeLite · Bookshelf") == "WeLite·书架")

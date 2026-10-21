@@ -36,6 +36,22 @@ describe('welite native pull-down menu',function()
         local second=Icon:new{kind='moon',width=24,height=24};second:paintTo(bb,0,0)
         assert.equals(rendered,second._bb);second:free();bb:free()
     end)
+    it('hides reading details on the bookshelf even with a live reader host',function()
+        local host={document={info={number_of_pages=392}},rolling={current_page=128},
+            toc={getTocTitleByPage=function() return '第五章' end}}
+        panel=P:new{controls=controls(),host=host,shelf={logged_in=true},
+            home=function() error('home navigation should not be available') end,
+            chapters={catalog=function() error('chapter navigation should not be available') end},
+            result={full=true,item={title='测试书籍'}}}
+        UI:show(panel);UI:forceRePaint()
+        assert.is_nil(panel.reading_info)
+        assert.is_nil(panel.home_button)
+        assert.is_nil(panel.chapter_buttons)
+        assert.equals(5,#panel.buttons)
+        panel:rebuild();UI:forceRePaint()
+        assert.is_nil(panel.reading_info)
+        assert.equals(128,host.rolling.current_page)
+    end)
     it('shows native reading information without changing position and closes on suspend',function()
         local host={document={info={number_of_pages=392}},rolling={current_page=128},toc={getTocTitleByPage=function() return '第五章' end}}
         panel=P:new{controls=controls(),host=host,home=function() end,chapters={previous=function() end,catalog=function() end,next=function() end},result={full=true,item={title='围城'}}}

@@ -60,13 +60,15 @@ class EmulatorTests(unittest.TestCase):
                           'pathlib.Path(os.environ["KO_HOME"], "probe.json").write_text(json.dumps({'
                           '"plugin":str(p.resolve()), "width":os.environ["EMULATE_READER_W"],'
                           '"height":os.environ["EMULATE_READER_H"],"dpi":os.environ["EMULATE_READER_DPI"],'
-                          '"args":sys.argv[1:]}))\n')
+                          '"language":os.environ["LANGUAGE"],"args":sys.argv[1:]}))\n')
         script.chmod(0o755)
         runtime = emulator.migrate(self.source, self.root)
         emulator.launch(self.root, 1072, 1448, 300, self.environment)
         probe = json.loads((self.root / '.dev/profile/probe.json').read_text())
         self.assertEqual(probe, {'plugin': str(self.root), 'width': '1072', 'height': '1448',
-                                 'dpi': '300', 'args': ['-d']})
+                                 'dpi': '300', 'language': 'zh_CN', 'args': ['-d']})
+        emulator.launch(self.root, environ=dict(self.environment, LANGUAGE='en_US'))
+        self.assertEqual(json.loads((self.root / '.dev/profile/probe.json').read_text())['language'], 'en_US')
         plugin = runtime / 'plugins/weread.koplugin'
         self.assertFalse(plugin.is_symlink())
         (runtime / 'koreader.sh').write_text('#!/bin/sh\nexit 7\n')

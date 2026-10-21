@@ -1,6 +1,7 @@
 local I18n = {}
 
 local zh = {
+    ["Back"] = "返回",
     ["WeLite v%1\n\nBased on finlater/weread.koplugin. Copyright (C) 2026 finlater and contributors. WeLite modifications: Xlawy and contributors, 2026-10-21.\n\nLicensed under AGPL-3.0-only; see LICENSE and NOTICE in the plugin directory. You may redistribute this software under that license. No warranty is provided. Third-party fonts retain their OFL license.\n\nSource: https://github.com/Xlawy/weread-based-welite\nUpstream: https://github.com/finlater/weread.koplugin"] = "WeLite v%1\n\n基于 finlater/weread.koplugin。上游版权：2026 finlater 及贡献者。WeLite 修改：Xlawy 及贡献者，2026-10-21。\n\n采用 AGPL-3.0-only，许可证与署名见插件目录的 LICENSE 和 NOTICE。你可以按照该许可证再分发本软件；本软件不提供担保。第三方字体保留 OFL 许可证。\n\n源码：https://github.com/Xlawy/weread-based-welite\n上游：https://github.com/finlater/weread.koplugin",
     ["Get thoughts (%1 chapters)"] = "获取想法（%1章）",
     ["Continue matching · %1/%2 chapters, %3 underlines"] = "继续匹配 · %1/%2 章，%3 条划线",

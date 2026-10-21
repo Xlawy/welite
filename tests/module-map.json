@@ -114,6 +114,9 @@
     "weread/ui/welite/progress.lua": [
       "spec/welite_progress_spec.lua",
       "spec/koreader/welite_home_spec.lua"
+    ],
+    "weread/ui/book_detail_view.lua": [
+      "spec/koreader/welite_book_detail_spec.lua"
     ]
   },
   "exemptions": {

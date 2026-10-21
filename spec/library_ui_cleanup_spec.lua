@@ -52,7 +52,10 @@ end
 local detail_view = { id = "detail" }
 local chapter_view = { id = "chapters" }
 package.preload["weread.ui.book_detail_view"] = function()
-    return { show = function() return detail_view end }
+    return { show = function(data)
+        expect(data.cover_path == "/fixture-cover.png", "detail receives only the cached cover path")
+        return detail_view
+    end }
 end
 package.preload["weread.ui.chapter_list_view"] = function()
     return { show = function() return chapter_view end }
@@ -71,6 +74,7 @@ local host = {
     ui = {
         openFile = function(_self, path) opened = path end,
     },
+    getShelfCoverCache = function() return {pathFor=function() return "/fixture-cover.png" end} end,
     getFullBookCachePath = function() return "/missing.epub" end,
     bookRecordHasDownload = function() return false end,
     safeCallback = function(_self, _label, callback) return callback end,

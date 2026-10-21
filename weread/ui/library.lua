@@ -941,17 +941,17 @@ function M:showBookMenu(book)
         and os.date("%Y-%m-%d %H:%M", book.detail_updated_at) or _("Never updated")
     local bottom_actions = {
         {
-            text = _("⇩ Download full book"),
+            text = _("Download full book"),
             callback = self:safeCallback(_("Download full book"), function()
                 self:confirmDownloadAllChapters(book)
             end),
         },
         {
-            text = _("☷ Chapter list"),
+            text = _("Chapter list"),
             callback = open_chapter_list,
         },
         {
-            text = _("▤ Read"),
+            text = _("Read"),
             enabled = has_cache,
             callback = self:safeCallback(_("Read"), function()
                 self:openBookForReading(book)
@@ -960,8 +960,10 @@ function M:showBookMenu(book)
     }
     view = BookDetailView.show({
         title = book.title or _("Book details"),
+        cover_path = self.getShelfCoverCache and self:getShelfCoverCache():pathFor(book) or nil,
         author_line = table.concat(author_parts, "  ·  "),
         status_line = table.concat(statuses, "  ·  "),
+        chapter_status = chapter_status,
         refresh_label = _("↻ Get latest information"),
         refresh_date = updated,
         metadata = metadata,

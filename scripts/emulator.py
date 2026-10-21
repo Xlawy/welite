@@ -72,6 +72,9 @@ def launch(root=ROOT, width=600, height=800, dpi=167, environ=None):
     if min(width, height, dpi) <= 0:
         raise ValueError('Screen dimensions and DPI must be positive')
     env = dict(os.environ if environ is None else environ)
+    # KOReader's launcher pins LC_ALL to English. gettext checks LANGUAGE first;
+    # a saved in-app language still takes precedence over this default.
+    env.setdefault('LANGUAGE', 'zh_CN')
     runtime = find_runtime(root, env)
     profile = root / '.dev/profile'
     profile.mkdir(parents=True, exist_ok=True)
