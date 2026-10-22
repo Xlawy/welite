@@ -1,6 +1,6 @@
 -- Reconcile closed-book snapshots before home data refresh. The existing
 -- ReadReport pipeline owns every write; a changed cloud baseline is deferred.
-local M={MAX_BOOKS=6}
+local M={MAX_BOOKS=6,WAIT_INTERVAL=0.25,MAX_WAIT_CHECKS=120}
 local Auth=require('weread.lib.worker_settings')
 local Mapper=require('weread.lib.position_mapper')
 local function equal(a,b)
@@ -46,7 +46,7 @@ function M.reconcile(plugin,id,position)
     local outcome=plugin.read_report:_child_report(id,plugin.read_report:_renewal_allowed(),position,0)
     return {accepted=outcome.accepted==true,position=position,outcome=outcome}
 end
-function M.start(plugin,done)
+function M.start(plugin,done,wait_checks)
     if not plugin.read_report or not plugin.read_report.time_ledger then done(true);return end
     local account=plugin.settings:get('account',{}).user_vid
     local fingerprint=Auth.fingerprint(plugin.settings)
@@ -65,6 +65,48 @@ function M.start(plugin,done)
     if #entries==0 then done(true);return end
     if plugin.isNetworkConnected and not plugin:isNetworkConnected() then done(false);return end
     local ledger=plugin.read_report.time_ledger
+    local function busy()
+        for _,entry in ipairs(entries) do
+            if require('weread.lib.progress_sync').has_pending_upload(plugin.settings,entry.id)
+                or (ledger.has_pending_report and ledger:has_pending_report(account,entry.id)) then
+                return true
+            end
+        end
+        return false
+    end
+    if busy() then
+        -- Join the existing close upload before taking snapshots or reserving
+        -- time catch-up. Poll memory only: no network, disk scans or extra writes.
+        local ui=require('ui/uimanager')
+        local waiting={}
+        local check
+        local remaining=wait_checks or M.MAX_WAIT_CHECKS
+        plugin.welite_closed_progress_worker=waiting
+        function waiting:cancel()
+            ui:unschedule(check)
+            if plugin.welite_closed_progress_worker==waiting then
+                plugin.welite_closed_progress_worker=nil;done(false)
+            end
+        end
+        check=function()
+            if plugin.welite_closed_progress_worker~=waiting then return end
+            if Auth.fingerprint(plugin.settings)~=fingerprint
+                or plugin.settings:get('account',{}).user_vid~=account then
+                waiting:cancel();return
+            end
+            if not busy() then
+                plugin.welite_closed_progress_worker=nil
+                -- The close job may have cleared or remapped its pending
+                -- snapshot; reconcile the latest saved data, never the old copy.
+                M.start(plugin,done,remaining);return
+            end
+            remaining=remaining-1
+            if remaining<=0 then waiting:cancel();return end
+            ui:scheduleIn(M.WAIT_INTERVAL,check)
+        end
+        ui:scheduleIn(M.WAIT_INTERVAL,check)
+        return
+    end
     for _,entry in ipairs(entries) do
         local ok,lock=pcall(ledger.lock_position,ledger,account,entry.id)
         if ok then entry.lock=lock end

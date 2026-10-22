@@ -215,6 +215,9 @@ function M:settle(batch,result)
 end
 -- Position writes carry no elapsed time, but share the per-book network slot
 -- with home catch-up and timer reports. Keep these locks in memory only.
+function M:has_pending_report(account,book)
+    return reservations[reservation_key(self,account,book)]~=nil
+end
 function M:lock_position(account,book)
     if account==nil or tostring(account)=='' or book==nil or tostring(book)=='' then
         return nil,'position_identity_missing'

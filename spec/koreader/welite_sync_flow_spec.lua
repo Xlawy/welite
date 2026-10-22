@@ -444,6 +444,47 @@ describe('WeLite shelf-to-reader sync flow',function()
         assert.is_nil(dialog,'acknowledged source position must not become a false conflict on reopening')
         assert.equals(1,reports())
     end)
+    for _,wait_for_upload in ipairs({true,false}) do
+    it('finishes the first home sync while close upload is '..(wait_for_upload and 'in flight' or 'being prepared'),function()
+        sync_and_open();dialog.ok_callback()
+        drain(function() return not target.progress_sync:status().pulling end)
+        reader.rolling:onGotoPercent(40);target:onPageUpdate()
+        local expected=expected_source_offset()
+        -- Hold only the close-time service response so the shelf click overlaps
+        -- a real child request deterministically, without contacting WeRead.
+        local report=target.client.report_read
+        target.client.report_read=function(client,payload,...)
+            local socket=require('socket');local deadline=socket.gettime()+5
+            while not require('lfs').attributes(root..'/allow-close-upload') do
+                assert(socket.gettime()<deadline,'close upload was not released')
+                socket.sleep(0.02)
+            end
+            return report(client,payload,...)
+        end
+        reading_clock=45
+        target:onCloseDocument();reader:onClose();reader=nil
+        if dialog then UI:close(dialog);dialog=nil end
+        if wait_for_upload then
+            drain(function() return target.read_report.job and target.read_report.job.upload~=nil end)
+        else
+            assert.is_nil(target.read_report.job,'click before the close upload acquires the network slot')
+        end
+        assert.is_true(target.progress_sync:status().uploading)
+        manager:showShelfView('books');wire(manager)
+        manager.shelf_view.collection_sync_button.callback()
+        assert.is_true(manager.shelf_refreshing)
+        local file=assert(io.open(root..'/allow-close-upload','w'));file:close()
+        drain(function() return not manager.shelf_refreshing and not target.progress_sync:status().uploading end)
+        assert.equals('数据已刷新',manager.welite_shelf_status)
+        assert.equals(1,reports(),'one close snapshot must produce only one position write')
+        assert.equals(expected,remote.chapterOffset)
+        assert.is_nil(Settings:new():get('books').fixture.pending_upload_position)
+        local sent=assert(io.open(root..'/server-report.json','r'))
+        assert.equals(45,require('json').decode(sent:read('*a')).read_seconds);sent:close()
+        assert.equals(0,manager.read_report.time_ledger:status('123','fixture').pending)
+        assert.equals(1,opened);assert.is_nil(dialog)
+    end)
+    end
     it('does not treat a cancelled opening conflict as permission to overwrite cloud from home',function()
         sync_and_open();dialog.cancel_callback()
         reader.rolling:onGotoPercent(50);target:onPageUpdate()

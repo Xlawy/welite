@@ -4,6 +4,22 @@ local logger = require("weread.lib.logger").scoped("ProgressSync")
 
 local ProgressSync = {}
 ProgressSync.__index = ProgressSync
+-- Reader and file-manager plugins are different instances. Home reconciliation
+-- must also see uploads that are still mapping their source position, before
+-- ReadReport acquires its network slot. Requests live only as long as their job.
+local pending_uploads = setmetatable({}, { __mode = "v" })
+local function upload_key(settings, book_id)
+    local account = tostring(settings:get("account", {}).user_vid or "")
+    return tostring(settings.data_dir or settings)..":"..#account..":"..account..":"..tostring(book_id)
+end
+
+function ProgressSync.has_pending_upload(settings, book_id)
+    local key = upload_key(settings, book_id)
+    local request = pending_uploads[key]
+    if request and request.is_pending() then return true end
+    pending_uploads[key] = nil
+    return false
+end
 
 local OPEN_DELAY_SECONDS = 0.6
 local RESUME_RECHECK_SECONDS = 5 * 60
@@ -524,6 +540,10 @@ function ProgressSync:_upload_snapshot(position, reason, show_result)
     local request = {}
     self._upload_request = request
     local valid = self:_session_guard(book_id, reason == "document_close")
+    request.is_pending = function()
+        return self._upload_request == request and self.uploading and valid()
+    end
+    pending_uploads[upload_key(self.settings, book_id)] = request
     local function stale()
         if self._upload_request ~= request then return true end
         if valid() then return false end

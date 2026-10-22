@@ -983,12 +983,34 @@ test("local selection converts its snapshot before reporting", function()
     f.sync:sync_now();f.choices[1].keep_local()
     eq(#f.uploads,0,'no approximate report before source resolution')
     eq(f.sync.uploading,true,'mapping is part of upload')
+    eq(ProgressSync.has_pending_upload(f.sync.settings,'book'),true,'home sees source preparation before network start')
+    eq(ProgressSync.has_pending_upload(f.sync.settings,'other'),false,'other books remain independent')
+    eq(ProgressSync.has_pending_upload({get=function() return {} end},'book'),false,'other storage remains independent')
     done(4321,nil,'actual reading text')
     eq(#f.uploads,1,'one report after resolution')
     eq(f.uploads[1].chapter_offset,4321,'source coordinate sent')
     eq(f.uploads[1].summary,'actual reading text','source summary sent')
     eq(f.sync:capture_local().chapter_offset,4321,'same pointer reuses exact source coordinate')
     eq(f.sync.dirty,false,'acknowledged same page is not falsely dirty')
+    eq(ProgressSync.has_pending_upload(f.sync.settings,'book'),false,'acknowledgement releases preparation marker')
+end)
+test("pending upload coordination is shared by profile and isolated by account", function()
+    local f=fixture({progress=80,chapterUid=33,chapterOffset=400})
+    f.sync.settings.data_dir='/fixture/pending-upload-profile'
+    f.values.account={user_vid='one'}
+    f.document.getPageXPointer=function(_,page) return 'xp-'..page end
+    local callback
+    f.sync.prepare_local_async=function(_,_,done) callback=done;return true end
+    f.sync:sync_now();f.choices[1].keep_local()
+    local account='one'
+    local other_handle={data_dir=f.sync.settings.data_dir,get=function() return {user_vid=account} end}
+    eq(ProgressSync.has_pending_upload(other_handle,'book'),true,'file-manager handle sees reader preparation')
+    account='two'
+    eq(ProgressSync.has_pending_upload(other_handle,'book'),false,'another account does not wait for the previous user')
+    account='one';f.values.account={user_vid='two'}
+    eq(ProgressSync.has_pending_upload(other_handle,'book'),false,'revoked reader session no longer blocks home')
+    callback(4321,nil,'old account')
+    eq(#f.uploads,0,'revoked preparation never sends')
 end)
 test("source lookup failures retain the pending snapshot without sending", function()
     local f=fixture({progress=80,chapterUid=33,chapterOffset=400})
@@ -999,6 +1021,7 @@ test("source lookup failures retain the pending snapshot without sending", funct
     done(nil,'source_text_ambiguous')
     eq(#f.uploads,0,'ambiguous coordinates never sent')
     eq(f.sync.state,'error','lookup failure visible')
+    eq(ProgressSync.has_pending_upload(f.sync.settings,'book'),false,'failed mapping releases preparation marker')
     eq(f.values.books.book.pending_upload_position.local_xpointer,'xp-25','retry snapshot retained')
 end)
 test("timed reporting waits for source resolution and invalidates it after a page turn", function()
@@ -1028,6 +1051,7 @@ test("suspend cancels source preparation without leaving upload permanently busy
     f.values.sync.upload_on_close=false
     f.sync:on_suspend()
     eq(f.sync.uploading,false,'canceled source upload releases busy flag')
+    eq(ProgressSync.has_pending_upload(f.sync.settings,'book'),false,'suspend cancellation releases preparation marker')
     callbacks[1](9999,nil,'stale')
     eq(#f.uploads,0,'canceled source result not sent')
     f.sync:sync_now();f.choices[#f.choices].keep_local()
@@ -1052,6 +1076,7 @@ test("close preparation keeps its context after the reader lifetime ends", funct
     f.sync:on_close_document()
     eq(f.sync.document_context,nil,'reader context released')
     eq(#f.uploads,0,'source preparation still pending')
+    eq(ProgressSync.has_pending_upload(f.sync.settings,'book'),true,'close preparation remains visible across reader teardown')
     done(4321,nil,'snapshot')
     eq(#f.uploads,1,'close upload finishes without reader context')
     eq(f.uploads[1].chapter_offset,4321,'resolved source coordinate uploaded')

@@ -253,7 +253,8 @@
     ],
     "weread/lib/reading_time_ledger.lua": [
       "spec/reading_time_ledger_spec.lua",
-      "spec/koreader/welite_time_ledger_spec.lua"
+      "spec/koreader/welite_time_ledger_spec.lua",
+      "spec/koreader/welite_sync_flow_spec.lua"
     ],
     "weread/lib/reading_time_sync.lua": [
       "spec/reading_time_sync_spec.lua",

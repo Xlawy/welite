@@ -1,5 +1,6 @@
 """Exercise release naming and the runtime-only archive boundary."""
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
@@ -24,7 +25,10 @@ class PackageReleaseTest(unittest.TestCase):
             (repo / 'private-cookie.txt').write_text('must not ship')
             subprocess.run(['bash', 'scripts/package_release.sh'], cwd=repo,
                            check=True, capture_output=True, text=True)
-            archive = repo / 'dist/welite.koplugin-v1.0.1.zip'
+            version = re.search(r'^\s*version\s*=\s*"(\d+\.\d+\.\d+)"',
+                                (repo / '_meta.lua').read_text(), re.MULTILINE)
+            self.assertIsNotNone(version, 'plugin metadata must declare its release version')
+            archive = repo / f'dist/welite.koplugin-v{version.group(1)}.zip'
             self.assertTrue(archive.is_file())
             with zipfile.ZipFile(archive) as packed:
                 names = packed.namelist()
