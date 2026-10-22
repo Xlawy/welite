@@ -277,7 +277,9 @@
     ],
     "weread/lib/progress_scope.lua": [
       "spec/progress_scope_spec.lua",
-      "spec/welite_sync_spec.lua"
+      "spec/welite_sync_spec.lua",
+      "spec/welite_progress_spec.lua",
+      "spec/koreader/welite_sync_flow_spec.lua"
     ],
     "scripts/package_release.sh": [
       "tests/test_package_release.py"

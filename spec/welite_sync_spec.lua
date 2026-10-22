@@ -111,3 +111,34 @@ assert(p.message:find('synthetic disk full',1,true),'preserve the actual local s
 ledger.settings.flush=flush;ledger:recover('one')
 assert(ledger:status('one','1').pending==17,'failed reservation must retain all elapsed time')
 print('welite_sync_spec: local storage errors retain pending time and expose the actual failure')
+
+-- Current cloud records are authoritative; foreign local-only records are not.
+p,v=fixture();requests={}
+local shared={cached_file='retained-shared.epub',home_remote_position={account='old',position={percent=17}}}
+local retained={['1']=shared,stale={readUpdateTime=999999,home_remote_position={account='old'}},
+    legacy={cached_file='legacy.epub'},own={cached_file='own.epub',last_local_position={account_id='one'}}}
+p.settings.get=function(_,key,default)
+    if key=='account' then return {user_vid='one'} end
+    if key=='books' then return retained end
+    return default
+end
+p.settings.set=function(_,key,value) assert(key=='books');retained=value end
+p.settings.flush=function() end
+p.client.get_progress=function(_,id)
+    requests[#requests+1]='progress:'..id
+    assert(id=='1' or id=='own','foreign/legacy book was queried')
+    return {book={progress=42,chapterUid=1,chapterOffset=42}}
+end
+for _=1,2 do
+    assert(Sync.refresh(p,v,{}));complete()
+    assert(p.welite_shelf_status=='数据已刷新')
+    assert(shared.home_remote_position.account=='old' and shared.home_remote_position.position.percent==17,
+        'shared cloud book overwrote the other account local reading state')
+    assert(retained.stale and retained.legacy.cached_file=='legacy.epub','old caches were removed')
+    assert(retained.own.home_remote_position.account=='one','same-account local-only progress was not saved')
+end
+p.client.get_progress=function() return {book={recordReadingTime=0}} end
+assert(Sync.refresh(p,v,{}));complete()
+assert(p.welite_shelf_status=='同步未完成' and p.message:find('阅读进度'),
+    'missing current-account progress must remain a failure, not be hidden by the filter')
+print('welite_sync_spec: retained foreign caches, shared-book write isolation, repeated sync and genuine failures passed')

@@ -147,7 +147,7 @@ describe('WeLite community shelf integration',function()
         assert.equals(600,Reading.today(view.overview).total_seconds)
         assert.is_true(view.stat_values.monthly.text~='—')
         plugin.welite_progress={fingerprint=require('weread.lib.worker_settings').fingerprint(plugin.settings),
-            values={},order={},worker=worker}
+            account='fixture',values={},order={},worker=worker}
         require('weread.ui.welite.progress').ensure(plugin,view)
         task.on_done{ok=true,value=task.task{checkCancelled=function() end}}
         UI:forceRePaint()

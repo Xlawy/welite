@@ -7,13 +7,13 @@ function M.ensure(plugin,view)
     local account=plugin.settings:get('account',{}).user_vid
     local fingerprint=Auth.fingerprint(plugin.settings)
     local state=plugin.welite_progress
-    if not state or state.fingerprint~=fingerprint then
+    if not state or state.fingerprint~=fingerprint or state.account~=account then
         if state and state.worker then state.worker:cancel(nil,'account_changed') end
-        state={fingerprint=fingerprint,values={},order={}}
+        state={fingerprint=fingerprint,account=account,values={},order={}}
         plugin.welite_progress=state
     end
     local _,eligible=require('weread.lib.progress_scope').select(
-        plugin.shelf_regular or {},plugin.settings:get('books',{}))
+        plugin.shelf_regular or {},plugin.settings:get('books',{}),account)
     local pending={}
     local changed=false
     local first=((view.page or 1)-1)*(view.page_size or 6)+1

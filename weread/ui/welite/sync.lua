@@ -3,6 +3,7 @@ local M={}
 local Reading=require('weread.ui.welite.reading')
 local Auth=require('weread.lib.worker_settings')
 local TimeSync=require('weread.lib.reading_time_sync')
+local Scope=require('weread.lib.progress_scope')
 
 function M.refresh(plugin,view,options,closed_ok)
     if plugin.shelf_refreshing or not plugin:requireLogin(false,true) then return false end
@@ -75,8 +76,8 @@ function M.refresh(plugin,view,options,closed_ok)
         result.pending['阅读时间']=nil
         publish()
         local completed=0
-        local targets=require('weread.lib.progress_scope').select(
-            result.shelf and result.shelf.books or {},plugin.settings:get('books',{}))
+        local targets=Scope.select(
+            result.shelf and result.shelf.books or {},plugin.settings:get('books',{}),account)
         for _,book in ipairs(targets) do
             local id=tostring(book.bookId or book.book_id or '')
             if id~='' and id:sub(1,7)~='MP_WXS_' then
@@ -140,14 +141,11 @@ function M.refresh(plugin,view,options,closed_ok)
             local books,archives=result.shelf.books,result.shelf.archive or {}
             local stored=plugin.settings:get('books',{})
             local changed=false
-            for _,book in ipairs(books) do
-                local id=tostring(book.bookId or book.book_id or '')
-                if book.home_remote_position and stored[id] then
-                    stored[id].home_remote_position=book.home_remote_position;changed=true
-                end
-            end
             for id,position in pairs(result.remote_positions or {}) do
-                if stored[id] then stored[id].home_remote_position=position;changed=true end
+                local owner=Scope.record_account(stored[id])
+                if stored[id] and (owner==nil or owner==tostring(account)) then
+                    stored[id].home_remote_position=position;changed=true
+                end
             end
             if changed then plugin.settings:set('books',stored);plugin.settings:flush() end
             if plugin.library_db then plugin.library_db:cacheShelf(books,archives) end

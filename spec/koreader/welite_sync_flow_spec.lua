@@ -148,6 +148,46 @@ describe('WeLite shelf-to-reader sync flow',function()
         assert.equals(1,opened)
         assert.is_true(target.settings:get('welite_pending_progress_sync').books.fixture)
     end
+    it('syncs the current account while retaining old account files and restoring them on switch-back',function()
+        local books=manager.settings:get('books')
+        local old_path=root..'/retained-old.epub'
+        local file=assert(io.open(old_path,'wb'));file:write('old account cached bytes');file:close()
+        books.old={book_id='old',title='Old account cache',cached_file=old_path,
+            readUpdateTime=999999,home_remote_position={account='old-account',position={percent=17}}}
+        books.metadata={book_id='metadata',title='Old account metadata',readUpdateTime=999999,
+            home_remote_position={account='old-account',position={percent=9}}}
+        manager.settings:set('books',books);manager.settings:flush()
+        local retained=manager.settings:get('books').old
+        manager.client.get_progress=function(_,id)
+            assert.equals('fixture',id,'current account queried an old local-only book')
+            return {book=remote}
+        end
+        for _=1,2 do
+            manager.shelf_view.collection_sync_button.callback()
+            drain(function() return not manager.shelf_refreshing end)
+            assert.equals('数据已刷新',manager.welite_shelf_status)
+            local reloaded=Settings:new()
+            assert.same(retained,reloaded:get('books').old)
+            assert.equals('old-account',reloaded:get('books').metadata.home_remote_position.account)
+            assert.is_nil(reloaded:get('welite_pending_progress_sync').books.old)
+            local cached=assert(io.open(old_path,'rb'));assert.equals('old account cached bytes',cached:read('*a'));cached:close()
+        end
+        manager.settings:update_auth({account={user_vid='old-account',login_method='qr'},
+            cookies={wr_vid='old-account',wr_skey='old-fixture-session'}},{replace_cookies=true})
+        manager.client.get_shelf=function() return {books={}} end
+        manager.client.get_progress=function(_,id)
+            assert.is_true(id=='old' or id=='metadata','switch-back queried the other account')
+            return {book=remote}
+        end
+        manager.shelf_view.collection_sync_button.callback()
+        drain(function() return not manager.shelf_refreshing end)
+        assert.equals('数据已刷新',manager.welite_shelf_status)
+        local pending=Settings:new():get('welite_pending_progress_sync')
+        assert.equals('old-account',pending.account);assert.is_true(pending.books.old)
+        assert.is_nil(pending.books.fixture)
+        assert.equals(old_path,Settings:new():get('books').old.cached_file)
+        assert.equals(0,opened);assert.equals(0,reports())
+    end)
     it('defers unread cloud-only progress until the reader opens',function()
         local books=manager.settings:get('books')
         local record=books.fixture
