@@ -49,7 +49,7 @@ function Store:openReadOnly(book_id)
     end
     return db
 end
-function Store:get(book_id, kind, key, read_only)
+function Store:get(book_id, kind, key, read_only, max_bytes)
     local db,err
     if read_only then db,err=self:openReadOnly(book_id)
     else db,err=self:open(book_id,false) end
@@ -59,9 +59,22 @@ function Store:get(book_id, kind, key, read_only)
     end
     local stmt, value
     local ok, read_err = pcall(function()
-        stmt = db:prepare("SELECT payload FROM annotation_data WHERE kind=? AND entry_key=?")
-        local row = stmt:reset():bind(kind, tostring(key)):step()
-        if row then value = json.decode(row[1]) end
+        if max_bytes then
+            -- Check and select in one statement so a concurrent cache update
+            -- cannot replace a checked small payload with an oversized one.
+            stmt = db:prepare([[SELECT length(CAST(payload AS BLOB)),
+                CASE WHEN length(CAST(payload AS BLOB)) <= ? THEN payload ELSE '' END
+                FROM annotation_data WHERE kind=? AND entry_key=?]])
+            local row = stmt:reset():bind(max_bytes, kind, tostring(key)):step()
+            if row then
+                if tonumber(row[1]) > max_bytes then error("source_cache_limit") end
+                value = json.decode(row[2])
+            end
+        else
+            stmt = db:prepare("SELECT payload FROM annotation_data WHERE kind=? AND entry_key=?")
+            local row = stmt:reset():bind(kind, tostring(key)):step()
+            if row then value = json.decode(row[1]) end
+        end
     end)
     if stmt then stmt:close() end
     db:close()

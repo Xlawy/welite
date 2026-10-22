@@ -16,6 +16,8 @@ assert(I18n.tr("Bookshelf") == "书架", "automatic Chinese locale must translat
 assert(I18n.tr("Back") == "返回")
 assert(I18n.tr("Book details") == "书籍详情")
 assert(I18n.tr("Book information") == "书籍信息")
+assert(I18n.tr("%1 · about %2% of chapter") == "%1 · 章内约 %2%")
+assert(I18n.tr("%1 · chapter progress unavailable") == "%1 · 暂无章内比例")
 assert(require("_meta").fullname == "WeLite", "plugin metadata must follow the automatic locale")
 
 assert(I18n.tr("WeLite · Bookshelf") == "WeLite·书架")

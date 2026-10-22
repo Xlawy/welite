@@ -1,6 +1,7 @@
 -- Chapter-local source coordinates. Build off the reader's hot path and retain
 -- at most one chapter; callers may yield/cancel every 256 decoded characters.
 local M = {}
+local Source = require('welite.lib.annotation_source')
 M.__index = M
 -- Some legitimate chapters exceed 100k characters (including omnibus books).
 -- Keep a finite chapter-local budget; yielding below still bounds UI work.
@@ -26,6 +27,7 @@ function M.new(spans, options)
         local text, offset, finish = span[3], span[5], span[6]
         if not boundary(offset) or not boundary(finish) then return nil, 'missing_utf16_index' end
         if type(text) ~= 'string' or offset < previous or finish < offset then return nil, 'invalid_source_index' end
+        if not Source.is_current_span(span) then return nil, 'source_index_outdated' end
         total = total + #text
         if total > M.MAX_BYTES then return nil, 'source_limit' end
         local i = 1
@@ -110,6 +112,15 @@ function M:byte_to_source(byte)
     local index = preceding(self.bytes, byte)
     if self.bytes[index] ~= byte then return nil, 'partial_text_character' end
     return self.starts[index]
+end
+
+-- Display progress through visible chapter characters, after resolving the
+-- original UTF-16 offset. HTML tags/entities and surrogate pairs are not words.
+function M:chapter_fraction(offset)
+    if boundary(offset) and offset == self.ends[#self.ends] then return 1 end
+    local byte, reason = self:source_to_byte(offset)
+    if not byte then return nil, reason end
+    return (preceding(self.bytes, byte) - 1) / #self.starts
 end
 
 -- Align a short context around a known source character with chapter text.

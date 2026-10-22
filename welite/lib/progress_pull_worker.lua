@@ -2,6 +2,24 @@
 -- in the parent. One bounded pull per plugin, canceled with its reader lifetime.
 local Auth=require('welite.lib.worker_settings')
 local M={}
+-- Called inside the existing progress child, once for its selected chapter.
+-- Preview failure must not prevent a progress choice or trigger a download.
+function M.cached_chapter_fraction(plugin,book_id,remote)
+    if not remote.chapter_uid or remote.has_chapter_offset==false or remote.chapter_offset==nil then
+        return nil,'remote_offset_unavailable'
+    end
+    local Position=require('welite.lib.source_position')
+    local ok,spans=pcall(function()
+        return require('welite.lib.annotation_store'):new(plugin.settings):get(
+            book_id,'original',remote.chapter_uid,true,8*Position.MAX_BYTES)
+    end)
+    if not ok then return nil,'source_cache_unavailable' end
+    if type(spans)~='table' or #spans==0 then return nil,'source_cache_missing' end
+    local map,reason=Position.new(spans)
+    if not map then return nil,reason end
+    return map:chapter_fraction(remote.chapter_offset)
+end
+
 function M.cancel(plugin)
     local worker=plugin._progress_pull_worker
     plugin._progress_pull_worker=nil
@@ -61,20 +79,22 @@ function M.catalog(plugin,book_id,done,valid)
         done(chapters)
     end,valid)
 end
--- Fetch only the selected chapter when an old cache lacks web coordinates.
+-- Fetch only the selected chapter when an old cache lacks web coordinates
+-- or predates body-only HTML indexing. Keep old data until replacement succeeds.
 -- SQLite writes occur in the parent after the normal account/session checks.
 function M.source(plugin,book,chapter,done,valid)
     local id=tostring(book.book_id or book.bookId)
     local uid=tostring(chapter.chapterUid or chapter.chapterId)
     return M.start(plugin,function(check)
         local Store=require('welite.lib.annotation_store')
+        local Source=require('welite.lib.annotation_source')
         local spans=Store:new(plugin.settings):get(id,'original',uid,true)
         local indexed=type(spans)=='table' and #spans>0
         local total,limit=0,require('welite.lib.source_position').MAX_BYTES
         for _,span in ipairs(indexed and spans or {}) do
+            if not Source.is_current_span(span) then indexed=false;break end
             total=total+#(span[3] or '')
             if total>limit then return nil,'source_limit' end
-            if type(span[5])~='number' or type(span[6])~='number' then indexed=false;break end
         end
         if indexed then return {spans=spans} end
         check()
@@ -82,7 +102,6 @@ function M.source(plugin,book,chapter,done,valid)
             plugin.client,plugin.settings,book,chapter,{no_source_cache=true})
         check()
         if #(plain or html)>limit then return nil,'source_limit' end
-        local Source=require('welite.lib.annotation_source')
         spans=plain and Source.plain(plain) or Source.index(html)
         return {spans=spans,fetched=true}
     end,function(value,err)

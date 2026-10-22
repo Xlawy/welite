@@ -86,3 +86,28 @@ result=prepare();fingerprint='two';table.remove(queue,1)()
 assert(result()==false and #queue==0 and books.b.pending_upload_position,'account change cancels before acquiring any lock')
 fingerprint='one';busy=false
 print('closed_progress_sync_spec: baseline comparison, readback, newer snapshot, account isolation and timeout passed')
+
+-- Closed-reader snapshots must also reject old HTML indexes with UTF-16
+-- fields; otherwise head metadata can keep an upload pending indefinitely.
+package.preload['util']=function() return {htmlEntitiesToUtf8=function(s) return s end} end
+local Source=require('welite.lib.annotation_source')
+local cached={{13,15,'未知',false,13,15},{35,38,'章节甲',false,35,38}}
+package.preload['welite.lib.annotation_store']=function() return {new=function() return {
+ get=function() return cached end} end} end
+local raw='<html><head><title>未知🌿</title></head><body><h1>章节甲</h1><p>正文🌿乙</p></body></html>'
+local fetches=0
+package.preload['welite.lib.content']=function() return {fetch_chapter_xhtml=function(_,_,_,_,opts)
+ assert(opts.no_source_cache);fetches=fetches+1;return raw end} end
+local function snapshot()
+ return {account_id='one',chapter_uid=1,chapter_idx=1,
+  source_snapshot={version=1,text='章节甲正文🌿乙',byte=#'章节甲'+1}}
+end
+books.b={book_id='b'}
+cloud=Source.plain(raw:sub(1,raw:find('正文',1,true)-1))[1][6]
+local prior_sent=sent
+local receipt=Sync.reconcile(p,'b',snapshot())
+assert(receipt.accepted and receipt.position.chapter_offset==cloud and fetches==1)
+assert(not receipt.position.source_snapshot and sent==prior_sent,'identical cloud offset requires no write')
+cached=Source.index(raw)
+assert(Sync.reconcile(p,'b',snapshot()).accepted and fetches==1,'current cache must work offline')
+print('closed_progress_sync_spec: outdated HTML snapshot upgrade and exact source readback passed')

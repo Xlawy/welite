@@ -28,6 +28,13 @@ page=landing_page
 assert(map:capture().chapter_offset~=357,'computing target must not claim successful landing')
 map:accept_target(remote)
 assert(math.abs(map:capture().chapter_offset-357)<=1,'confirmed cloud offset survives page quantization')
+assert(map:capture().chapter_fraction==(page-5)/12,'display ratio must use the actual chapter layout')
+local preview_remote={chapter_uid=2,chapter_offset=3000,has_chapter_offset=true,
+    chapter_fraction=0.4,chapter_fraction_basis='source_text'}
+map:accept_target(preview_remote,page)
+assert(map:capture().chapter_fraction==0.4,'confirmed source ratio must not divide HTML offsets by wordCount')
+assert(map:capture().chapter_offset==3000,'display precision must not alter source coordinates')
+map:accept_target(remote)
 map:accept_target({chapter_uid=2,has_chapter_offset=false,percent=50})
 assert(map:capture().chapter_offset~=357,'a newer target without an offset must clear old precision')
 map:accept_target(remote)

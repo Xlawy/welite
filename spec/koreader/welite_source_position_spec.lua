@@ -9,9 +9,11 @@ describe('source coordinates in real EPUB text',function()
     end)
     before_each(function()
         root=os.tmpname();os.remove(root);require('libs/libkoreader-lfs').mkdir(root)
-        local html='<h1>Chapter one</h1>'
+        local html='<html><head><title>Unknown</title><style>p { margin: 0; }</style></head>'
+            ..'<body><h1>Chapter one</h1></body></html>'
+            ..'<html><head><title>Unknown</title></head><body>'
         for i=1,80 do html=html..'<p>Paragraph '..i..': unique &#91;<span>'..i..'</span>&#93; synthetic words &amp; text.</p>' end
-        html=html..'<p>Distinctive target ending.</p>'
+        html=html..'<p>Distinctive target ending.</p></body></html>'
         local spans=Source.index(html)
         map=assert(Position.new(spans))
         for _,span in ipairs(spans) do
@@ -54,6 +56,18 @@ describe('source coordinates in real EPUB text',function()
         pump(function() return finished end)
         assert.is_string(result,err);assert.is_true(ticks>1)
         assert.is_nil(plugin._progress_source_request)
+    end)
+    it('maps offset zero past concatenated XHTML heads and retains exact body coordinates',function()
+        local doc=reader.document
+        local page=doc:getCurrentPage()
+        local xp,err=map:locate_document(doc,range,0)
+        assert.is_string(xp,err)
+        local full=doc:getTextFromXPointers(range.start_xpointer,range.end_xpointer)
+        doc:clearSelection()
+        assert.equals(map.text,Locator.flatten_text(full))
+        assert.is_nil(map.text:find('Unknown',1,true))
+        assert.equals(map.starts[1],map:capture_document(doc,range,xp))
+        assert.equals(page,doc:getCurrentPage())
     end)
     it('locates and captures a long downloaded chapter beyond the former source limits',function()
         reader:onClose()

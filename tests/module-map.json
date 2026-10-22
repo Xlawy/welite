@@ -252,7 +252,9 @@
     ],
     "welite/lib/source_position.lua": [
       "spec/source_position_spec.lua",
-      "spec/koreader/welite_source_position_spec.lua"
+      "spec/closed_progress_sync_spec.lua",
+      "spec/koreader/welite_source_position_spec.lua",
+      "spec/koreader/welite_progress_worker_spec.lua"
     ],
     "welite/lib/progress_source_locator.lua": [
       "spec/koreader/welite_source_position_spec.lua",
@@ -319,7 +321,10 @@
       "spec/annotation_prefetch_worker_spec.lua"
     ],
     "welite/lib/annotation_source.lua": [
-      "spec/annotation_source_spec.lua"
+      "spec/annotation_source_spec.lua",
+      "spec/source_position_spec.lua",
+      "spec/koreader/welite_source_position_spec.lua",
+      "spec/koreader/welite_progress_worker_spec.lua"
     ],
     "welite/lib/annotation_sync.lua": [
       "spec/external_annotations_sync_spec.lua"

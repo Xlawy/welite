@@ -8,6 +8,13 @@ local function make(s,plain)
 end
 local map=make('<p title="🌿">甲 🌿&amp;乙</p>')
 assert(map.text=='甲🌿&乙')
+for index,offset in ipairs(map.starts) do
+    assert(map:chapter_fraction(offset)==(index-1)/4,'chapter ratio counts visible Unicode characters')
+end
+assert(map:chapter_fraction(0)==0,'chapter start includes leading markup')
+assert(map:chapter_fraction(map.ends[#map.ends])==1,'chapter end is complete')
+assert(not map:chapter_fraction(map.starts[2]+1),'surrogate interior must not yield a ratio')
+assert(not map:chapter_fraction(99999),'out-of-range source must not masquerade as 100%')
 for i,offset in ipairs(map.starts) do
     assert(map:source_to_byte(offset)==map.bytes[i])
     assert(map:byte_to_source(map.bytes[i])==offset)
@@ -106,3 +113,20 @@ local _,cancelled=Position.new(Source.plain(string.rep('a',300)),{decode=marker_
  yield=function() steps=steps+1;return steps<2 end})
 assert(cancelled=='cancelled' and steps==2,'normalization pass must remain cancelable')
 print('source_position_spec: whole footnote markers, split tags/entities, exact offsets and ambiguity passed')
+
+local complete='<html><head><title>未知</title></head><body><h1>章节甲</h1></body></html>'
+    ..'<html><head><title>未知</title></head><body><p>正文🌿&amp;乙</p></body></html>'
+local body_map=assert(Position.new(Source.index(complete),marker_options))
+assert(body_map.text=='章节甲正文🌿&乙')
+assert(body_map:locate(0,body_map.text)==1,'chapter start must skip invisible head text')
+for i,source_offset in ipairs(body_map.starts) do
+    assert(body_map:locate(source_offset,body_map.text)==body_map.bytes[i])
+    assert(body_map:text_to_source(body_map.text,body_map.bytes[i])==source_offset)
+end
+local _,outdated=Position.new({{0,2,'未知',false,0,2}},marker_options)
+assert(outdated=='source_index_outdated','old HTML with UTF-16 fields must not silently enter matching')
+local changed,changed_reason=body_map:locate(0,'a different edition')
+assert(not changed and changed_reason=='source_text_mismatch','real text differences must remain rejected')
+local _,repeated_reason=body_map:locate(0,body_map.text..body_map.text)
+assert(repeated_reason=='source_text_ambiguous','body-only indexing must preserve ambiguity protection')
+print('source_position_spec: head-free chapter starts, bidirectional coordinates and legacy rejection passed')

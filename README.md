@@ -4,7 +4,7 @@
 
 基于 **[finlater/weread.koplugin](https://github.com/finlater/weread.koplugin)** 开发，由 **Xlawy** 维护。感谢 finlater 及上游贡献者提供的功能实现。
 
-**当前版本：v1.0.5** · [下载最新版](https://github.com/Xlawy/welite/releases/latest) · [更新日志](CHANGELOG.md) · [问题反馈](https://github.com/Xlawy/welite/issues)
+**当前版本：v1.0.6** · [下载最新版](https://github.com/Xlawy/welite/releases/latest) · [更新日志](CHANGELOG.md) · [问题反馈](https://github.com/Xlawy/welite/issues)
 
 > **修改版本声明 · 2026-10-22**：WeLite 是上游的独立修改版本，提供自己的 UI、阅读位置适配与交互优化，并非上游官方发行版。保留上游版权与署名，继续采用 **AGPL-3.0-only**，详见 [NOTICE](NOTICE)。
 

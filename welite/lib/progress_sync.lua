@@ -99,6 +99,7 @@ function ProgressSync:new(options)
         end,
         notify = options.notify or function() end,
         run_pull = options.run_pull,
+        get_remote_chapter_fraction = options.get_remote_chapter_fraction,
         cancel_pull = options.cancel_pull,
         on_synced = options.on_synced or function() end,
         now = options.now or os.time,
@@ -300,6 +301,7 @@ function ProgressSync:capture_local()
         book_id = book_id,
         book = book,
         chapters = chapters,
+        position_catalog = cached.position_catalog,
         current_chapter = current_chapter,
         is_full_book = is_full_book == true,
         path = path,
@@ -740,6 +742,7 @@ function ProgressSync:_resolve(local_position, remote, context, options)
         end
         self.on_choice({
             book_title = context.book.title or context.book_id,
+            position_catalog = context.position_catalog,
             local_position = copy(local_position),
             remote_position = copy(remote),
             source_conflict = remote.conflict == true,
@@ -897,7 +900,18 @@ function ProgressSync:_pull(options)
             if stale() then return end
             if self.run_pull then
                 local started=self.run_pull(function(check)
-                    return self:_fetch_remote(context.book_id,context.chapters,check)
+                    local remote,err=self:_fetch_remote(context.book_id,context.chapters,check)
+                    -- Optional display enrichment runs in the same child as
+                    -- the pull, never in a page callback or dialog renderer.
+                    if remote and self.get_remote_chapter_fraction then
+                        local ok,fraction,preview_error=pcall(self.get_remote_chapter_fraction,context.book_id,remote)
+                        if ok then
+                            remote.chapter_fraction=fraction
+                            remote.chapter_fraction_basis=fraction and 'source_text' or nil
+                            remote.chapter_fraction_error=preview_error
+                        else remote.chapter_fraction_error='source_preview_failed' end
+                    end
+                    return remote,err
                 end,finish,valid)
                 if not started then finish(nil,"progress worker could not start") end
             else

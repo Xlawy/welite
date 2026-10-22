@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -88,6 +89,63 @@ class EmulatorTests(unittest.TestCase):
             emulator.migrate(self.source, self.root)
         self.assertFalse((self.root / '.dev/emulator').exists())
         self.assertEqual(list((self.root / '.dev').iterdir()), [])
+
+    def test_launch_reuses_existing_link_and_preserves_profile_on_success_and_failure(self):
+        runtime = emulator.migrate(self.source, self.root)
+        plugin = runtime / 'plugins/welite.koplugin'
+        plugin.parent.mkdir(exist_ok=True)
+        plugin.symlink_to(self.root, target_is_directory=True)
+        profile = self.root / '.dev/profile'
+        profile.mkdir()
+        saved = {'settings/welite-state.lua': 'fixture login',
+                 'history/reading-position.lua': 'fixture reading position'}
+        for name, content in saved.items():
+            path = profile / name
+            path.parent.mkdir(parents=True)
+            path.write_text(content)
+        script = runtime / 'koreader.sh'
+        for status in (0, 0, 7):
+            script.write_text('#!/bin/sh\ntest -L plugins/welite.koplugin || exit 99\n'
+                              f'exit {status}\n')
+            script.chmod(0o755)
+            if status:
+                with self.assertRaises(subprocess.CalledProcessError) as raised:
+                    emulator.launch(self.root, environ=self.environment)
+                self.assertEqual(raised.exception.returncode, status)
+            else:
+                emulator.launch(self.root, environ=self.environment)
+            self.assertTrue(plugin.is_symlink())
+            self.assertEqual(plugin.resolve(), self.root)
+            for name, content in saved.items():
+                self.assertEqual((profile / name).read_text(), content)
+
+    def test_relative_existing_link_is_reused_and_preserved(self):
+        runtime = emulator.migrate(self.source, self.root)
+        plugin = runtime / 'plugins/welite.koplugin'
+        plugin.parent.mkdir(exist_ok=True)
+        target = os.path.relpath(self.root, plugin.parent)
+        plugin.symlink_to(target, target_is_directory=True)
+        with emulator.plugin_link(runtime, self.root):
+            self.assertEqual(plugin.resolve(), self.root)
+        self.assertEqual(os.readlink(plugin), target)
+
+    def test_conflicting_paths_are_rejected_without_modification(self):
+        runtime = emulator.migrate(self.source, self.root)
+        plugin = runtime / 'plugins/welite.koplugin'
+        plugin.parent.mkdir(exist_ok=True)
+        for target in (self.source, self.root / 'missing-plugin'):
+            with self.subTest(target=target):
+                plugin.symlink_to(target, target_is_directory=True)
+                with self.assertRaisesRegex(ValueError, 'already exists'):
+                    with emulator.plugin_link(runtime, self.root):
+                        self.fail('Conflicting plugin must not be loaded')
+                self.assertEqual(os.readlink(plugin), str(target))
+                plugin.unlink()
+        plugin.write_text('existing plugin file')
+        with self.assertRaisesRegex(ValueError, 'already exists'):
+            with emulator.plugin_link(runtime, self.root):
+                self.fail('Conflicting file must not be overwritten')
+        self.assertEqual(plugin.read_text(), 'existing plugin file')
 
 
 if __name__ == '__main__':

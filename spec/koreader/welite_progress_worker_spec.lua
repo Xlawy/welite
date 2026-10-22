@@ -48,6 +48,51 @@ describe('background progress pull',function()
         assert.is_nil(remote);assert.is_truthy(err:find('credentials changed',1,true))
         assert.equals('new-account',values.cookies.wr_skey)
     end)
+    it('calculates a cloud chapter ratio from cached source coordinates in the child without fetching text',function()
+        local Source=require('welite.lib.annotation_source')
+        local Store=require('welite.lib.annotation_store')
+        local spans=Source.index('<html><head><title>Hidden</title></head><body><p>甲🌿&amp;乙</p></body></html>')
+        Store:new(plugin.settings):put('book','original','7',spans,'7')
+        plugin.client={get_text=function() error('preview must not fetch') end}
+        local remote={chapter_uid=7,chapter_offset=spans[1][5]+3,percent=25}
+        local completed,result=false
+        Worker.start(plugin,function()
+            local fraction,reason=Worker.cached_chapter_fraction(plugin,'book',remote)
+            return {fraction=fraction,reason=reason,offset=remote.chapter_offset}
+        end,function(value) result=value;completed=true end,function() return true end)
+        pump(function() return completed end)
+        assert.is_nil(result.reason);assert.equals(0.5,result.fraction)
+        assert.equals(remote.chapter_offset,result.offset)
+        assert.same(spans,Store:new(plugin.settings):get('book','original','7',true))
+        local fraction,reason=Worker.cached_chapter_fraction(plugin,'book',{chapter_uid=7,chapter_offset=spans[1][5]+2})
+        assert.is_nil(fraction);assert.equals('partial_source_character',reason)
+        fraction,reason=Worker.cached_chapter_fraction(plugin,'book',{chapter_uid=7,chapter_offset=99999})
+        assert.is_nil(fraction);assert.equals('source_offset_outside_text',reason)
+    end)
+    it('keeps missing, legacy, stale and invalid source previews unavailable',function()
+        local Store=require('welite.lib.annotation_store'):new(plugin.settings)
+        local remote={chapter_uid=7,chapter_offset=0}
+        local fraction,reason=Worker.cached_chapter_fraction(plugin,'book',remote)
+        assert.is_nil(fraction);assert.equals('source_cache_missing',reason)
+        fraction,reason=Worker.cached_chapter_fraction(plugin,'book',{chapter_uid=7,has_chapter_offset=false})
+        assert.is_nil(fraction);assert.equals('remote_offset_unavailable',reason)
+        for _,spans in ipairs({{{0,3,'old'}},{{0,3,'old',false,0,3}},{{0,3,'bad',true,0,99}}}) do
+            Store:put('book','original','7',spans,'7')
+            fraction,reason=Worker.cached_chapter_fraction(plugin,'book',remote)
+            assert.is_nil(fraction);assert.is_string(reason)
+        end
+    end)
+    it('bounds source payload reads before decoding JSON',function()
+        local Store=require('welite.lib.annotation_store'):new(plugin.settings)
+        Store:put('book','original','1',{text='甲'},'1')
+        local db=Store:openReadOnly('book')
+        local bytes=tonumber(db:rowexec("SELECT length(CAST(payload AS BLOB)) FROM annotation_data"))
+        db:close()
+        assert.same({text='甲'},Store:get('book','original','1',true,bytes))
+        local ok,reason=pcall(Store.get,Store,'book','original','1',true,bytes-1)
+        assert.is_false(ok);assert.is_truthy(reason:find('source_cache_limit',1,true))
+        assert.same({text='甲'},Store:get('book','original','1',true),'limit failure preserves cache')
+    end)
     it('fetches a missing catalog in the child and commits it before continuing',function()
         local json=require('json')
         plugin.settings.cache_dir=root
@@ -145,6 +190,65 @@ describe('background progress pull',function()
         end)
         writer:exec('ROLLBACK');writer:close()
         assert.is_true(ok,tostring(err))
+    end)
+
+    it('rebuilds only an outdated HTML chapter and preserves it on network or account failure',function()
+        local Store=require('welite.lib.annotation_store')
+        local Source=require('welite.lib.annotation_source')
+        local Position=require('welite.lib.source_position')
+        local Content=require('welite.lib.content')
+        local store=Store:new(plugin.settings)
+        local legacy={{13,15,'未知',false,13,15},{35,42,'Visible',false,35,42}}
+        store:put('book','original','1',legacy,'1')
+        store:put('book','original','2',legacy,'2')
+        store:put('book','source','1',{reviews={{content='fixture annotation'}}},'1')
+        local original_fetch=Content.fetch_chapter_xhtml
+        local fetch_log=root..'/fetch-log'
+        local mode='offline'
+        local html='<html><head><title>未知</title></head><body><p>Visible 🌿 text.</p></body></html>'
+        Content.fetch_chapter_xhtml=function(_,_,book,chapter,options)
+            assert.equals('book',book.book_id);assert.equals(1,chapter.chapterUid)
+            assert.is_true(options.no_source_cache)
+            local out=assert(io.open(fetch_log,'a'));out:write('fetch\n');out:close()
+            if mode=='offline' then error('synthetic network offline') end
+            if mode=='account' then require('socket').sleep(0.1) end
+            if mode=='limit' then return string.rep('x',Position.MAX_BYTES+1) end
+            return html
+        end
+        local function pull(change_account)
+            local completed,spans,err=false
+            assert.is_true(Worker.source(plugin,{book_id='book'},{chapterUid=1},function(value,why)
+                spans,err,completed=value,why,true
+            end,function() return true end))
+            if change_account then values.cookies={wr_skey='different-account'} end
+            pump(function() return completed end)
+            return spans,err
+        end
+        local ok,reason=pcall(function()
+            local spans,err=pull()
+            assert.is_nil(spans);assert.is_truthy(err:find('network offline',1,true))
+            assert.same(legacy,store:get('book','original','1',true))
+            mode='limit';spans,err=pull()
+            assert.is_nil(spans);assert.equals('source_limit',err)
+            assert.same(legacy,store:get('book','original','1',true))
+            mode='account';spans,err=pull(true)
+            assert.is_nil(spans);assert.is_truthy(err:find('credentials changed',1,true))
+            -- The fixture store uses no account key, isolating the commit guard.
+            assert.same(legacy,store:get('book','original','1',true))
+            mode='success';spans,err=pull()
+            assert.is_nil(err);assert.is_true(Source.is_current_span(spans[1]))
+            assert.equals('Visible🌿text.',assert(Position.new(spans)).text)
+            assert.same(spans,store:get('book','original','1',true))
+            assert.same(legacy,store:get('book','original','2',true))
+            assert.equals('fixture annotation',store:get('book','source','1',true).reviews[1].content)
+            -- Repeated use must perform no fifth fetch, even if now offline.
+            mode='offline';local cached,cached_error=pull()
+            assert.is_nil(cached_error);assert.same(spans,cached)
+            local log=assert(io.open(fetch_log,'r'));local calls=log:read('*a');log:close()
+            assert.equals('fetch\nfetch\nfetch\nfetch\n',calls)
+        end)
+        Content.fetch_chapter_xhtml=original_fetch
+        assert.is_true(ok,tostring(reason))
     end)
 
 end)

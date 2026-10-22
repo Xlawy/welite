@@ -58,13 +58,17 @@ def migrate(source, root=ROOT):
 def plugin_link(runtime, root=ROOT):
     plugin = runtime / 'plugins/welite.koplugin'
     plugin.parent.mkdir(parents=True, exist_ok=True)
-    if plugin.exists() or plugin.is_symlink():
+    target = root.resolve()
+    existing_link = plugin.is_symlink() and plugin.resolve() == target
+    if (plugin.exists() or plugin.is_symlink()) and not existing_link:
         raise ValueError(f'Plugin target already exists: {plugin}')
-    plugin.symlink_to(root.resolve(), target_is_directory=True)
+    if not existing_link:
+        plugin.symlink_to(target, target_is_directory=True)
     try:
         yield
     finally:
-        if plugin.is_symlink() and plugin.resolve() == root.resolve():
+        # Reuse a preinstalled development link without taking ownership of it.
+        if not existing_link and plugin.is_symlink() and plugin.resolve() == target:
             plugin.unlink()
 
 

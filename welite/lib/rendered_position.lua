@@ -95,6 +95,7 @@ function M:capture()
     end
     if entry.last <= entry.first then return nil, 'chapter_span_unavailable' end
     local fraction = clamp((coordinate-entry.first)/(entry.last-entry.first),0,1)
+    local display_fraction = fraction
     local landing=self.landing
     if landing then
         if coordinate==landing.page and tostring(entry.item.uid)==landing.uid then
@@ -106,8 +107,14 @@ function M:capture()
         summary=self.context.book.summary or self.context.book.title or '',
     })
     if position then
+        position.chapter_fraction = display_fraction
+        position.chapter_fraction_basis = 'rendered_chapter_span'
         position.position_basis='rendered_chapter_span'
         if self.landing then
+            if self.landing.chapter_fraction then
+                position.chapter_fraction=self.landing.chapter_fraction
+                position.chapter_fraction_basis='source_text'
+            end
             position.chapter_offset=self.landing.offset
             if self.landing.summary~=nil then position.summary=self.landing.summary end
             if self.landing.percent~=nil then
@@ -157,6 +164,7 @@ function M:accept_target(remote, source_page)
         -- Source HTML coordinates can exceed catalog wordCount. A confirmed
         -- server position must survive quantization without changing units.
         offset=math.floor(math.max(0,remote.chapter_offset)),summary=remote.summary,
+        chapter_fraction=remote.chapter_fraction_basis=='source_text' and remote.chapter_fraction or nil,
         percent=tonumber(remote.percent) and clamp(tonumber(remote.percent),0,100) or nil}
 end
 

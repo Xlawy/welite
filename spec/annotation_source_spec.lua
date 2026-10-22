@@ -32,3 +32,47 @@ assert(Source.quote(plain, "2-4", "utf16") == "🌿")
 assert(Source.quote(plain, "4-6", "utf16") == "<&")
 assert(Source.quote(Source.index("<p>甲</p><p>🌿乙</p>"), "3-14", "utf16") == "甲🌿乙")
 print("annotation_source_spec: UTF-16 source offsets, BOM, supplementary characters and legacy rejection passed")
+
+local function joined(rows)
+    local out = {}
+    for _, row in ipairs(rows) do out[#out + 1] = row[3] end
+    return table.concat(out)
+end
+local documents = '<html><head><title>未知</title><style>p {x:"<body>"}</style></head>'
+    .. '<body><h1>章节甲</h1></body></html>'
+    .. '<html><head><title>未知</title></head><body><p>正文🌿&amp;乙</p></body></html>'
+local indexed = Source.index(documents)
+assert(joined(indexed) == '章节甲正文🌿&amp;乙', 'concatenated document heads entered body text')
+for _, row in ipairs(indexed) do
+    assert(Source.is_current_span(row))
+    assert(row[7] == Source.INDEX_VERSION)
+end
+assert(joined(Source.index('<HEAD><TITLE>metadata</TITLE><STYLE>hidden</STYLE>hidden</HEAD>'
+    .. '<BODY><P>visible</P></BODY>tail')) == 'visible', 'case-insensitive body bounds failed')
+assert(joined(Source.index('before<html><body>visible</body></html>after')) == 'visible')
+assert(joined(Source.index('<head><title>hidden</title><style>x</style>also hidden</head><p>fragment</p>'))
+    == 'fragment', 'a nested style must not end head suppression')
+assert(joined(Source.index('<title>hidden</title><p>fragment</p>')) == 'fragment')
+assert(joined(Source.index('<!-- <body>fake</body> --><p>fragment</p>')) == 'fragment')
+assert(joined(Source.index('<script>if (a < b) {"<body>fake</body>"}</script><p>fragment</p>')) == 'fragment')
+assert(joined(Source.index('<!DOCTYPE html [<!ENTITY sample "hidden > value">]><p>fragment</p>')) == 'fragment')
+assert(joined(Source.index('<html><head><title>hidden</title></head><body></body></html>')) == '')
+
+local prefix = '\239\187\191<html><head><title>甲🌿</title></head><body><p>'
+local unicode = Source.index(prefix .. '乙🌿&amp;丙</p></body></html>')[1]
+-- Original source offsets include the whole head, tags and BOM, regardless of
+-- what the renderer displays. One CJK rune uses 3 bytes; the emoji uses 4.
+local expected_rune = #prefix - 2 - 2 - 3 - 1
+local expected_units = expected_rune + 2 -- leading BOM + supplementary rune
+assert(unicode[1] == expected_rune and unicode[5] == expected_units)
+assert(Source.quote({unicode}, expected_units .. '-' .. (expected_units + 3), 'utf16') == '乙🌿')
+assert(Source.quote({unicode}, expected_rune .. '-' .. (expected_rune + 2)) == '乙🌿')
+local cdata = Source.index('<body><![CDATA[甲<&乙]]><p>丙</p></body>')
+assert(joined(cdata) == '甲<&乙丙' and cdata[1][4] == true)
+assert(cdata[1][5] == #'<body><![CDATA[')
+assert(Source.quote(cdata, '15-19', 'utf16') == '甲<&乙')
+assert(not Source.is_current_span({0, 3, 'old', false, 0, 3}))
+assert(not Source.is_current_span({0, 3, 'future', false, 0, 3, Source.INDEX_VERSION + 1}))
+assert(Source.is_current_span({0, 3, 'TXT', true, 0, 3}), 'unchanged indexed TXT needs no migration')
+assert(not Source.is_current_span({0, 3, 'TXT', true}), 'TXT without original units needs refetch')
+print('annotation_source_spec: body-only XHTML, fragments, raw text, comments, CDATA and index versions passed')

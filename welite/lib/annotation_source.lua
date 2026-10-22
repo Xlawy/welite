@@ -2,6 +2,15 @@
 -- Fields 1-4 retain the existing annotation format; 5-6 address the web source.
 -- WeRead heat-map ranges address the source HTML, not the rendered EPUB text.
 local Source = {}
+-- Stored on each HTML span so JSON round trips remain plain arrays. Older
+-- indexes contain head/title text and cannot be repaired without the source.
+Source.INDEX_VERSION = 2
+
+function Source.is_current_span(span)
+    return type(span) == "table" and type(span[3]) == "string"
+        and type(span[5]) == "number" and type(span[6]) == "number"
+        and (span[4] == true or span[7] == Source.INDEX_VERSION)
+end
 local function length(byte)
     if byte < 128 then return 1 elseif byte < 224 then return 2
     elseif byte < 240 then return 3 else return 4 end
@@ -22,40 +31,83 @@ function Source.index(html)
     local units = html:sub(1, 3) == "\239\187\191" and 1 or 0
     local start_units
     html = html:gsub("^\239\187\191", "")
-    local spans, offset, i, start, pieces = {}, 0, 1, nil, {}
-    local in_tag, quote, suppressed = false, nil, nil
+    local spans, bodies, offset, i, start, pieces = {}, {}, 0, 1, nil, {}
+    local in_tag, quote, raw, special = false, nil, nil, nil
+    local in_head, in_body, has_body = false, false, false
+    local declaration, brackets = false, 0
     local tag = {}
     local function flush()
-        if start then spans[#spans + 1] = { start, offset, table.concat(pieces), false, start_units, units } end
+        if start then
+            local span = { start, offset, table.concat(pieces), special == "cdata",
+                start_units, units, Source.INDEX_VERSION }
+            if in_body then bodies[#bodies + 1] = span end
+            if not has_body then spans[#spans + 1] = span end
+        end
         start, start_units, pieces = nil, nil, {}
     end
     while i <= #html do
         local size = length(html:byte(i))
         local char = html:sub(i, i + size - 1)
-        if in_tag then
+        if special == "comment" then
+            if html:sub(i, i + 2) == "-->" then special, size = nil, 3 end
+        elseif special == "cdata" then
+            if html:sub(i, i + 2) == "]]>" then
+                flush(); special, size = nil, 3
+            elseif not in_head then
+                start_units, start = start_units or units, start or offset
+                pieces[#pieces + 1] = char
+            end
+        elseif in_tag then
             tag[#tag + 1] = char
             if quote then
                 if char == quote then quote = nil end
             elseif char == '"' or char == "'" then quote = char
-            elseif char == ">" then
+            elseif declaration and char == "[" then brackets = brackets + 1
+            elseif declaration and char == "]" then brackets = math.max(0, brackets - 1)
+            elseif char == ">" and brackets == 0 then
                 in_tag = false
-                local name = table.concat(tag):lower()
-                if name:match("^/?script[%s>]") or name:match("^/?style[%s>]") then
-                    suppressed = name:sub(1, 1) ~= "/" or nil
+                local closing, name = table.concat(tag):lower():match("^(/?)([%w:_-]+)[%s/>]")
+                if raw then
+                    if closing == "/" and name == raw then raw = nil end
+                elseif name == "head" then
+                    in_head = closing ~= "/"
+                elseif name == "body" then
+                    in_body = closing ~= "/"
+                    if in_body then
+                        in_head, has_body, spans = false, true, {}
+                    end
+                elseif closing == "" and (name == "script" or name == "style" or name == "title")
+                    and not table.concat(tag):match("/%s*>$") then
+                    raw = name
                 end
+            end
+        elseif raw then
+            -- Script/style raw text and title RCDATA end only at their own
+            -- closing tag. A '<' or fake body tag inside them is not markup.
+            if html:sub(i, i + #raw + 3):lower():match("^</" .. raw .. "[%s>]") then
+                in_tag, tag, declaration, brackets = true, {}, false, 0
             end
         elseif char == "<" then
             flush()
-            in_tag, tag = true, {}
-        elseif not suppressed then
+            if html:sub(i, i + 3) == "<!--" then
+                special, size = "comment", 4
+            elseif html:sub(i, i + 8) == "<![CDATA[" then
+                special, size = "cdata", 9
+            else
+                in_tag, tag, declaration, brackets = true, {}, html:sub(i + 1, i + 1) == "!", 0
+            end
+        elseif not in_head then
             start_units = start_units or units
             start = start or offset
             pieces[#pieces + 1] = char
         end
-        i, offset, units = i + size, offset + 1, units + (size == 4 and 2 or 1)
+        local step = #char == 1 and size or 1
+        i, offset, units = i + size, offset + step, units + (#char == 4 and 2 or step)
     end
     flush()
-    return spans
+    -- Full and concatenated XHTML contribute only their bodies. Body-less
+    -- fragments remain supported, without collecting head/title metadata.
+    return has_body and bodies or spans
 end
 
 function Source.quote(spans, range, unit)

@@ -117,6 +117,7 @@ local function fixture(remote, options)
         end,
         open_chapter = function() return true end,
         run_pull = options.run_pull,
+        get_remote_chapter_fraction = options.get_remote_chapter_fraction,
         on_synced = options.on_synced,
         on_choice = function(context)
             choices[#choices + 1] = context
@@ -889,7 +890,42 @@ test("background pull compares against the page reached during the request", fun
     f.document.page=60;f.sync:on_page_update()
     done(task(function() return true end))
     eq(f.choices[1].local_position.percent,60,"choice uses latest page")
+    eq(f.choices[1].position_catalog.by_uid["33"].source,chapters[3],
+        "preview reuses the cached catalog without a new scan")
     eq(f.values.books.book.last_local_position.percent,60,"saved position is not stale")
+end)
+
+test("chapter preview is calculated in the pull task and does not change source coordinates", function()
+    local task,done,calls= nil,nil,0
+    local f=fixture({progress=25,chapterUid=33,chapterOffset=12345},{
+        run_pull=function(run,finish) task,done=run,finish;return true end,
+        get_remote_chapter_fraction=function(book_id,remote)
+            eq(book_id,'book','preview book');eq(remote.chapter_offset,12345,'source offset preserved')
+            calls=calls+1;return 0.35
+        end,
+    })
+    f.sync:sync_now()
+    eq(calls,0,'UI schedules the task without calculating the preview')
+    done(task(function() return true end))
+    eq(calls,1,'only selected remote position is enriched')
+    eq(f.choices[1].remote_position.chapter_fraction,0.35,'dialog receives chapter ratio')
+    eq(f.choices[1].remote_position.percent,25,'whole-book percentage is preserved')
+    eq(f.choices[1].remote_position.chapter_offset,12345,'jump/upload coordinates are untouched')
+end)
+
+test("unavailable chapter previews never suppress the progress decision", function()
+    for _,preview in ipairs({function() return nil,'source_index_outdated' end,
+        function() error('synthetic preview failure') end}) do
+        local task,done
+        local f=fixture({progress=25,chapterUid=33,chapterOffset=99},{
+            run_pull=function(run,finish) task,done=run,finish;return true end,
+            get_remote_chapter_fraction=preview,
+        })
+        f.sync:sync_now();done(task(function() return true end))
+        eq(f.sync:status().state,'awaiting_choice','preview failure leaves conflict choice usable')
+        eq(f.choices[1].remote_position.chapter_fraction,nil,'unknown ratio is explicit')
+        eq(type(f.choices[1].remote_position.chapter_fraction_error),'string','preview error remains traceable')
+    end
 end)
 
 test("suspend cancels a pending pull and resume restarts even a short sleep", function()

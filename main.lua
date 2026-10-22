@@ -203,6 +203,9 @@ function WeLitePlugin:init()
         run_pull = function(task, done, valid)
             return require("welite.lib.progress_pull_worker").start(self,task,done,valid)
         end,
+        get_remote_chapter_fraction = function(book_id, remote)
+            return require("welite.lib.progress_pull_worker").cached_chapter_fraction(self,book_id,remote)
+        end,
         cancel_pull = function()
             require("welite.lib.progress_source_locator").cancel(self)
             require("welite.lib.progress_pull_worker").cancel(self)
