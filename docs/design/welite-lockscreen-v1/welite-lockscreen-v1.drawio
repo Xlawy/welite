@@ -1,0 +1,464 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="Electron" type="device" version="32.5.5" compressed="false">
+  <diagram id="lockscreen" name="01 休眠锁屏">
+    <mxGraphModel dx="600" dy="800" grid="0" gridSize="8" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="600" pageHeight="800" background="#FFFFFF" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="lockscreen-canvas" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=none;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="0" y="0" width="600" height="800" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-header" value="" style="group;connectable=0;" vertex="1" parent="1">
+          <mxGeometry x="24" y="28" width="552" height="49" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-3" value="WeLite" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=24;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="lockscreen-header">
+          <mxGeometry x="0" y="0" width="120" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-4" value="休眠中" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=right;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=14;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="lockscreen-header">
+          <mxGeometry x="362" y="3" width="84" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-5" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#111111;strokeWidth=1;" vertex="1" parent="lockscreen-header">
+          <mxGeometry x="471" y="11" width="22" height="12" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-6" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#111111;strokeColor=none;strokeWidth=1;" vertex="1" parent="lockscreen-header">
+          <mxGeometry x="493" y="14" width="2" height="6" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-7" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#111111;strokeColor=none;strokeWidth=1;" vertex="1" parent="lockscreen-header">
+          <mxGeometry x="474" y="14" width="2" height="6" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-8" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#111111;strokeColor=none;strokeWidth=1;" vertex="1" parent="lockscreen-header">
+          <mxGeometry x="478" y="14" width="2" height="6" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-9" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#111111;strokeColor=none;strokeWidth=1;" vertex="1" parent="lockscreen-header">
+          <mxGeometry x="482" y="14" width="2" height="6" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-10" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#111111;strokeColor=none;strokeWidth=1;" vertex="1" parent="lockscreen-header">
+          <mxGeometry x="486" y="14" width="2" height="6" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-11" value="79%" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=right;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=15;fontStyle=0;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="lockscreen-header">
+          <mxGeometry x="503" y="2" width="49" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-12" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#111111;strokeColor=none;strokeWidth=1;" vertex="1" parent="lockscreen-header">
+          <mxGeometry x="0" y="48" width="552" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-recent-book" value="" style="group;connectable=0;" vertex="1" parent="1">
+          <mxGeometry x="24" y="114" width="552" height="330" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-14" value="最近阅读" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=20;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="lockscreen-recent-book">
+          <mxGeometry x="0" y="0" width="200" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-editable-demo-cover" value="" style="group;connectable=0;" vertex="1" parent="lockscreen-recent-book">
+          <mxGeometry x="0" y="60" width="176.0" height="256.0" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-16" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#E2E2E2;strokeColor=none;strokeWidth=1;" vertex="1" parent="lockscreen-editable-demo-cover">
+          <mxGeometry x="0.0" y="0.0" width="176.0" height="256.0" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-17" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#111111;strokeColor=none;strokeWidth=1;" vertex="1" parent="lockscreen-editable-demo-cover">
+          <mxGeometry x="0.0" y="0.0" width="176.0" height="5.333333333333333" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-18" value="WELITE / 01" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontFamily=Arial;fontSize=10.666666666666666;fontStyle=0;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="lockscreen-editable-demo-cover">
+          <mxGeometry x="13.333333333333332" y="13.333333333333332" width="149.33333333333331" height="18.666666666666664" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-19" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#888888;strokeColor=none;strokeWidth=1;" vertex="1" parent="lockscreen-editable-demo-cover">
+          <mxGeometry x="13.333333333333332" y="37.33333333333333" width="149.33333333333331" height="1.3333333333333333" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-20" value="山间来信" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=29.333333333333332;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="lockscreen-editable-demo-cover">
+          <mxGeometry x="12.0" y="56.0" width="152.0" height="50.666666666666664" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-21" value="LETTERS FROM THE HILLS" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontFamily=Arial;fontSize=9.066666666666666;fontStyle=0;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="lockscreen-editable-demo-cover">
+          <mxGeometry x="10.666666666666666" y="116.0" width="154.66666666666666" height="26.666666666666664" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-22" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#EFEFEF;strokeColor=none;strokeWidth=1;" vertex="1" parent="lockscreen-editable-demo-cover">
+          <mxGeometry x="21.333333333333332" y="166.66666666666666" width="133.33333333333331" height="44.0" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-23" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#666666;strokeColor=none;strokeWidth=1;" vertex="1" parent="lockscreen-editable-demo-cover">
+          <mxGeometry x="32.0" y="173.33333333333331" width="1.3333333333333333" height="30.666666666666664" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-24" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#666666;strokeColor=none;strokeWidth=1;" vertex="1" parent="lockscreen-editable-demo-cover">
+          <mxGeometry x="48.0" y="184.0" width="1.3333333333333333" height="20.0" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-25" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#666666;strokeColor=none;strokeWidth=1;" vertex="1" parent="lockscreen-editable-demo-cover">
+          <mxGeometry x="64.0" y="177.33333333333331" width="1.3333333333333333" height="26.666666666666664" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-26" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#666666;strokeColor=none;strokeWidth=1;" vertex="1" parent="lockscreen-editable-demo-cover">
+          <mxGeometry x="80.0" y="189.33333333333331" width="1.3333333333333333" height="14.666666666666666" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-27" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#666666;strokeColor=none;strokeWidth=1;" vertex="1" parent="lockscreen-editable-demo-cover">
+          <mxGeometry x="96.0" y="180.0" width="1.3333333333333333" height="24.0" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-28" value="林知远" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=12.0;fontStyle=0;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="lockscreen-editable-demo-cover">
+          <mxGeometry x="10.666666666666666" y="226.66666666666666" width="154.66666666666666" height="21.333333333333332" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-29" value="山间来信" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=32;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="lockscreen-recent-book">
+          <mxGeometry x="208" y="82" width="344" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-30" value="林知远" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=17;fontStyle=0;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="lockscreen-recent-book">
+          <mxGeometry x="208" y="160" width="344" height="27" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-31" value="第十二章 · 春山慢行" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=17;fontStyle=0;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="lockscreen-recent-book">
+          <mxGeometry x="208" y="220" width="344" height="29" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-32" value="本书已读  3 小时 16 分" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=14;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="lockscreen-recent-book">
+          <mxGeometry x="208" y="276" width="344" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-book-progress" value="" style="group;connectable=0;" vertex="1" parent="1">
+          <mxGeometry x="24" y="490" width="552" height="47" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-34" value="阅读进度" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=15;fontStyle=0;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="lockscreen-book-progress">
+          <mxGeometry x="0" y="0" width="320" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-35" value="42%" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=right;verticalAlign=middle;fontFamily=Arial;fontSize=28;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="lockscreen-book-progress">
+          <mxGeometry x="410" y="-7" width="142" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-36" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#E2E2E2;strokeColor=#111111;strokeWidth=1;" vertex="1" parent="lockscreen-book-progress">
+          <mxGeometry x="0" y="36" width="552" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-37" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#111111;strokeColor=none;strokeWidth=1;" vertex="1" parent="lockscreen-book-progress">
+          <mxGeometry x="0" y="36" width="231.84" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-reading-time" value="" style="group;connectable=0;" vertex="1" parent="1">
+          <mxGeometry x="24" y="608" width="552" height="82" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-39" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#111111;strokeColor=none;strokeWidth=1;" vertex="1" parent="lockscreen-reading-time">
+          <mxGeometry x="0" y="0" width="552" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-40" value="本月" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=14;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="lockscreen-reading-time">
+          <mxGeometry x="0" y="17" width="174" height="23" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-41" value="18 小时 32 分" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=23;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="lockscreen-reading-time">
+          <mxGeometry x="0" y="44" width="174" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-42" value="本周" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=14;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="lockscreen-reading-time">
+          <mxGeometry x="184" y="17" width="174" height="23" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-43" value="4 小时 38 分" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=23;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="lockscreen-reading-time">
+          <mxGeometry x="184" y="44" width="174" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-44" value="今日" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=14;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="lockscreen-reading-time">
+          <mxGeometry x="368" y="17" width="174" height="23" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-45" value="42 分钟" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=23;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="lockscreen-reading-time">
+          <mxGeometry x="368" y="44" width="174" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-wake-hint" value="" style="group;connectable=0;" vertex="1" parent="1">
+          <mxGeometry x="24" y="716" width="552" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-47" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#111111;strokeColor=none;strokeWidth=1;" vertex="1" parent="lockscreen-wake-hint">
+          <mxGeometry x="0" y="0" width="552" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lockscreen-48" value="按电源键唤醒" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=16;fontStyle=0;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="lockscreen-wake-hint">
+          <mxGeometry x="0" y="20" width="552" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="empty" name="02 尚无阅读记录">
+    <mxGraphModel dx="600" dy="800" grid="0" gridSize="8" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="600" pageHeight="800" background="#FFFFFF" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="empty-canvas" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=none;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="0" y="0" width="600" height="800" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-header" value="" style="group;connectable=0;" vertex="1" parent="1">
+          <mxGeometry x="24" y="28" width="552" height="49" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-3" value="WeLite" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=24;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="empty-header">
+          <mxGeometry x="0" y="0" width="120" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-4" value="休眠中" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=right;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=14;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="empty-header">
+          <mxGeometry x="362" y="3" width="84" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-5" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#111111;strokeWidth=1;" vertex="1" parent="empty-header">
+          <mxGeometry x="471" y="11" width="22" height="12" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-6" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#111111;strokeColor=none;strokeWidth=1;" vertex="1" parent="empty-header">
+          <mxGeometry x="493" y="14" width="2" height="6" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-7" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#111111;strokeColor=none;strokeWidth=1;" vertex="1" parent="empty-header">
+          <mxGeometry x="474" y="14" width="2" height="6" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-8" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#111111;strokeColor=none;strokeWidth=1;" vertex="1" parent="empty-header">
+          <mxGeometry x="478" y="14" width="2" height="6" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-9" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#111111;strokeColor=none;strokeWidth=1;" vertex="1" parent="empty-header">
+          <mxGeometry x="482" y="14" width="2" height="6" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-10" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#111111;strokeColor=none;strokeWidth=1;" vertex="1" parent="empty-header">
+          <mxGeometry x="486" y="14" width="2" height="6" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-11" value="79%" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=right;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=15;fontStyle=0;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="empty-header">
+          <mxGeometry x="503" y="2" width="49" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-12" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#111111;strokeColor=none;strokeWidth=1;" vertex="1" parent="empty-header">
+          <mxGeometry x="0" y="48" width="552" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-empty-reading" value="" style="group;connectable=0;" vertex="1" parent="1">
+          <mxGeometry x="24" y="114" width="552" height="420" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-14" value="最近阅读" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=20;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="empty-empty-reading">
+          <mxGeometry x="0" y="0" width="200" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-15" value="" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#111111;strokeWidth=1.5;absoluteArcSize=1;arcSize=6;" vertex="1" parent="empty-empty-reading">
+          <mxGeometry x="245" y="148" width="62" height="78" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-16" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#777777;strokeColor=none;strokeWidth=1;" vertex="1" parent="empty-empty-reading">
+          <mxGeometry x="257" y="169" width="38" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-17" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#777777;strokeColor=none;strokeWidth=1;" vertex="1" parent="empty-empty-reading">
+          <mxGeometry x="257" y="179" width="28" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-18" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#777777;strokeColor=none;strokeWidth=1;" vertex="1" parent="empty-empty-reading">
+          <mxGeometry x="257" y="189" width="34" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-19" value="下一本，慢慢读" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=26;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="empty-empty-reading">
+          <mxGeometry x="0" y="274" width="552" height="38" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-20" value="开始阅读后，这里会显示书籍与进度" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=16;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="empty-empty-reading">
+          <mxGeometry x="0" y="326" width="552" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-reading-time" value="" style="group;connectable=0;" vertex="1" parent="1">
+          <mxGeometry x="24" y="608" width="552" height="82" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-22" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#111111;strokeColor=none;strokeWidth=1;" vertex="1" parent="empty-reading-time">
+          <mxGeometry x="0" y="0" width="552" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-23" value="本月" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=14;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="empty-reading-time">
+          <mxGeometry x="0" y="17" width="174" height="23" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-24" value="0 分钟" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=23;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="empty-reading-time">
+          <mxGeometry x="0" y="44" width="174" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-25" value="本周" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=14;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="empty-reading-time">
+          <mxGeometry x="184" y="17" width="174" height="23" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-26" value="0 分钟" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=23;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="empty-reading-time">
+          <mxGeometry x="184" y="44" width="174" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-27" value="今日" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=14;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="empty-reading-time">
+          <mxGeometry x="368" y="17" width="174" height="23" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-28" value="0 分钟" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=23;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="empty-reading-time">
+          <mxGeometry x="368" y="44" width="174" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-wake-hint" value="" style="group;connectable=0;" vertex="1" parent="1">
+          <mxGeometry x="24" y="716" width="552" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-30" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#111111;strokeColor=none;strokeWidth=1;" vertex="1" parent="empty-wake-hint">
+          <mxGeometry x="0" y="0" width="552" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="empty-31" value="按电源键唤醒" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=16;fontStyle=0;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="empty-wake-hint">
+          <mxGeometry x="0" y="20" width="552" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="settings" name="03 锁屏设置">
+    <mxGraphModel dx="600" dy="800" grid="0" gridSize="8" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="600" pageHeight="800" background="#CCCCCC" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="settings-canvas" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#CCCCCC;strokeColor=none;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="0" y="0" width="600" height="800" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-settings-dialog" value="" style="group;connectable=0;" vertex="1" parent="1">
+          <mxGeometry x="24" y="140" width="552" height="520" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-3" value="" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#111111;strokeWidth=2;absoluteArcSize=1;arcSize=16;" vertex="1" parent="settings-settings-dialog">
+          <mxGeometry x="0" y="0" width="552" height="520" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-4" value="WeLite" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=22;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="settings-settings-dialog">
+          <mxGeometry x="24" y="24" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-5" value="锁屏设置" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=22;fontStyle=0;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="settings-settings-dialog">
+          <mxGeometry x="112" y="24" width="230" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-6" value="" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#111111;strokeWidth=1;absoluteArcSize=1;arcSize=16;" vertex="1" parent="settings-settings-dialog">
+          <mxGeometry x="448" y="24" width="80" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-7" value="返回" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=16;fontStyle=0;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="settings-settings-dialog">
+          <mxGeometry x="448" y="24" width="80" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-8" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#111111;strokeColor=none;strokeWidth=1;" vertex="1" parent="settings-settings-dialog">
+          <mxGeometry x="24" y="84" width="504" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-9" value="启用 WeLite 锁屏" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=20;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="settings-settings-dialog">
+          <mxGeometry x="24" y="106" width="420" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-10" value="休眠时显示，唤醒后回到原页面" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=14;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="settings-settings-dialog">
+          <mxGeometry x="24" y="145" width="448" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-11" value="" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#111111;strokeColor=none;strokeWidth=1;absoluteArcSize=1;arcSize=24;" vertex="1" parent="settings-settings-dialog">
+          <mxGeometry x="484" y="111" width="44" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-12" value="" style="ellipse;html=0;fillColor=#FFFFFF;strokeColor=none;strokeWidth=1;" vertex="1" parent="settings-settings-dialog">
+          <mxGeometry x="507" y="114" width="18" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-13" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#AAAAAA;strokeColor=none;strokeWidth=1;" vertex="1" parent="settings-settings-dialog">
+          <mxGeometry x="24" y="184" width="504" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-14" value="显示最近阅读" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=20;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="settings-settings-dialog">
+          <mxGeometry x="24" y="202" width="420" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-15" value="封面、书名、章节与阅读进度" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=14;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="settings-settings-dialog">
+          <mxGeometry x="24" y="241" width="448" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-16" value="" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#111111;strokeColor=none;strokeWidth=1;absoluteArcSize=1;arcSize=24;" vertex="1" parent="settings-settings-dialog">
+          <mxGeometry x="484" y="207" width="44" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-17" value="" style="ellipse;html=0;fillColor=#FFFFFF;strokeColor=none;strokeWidth=1;" vertex="1" parent="settings-settings-dialog">
+          <mxGeometry x="507" y="210" width="18" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-18" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#AAAAAA;strokeColor=none;strokeWidth=1;" vertex="1" parent="settings-settings-dialog">
+          <mxGeometry x="24" y="280" width="504" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-19" value="显示阅读时长" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=20;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="settings-settings-dialog">
+          <mxGeometry x="24" y="298" width="420" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-20" value="本书累计，以及本月、本周和今日" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=14;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="settings-settings-dialog">
+          <mxGeometry x="24" y="337" width="448" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-21" value="" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#111111;strokeColor=none;strokeWidth=1;absoluteArcSize=1;arcSize=24;" vertex="1" parent="settings-settings-dialog">
+          <mxGeometry x="484" y="303" width="44" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-22" value="" style="ellipse;html=0;fillColor=#FFFFFF;strokeColor=none;strokeWidth=1;" vertex="1" parent="settings-settings-dialog">
+          <mxGeometry x="507" y="306" width="18" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-23" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#AAAAAA;strokeColor=none;strokeWidth=1;" vertex="1" parent="settings-settings-dialog">
+          <mxGeometry x="24" y="376" width="504" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-24" value="" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#111111;strokeWidth=1;absoluteArcSize=1;arcSize=16;" vertex="1" parent="settings-settings-dialog">
+          <mxGeometry x="24" y="404" width="504" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-25" value="预览锁屏" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=17;fontStyle=0;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="settings-settings-dialog">
+          <mxGeometry x="24" y="404" width="504" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="settings-26" value="展示休眠前的阅读记录" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=14;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="settings-settings-dialog">
+          <mxGeometry x="24" y="470" width="504" height="26" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="specification" name="04 交互与样式说明">
+    <mxGraphModel dx="1200" dy="1080" grid="0" gridSize="8" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="1080" background="#F4F4F4" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="specification-canvas" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#F4F4F4;strokeColor=none;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="0" y="0" width="1200" height="1080" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-2" value="WeLite / 锁屏设计 V1" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=32;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="48" y="32" width="1104" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-3" value="供讨论的设计稿 · 600 × 800 基准 · 示例数据 · 尚未实现" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=17;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="48" y="88" width="1104" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-4" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#111111;strokeColor=none;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="48" y="134" width="1104" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-5" value="进入与退出" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=22;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="48" y="157" width="1104" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-6" value="" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#111111;strokeWidth=1;absoluteArcSize=1;arcSize=16;" vertex="1" parent="1">
+          <mxGeometry x="48" y="216" width="300" height="92" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-7" value="阅读 / 书架" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=21;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="64" y="228" width="268" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-8" value="保持当前页面" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=15;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="64" y="266" width="268" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-9" value="" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#111111;strokeWidth=1;absoluteArcSize=1;arcSize=16;" vertex="1" parent="1">
+          <mxGeometry x="450" y="216" width="300" height="92" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-10" value="WeLite 锁屏" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=21;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="466" y="228" width="268" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-11" value="展示休眠前的数据" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=15;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="466" y="266" width="268" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-12" value="" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#111111;strokeWidth=1;absoluteArcSize=1;arcSize=16;" vertex="1" parent="1">
+          <mxGeometry x="852" y="216" width="300" height="92" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-13" value="恢复原页面" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=21;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="868" y="228" width="268" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-14" value="保持原来的阅读位置" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=center;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=15;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="868" y="266" width="268" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-15" value="进入休眠" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#111111;strokeWidth=1;fontFamily=Microsoft YaHei;fontSize=14;fontColor=#111111;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="specification-6" target="specification-9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-16" value="电源键唤醒" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;endFill=1;strokeColor=#111111;strokeWidth=1;fontFamily=Microsoft YaHei;fontSize=14;fontColor=#111111;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="specification-9" target="specification-12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-17" value="入口：WeLite 设置 → 基础设置 → 锁屏设置。预览使用同一版式，轻点任意位置返回设置。" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=16;fontStyle=0;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="48" y="330" width="1104" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-18" value="" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#BBBBBB;strokeWidth=1;absoluteArcSize=1;arcSize=16;" vertex="1" parent="1">
+          <mxGeometry x="48" y="398" width="536" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-19" value="01  保持同一套视觉语言" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=20;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="415" width="492" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-20" value="沿用 WeLite 字标、白底黑字与 1 px 分隔线。&#10;左右留白 24 px，书名和关键数值加粗。&#10;只有设置使用圆角白色面板与灰色遮罩。" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=15;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="455" width="492" height="73" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-21" value="" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#BBBBBB;strokeWidth=1;absoluteArcSize=1;arcSize=16;" vertex="1" parent="1">
+          <mxGeometry x="616" y="398" width="536" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-22" value="02  只聚焦一本最近阅读" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=20;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="638" y="415" width="492" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-23" value="阅读中休眠展示当前书；书架休眠展示最近阅读书。&#10;呈现封面、书名、作者、当前章节与全书进度。&#10;时长沿用书架的本月 / 本周 / 今日顺序。" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=15;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="638" y="455" width="492" height="73" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-24" value="" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#BBBBBB;strokeWidth=1;absoluteArcSize=1;arcSize=16;" vertex="1" parent="1">
+          <mxGeometry x="48" y="567" width="536" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-25" value="03  本地数据与休眠快照" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=20;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="584" width="492" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-26" value="复用现有阅读位置与时长数据口径，不单独估算。&#10;休眠前保存本次阅读记录，再生成一次锁屏。&#10;不显示时钟与日期，不联网、不轮询、不定时刷新。" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=15;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="624" width="492" height="73" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-27" value="" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#BBBBBB;strokeWidth=1;absoluteArcSize=1;arcSize=16;" vertex="1" parent="1">
+          <mxGeometry x="616" y="567" width="536" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-28" value="04  内容不足时的降级" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=20;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="638" y="584" width="492" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-29" value="无封面使用同尺寸的书名封面；长书名最多两行。&#10;未知进度显示“暂无进度”，不填充进度条。&#10;时长缺失显示“—”；确认没有阅读才显示“0 分钟”。" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=15;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="638" y="624" width="492" height="73" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-30" value="" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#BBBBBB;strokeWidth=1;absoluteArcSize=1;arcSize=16;" vertex="1" parent="1">
+          <mxGeometry x="48" y="736" width="536" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-31" value="05  显示选项与首次使用" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=20;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="753" width="492" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-32" value="建议三个开关默认开启。关闭最近阅读后隐藏整块书籍&#10;与进度；关闭时长后隐藏本书累计与三列统计。&#10;尚未开始阅读使用第 02 页；始终保留唤醒提示。" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=15;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="793" width="492" height="73" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-33" value="" style="rounded=1;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#BBBBBB;strokeWidth=1;absoluteArcSize=1;arcSize=16;" vertex="1" parent="1">
+          <mxGeometry x="616" y="736" width="536" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-34" value="06  休眠行为的范围" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=20;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="638" y="753" width="492" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-35" value="拟接入 KOReader 的休眠与唤醒流程。&#10;真休眠下不安排点击按钮；唤醒仍使用设备电源键。&#10;本稿不新增密码锁，也不改变 Kindle 系统锁屏策略。" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=15;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="638" y="793" width="492" height="73" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-36" value="样式标尺" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=19;fontStyle=1;fontColor=#111111;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="48" y="920" width="160" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-37" value="正文 16–17 px  /  说明 14 px  /  分组标题 20 px  /  书名 32 px  /  统计 23 px" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=16;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="48" y="957" width="1104" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="specification-38" value="适配约定：按屏幕尺寸缩放，保留相对留白；长章节单行省略。设计文件全部使用可编辑文字与矢量形状。" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontFamily=Microsoft YaHei;fontSize=15;fontStyle=0;fontColor=#555555;spacing=0;strokeColor=none;fillColor=none;resizable=1;" vertex="1" parent="1">
+          <mxGeometry x="48" y="998" width="1104" height="28" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

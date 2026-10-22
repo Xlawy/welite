@@ -75,7 +75,6 @@ local function fixture(provider)
             if key == "read_report" then
                 return {
                     enabled = true,
-                    mode = "auto",
                     interval_seconds = 30,
                 }
             end
@@ -108,6 +107,39 @@ local function fixture(provider)
     }
     return report, records
 end
+
+test("legacy fixed targets cannot override the current book or start background counting", function()
+    local report = fixture()
+    local get = report.settings.get
+    report.settings.get = function(self, key)
+        local value = get(self, key)
+        if key == "read_report" then
+            value.mode = "manual"
+            value.book_id = "other-book"
+            value.book_title = "Other Book"
+            value.report_on_open = false
+        end
+        return value
+    end
+    local started, title, source = report:on_reader_ready()
+    eq(started, true, "recognized book starts reporting")
+    eq(report.current_book_id, "book", "time follows the open book, never the fixed target")
+    eq(title, "Book", "title follows the open book")
+    eq(source, "current_document", "target comes from the reader")
+    report:on_close_document()
+    eq(report.task, nil, "close stops the timer even before the document reference is cleared")
+    eq(report.current_book_id, nil, "close clears the target")
+    report.detect_book = function() return nil end
+    local local_started, _, local_reason = report:on_reader_ready()
+    eq(local_started, false, "unrecognized local books cannot report to the fixed target")
+    eq(local_reason, "document_not_weread", "local document has an explicit skip reason")
+    report.get_document = function() return nil end
+    report.detect_book = function() error("no document must not require detection") end
+    local resumed, _, reason = report:on_resume()
+    eq(resumed, false, "resuming on the shelf cannot start reporting")
+    eq(reason, "no_document", "no background reporting")
+    eq(report.task, nil, "no timer on the shelf")
+end)
 
 test("unverified position blocks reading-time reporting", function()
     local report = fixture(function()
@@ -234,7 +266,11 @@ test("account switch abandons old report and restarts with a fresh progress gate
         return value
     end
     report:on_account_changed()
-    eq(report.task,nil,"old manual target does not restart under new account")
+    eq(report.current_book_id,"book","new account follows the open book instead of the old fixed target")
+    eq(report:_precheck(),false,"legacy target cannot bypass fresh account progress verification")
+    report.get_document=function() return nil end
+    report:on_account_changed()
+    eq(report.task,nil,"account change on the shelf cannot restart background reporting")
 end)
 
 test("spawn failure never falls back to UI network and can recover next interval", function()

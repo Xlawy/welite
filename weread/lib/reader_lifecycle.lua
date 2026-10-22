@@ -161,7 +161,7 @@ function M:onReaderReady()
     end)
     local _started, _title, reason = self.read_report:on_reader_ready()
     local rr = self.settings:get("read_report")
-    if rr.enabled and rr.mode == "auto" and reason == "document_not_weread" then
+    if rr.enabled and reason == "document_not_weread" then
         self:showTransientInfo(_("Current book is not from WeRead, reading time not reported"), 1)
     end
     perf("reader_services", annotations_ready)

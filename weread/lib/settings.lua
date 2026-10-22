@@ -50,12 +50,8 @@ local defaults = {
         max_size_mb = 1024,
     },
     read_report = {
-        enabled = false,
-        mode = "manual",
-        book_id = "",
-        book_title = "",
+        enabled = true,
         interval_seconds = 30,
-        report_on_open = true,
     },
     thought_popup = {
         -- Thought popup height as a fraction of the screen height.
@@ -260,7 +256,26 @@ function Settings:new()
     if sync_changed then
         obj.store:saveSetting("sync", sync)
     end
-    local legacy_changed = sync_changed or cache_layout_changed
+    -- Keep the saved opt-out and interval, but retire fixed targets and
+    -- background counting: time always belongs to the current WeRead book.
+    local read_report = obj.store:readSetting("read_report", {})
+    local read_report_changed = false
+    for key, value in pairs(defaults.read_report) do
+        if read_report[key] == nil then
+            read_report[key] = value
+            read_report_changed = true
+        end
+    end
+    for _, key in ipairs({ "mode", "book_id", "book_title", "report_on_open" }) do
+        if read_report[key] ~= nil then
+            read_report[key] = nil
+            read_report_changed = true
+        end
+    end
+    if read_report_changed then
+        obj.store:saveSetting("read_report", read_report)
+    end
+    local legacy_changed = sync_changed or cache_layout_changed or read_report_changed
     for _, key in ipairs({
         "config_auth_fingerprint",
         "config_preferences_fingerprint",

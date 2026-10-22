@@ -223,6 +223,29 @@ expect(migrated.pull_on_open == false and migrated.upload_on_close == true,
 values.sync.upload_on_close = false
 expect(Settings:new():get("sync").upload_on_close == false, "reopening must preserve disabled upload")
 
+values.read_report = nil
+local report_defaults = Settings:new():get("read_report")
+expect(report_defaults.enabled == true and report_defaults.interval_seconds == 30
+    and report_defaults.mode == nil and report_defaults.book_id == nil
+    and report_defaults.book_title == nil and report_defaults.report_on_open == nil,
+    "new profiles must report the current book every 30 seconds only while reading")
+values.read_report = { interval_seconds = 60 }
+local report_migrated = Settings:new():get("read_report")
+expect(report_migrated.enabled == true and report_migrated.interval_seconds == 60,
+    "partial report settings must gain missing defaults without changing the saved interval")
+settings:set("read_report", { enabled = false, mode = "manual", book_id = "chosen",
+    book_title = "Chosen book", interval_seconds = 60, report_on_open = false })
+settings:flush()
+local before_report_reopen = flush_count
+local report_saved = Settings:new():get("read_report")
+expect(report_saved.enabled == false and report_saved.mode == nil
+    and report_saved.book_id == nil and report_saved.book_title == nil
+    and report_saved.interval_seconds == 60 and report_saved.report_on_open == nil,
+    "migration must remove fixed targets and background counting while preserving opt-out and interval")
+expect(flush_count == before_report_reopen + 1, "persist the legacy target cleanup once")
+Settings:new()
+expect(flush_count == before_report_reopen + 1, "migrated preferences must not be rewritten on reopen")
+
 print(("settings_spec: %d checks"):format(checks))
 
 values.welite_cache_layout = nil

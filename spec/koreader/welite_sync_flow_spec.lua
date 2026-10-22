@@ -2,7 +2,7 @@
 -- Only remote service responses and the file-manager open-file host are supplied.
 describe('WeLite shelf-to-reader sync flow',function()
     local UI,Storage,Settings,Plugin,Dialog,Reader,root,old_full,old_dir
-    local manager,reader,target,dialog,old_show,remote,opened,bookpath,online
+    local manager,reader,target,dialog,old_show,remote,opened,bookpath,online,reading_clock
     local function reports()
         local file=io.open(root..'/server-report.json','r')
         if not file then return 0 end
@@ -19,18 +19,28 @@ describe('WeLite shelf-to-reader sync flow',function()
     local function wire(plugin)
         plugin.isNetworkOnline=function() return online end
         plugin.isNetworkConnected=function() return online end
+        plugin.read_report.time_ledger.clock=function() return reading_clock end
         plugin.client.get_shelf=function() return {books={{bookId='fixture',title='Fixture',author='Author',progress=remote.progress}}} end
         plugin.client.get_read_stats=function() return {totalReadTime=120,readTimes={}} end
-        plugin.client.get_progress=function() return {book=remote} end
-        plugin.client.get_web_progress=function() return {book=remote} end
+        -- Child uploads update the shared fake service, not the parent's Lua
+        -- table. Later reads must observe that acknowledgement before catch-up.
+        plugin.client.get_progress=function() reports();return {book=remote} end
+        plugin.client.get_web_progress=function() reports();return {book=remote} end
         plugin.client.get_text=function() return '{"psvts":"fixture-session","token":"fixture-token"}' end
         plugin.client.report_read=function(_,payload)
             if payload.rt~=nil then
-                assert.equals(0,payload.rt)
-                local count=reports()+1
+                assert.is_true(payload.rt==0 or payload.rt==45,
+                    'only a position write or the controlled 45-second session is expected')
+                local count=reports()
+                local file=io.open(root..'/server-report.json','r')
+                local seconds=0
+                if file then
+                    seconds=require('json').decode(file:read('*a')).read_seconds or 0;file:close()
+                end
+                if payload.rt==0 then count=count+1 else seconds=seconds+payload.rt end
                 remote={progress=payload.pr,chapterUid=1,chapterIdx=1,chapterOffset=payload.co}
-                local file=assert(io.open(root..'/server-report.json','w'))
-                file:write(require('json').encode({count=count,remote=remote}));file:close()
+                file=assert(io.open(root..'/server-report.json','w'))
+                file:write(require('json').encode({count=count,remote=remote,read_seconds=seconds}));file:close()
             end
             return {succ=1,synckey='fixture-ack'},200
         end
@@ -44,7 +54,7 @@ describe('WeLite shelf-to-reader sync flow',function()
         Dialog=require('weread.ui.progress_sync_dialog')
     end)
     before_each(function()
-        online=true
+        online=true;reading_clock=0
         root=os.tmpname();os.remove(root)
         local lfs=require('libs/libkoreader-lfs');lfs.mkdir(root);lfs.mkdir(root..'/settings')
         old_full,old_dir=Storage.getFullDataDir,Storage.getSettingsDir
@@ -411,8 +421,10 @@ describe('WeLite shelf-to-reader sync flow',function()
         reader.rolling:onGotoPercent(50);target:onPageUpdate()
         local expected=expected_source_offset()
         local page=reader.document:getCurrentPage()
+        reading_clock=45
         target:onCloseDocument();reader:onClose();reader=nil
         assert.equals(0,reports(),'disabled automatic upload must not send')
+        assert.equals(45,target.read_report.time_ledger:status('123','fixture').pending)
         assert.is_table(Settings:new():get('books').fixture.pending_upload_position)
         if dialog then UI:close(dialog);dialog=nil end
         manager:showShelfView('books');wire(manager)
@@ -424,6 +436,9 @@ describe('WeLite shelf-to-reader sync flow',function()
         assert.equals(before,opened);assert.is_nil(dialog)
         assert.is_nil(Settings:new():get('books').fixture.pending_upload_position)
         assert.equals('数据已刷新',manager.welite_shelf_status)
+        local sent=assert(io.open(root..'/server-report.json','r'))
+        assert.equals(45,require('json').decode(sent:read('*a')).read_seconds);sent:close()
+        assert.equals(0,manager.read_report.time_ledger:status('123','fixture').pending)
         manager:openFile(bookpath);reader.rolling:onGotoPage(page)
         drain(function() return target.progress_sync:status().verified==true end)
         assert.is_nil(dialog,'acknowledged source position must not become a false conflict on reopening')

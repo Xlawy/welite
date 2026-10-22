@@ -231,17 +231,7 @@ function ReadReport:status()
 end
 
 function ReadReport:resolve_target()
-    local config = self:_config()
-    local has_document = self.get_document() ~= nil
-    if config.mode == "manual"
-        and tostring(config.book_id or "") ~= ""
-        and (has_document or config.report_on_open == false) then
-        return tostring(config.book_id),
-            tostring(config.book_title or "") ~= "" and config.book_title or tostring(config.book_id),
-            "manual"
-    end
-
-    if not has_document then
+    if not self.get_document() then
         return nil, nil, "no_document"
     end
 
@@ -416,10 +406,9 @@ function ReadReport:on_account_changed()
     self.count, self.failure_count, self.consecutive_failures = 0, 0, 0
     self.last_time, self.last_error, self.last_error_kind = nil, nil, nil
     self.logged_error, self.last_skip = nil, nil
-    -- A manually selected background target belongs to the old account's
-    -- session. Only resume automatic reporting of the currently open book;
-    -- its position provider still requires fresh progress verification.
-    if self.settings:is_cookie_configured() and self:_config().mode == "auto" then
+    -- Resume only the currently open WeRead book. Its position provider
+    -- still requires fresh progress verification for the new account.
+    if self.settings:is_cookie_configured() then
         return self:maybe_start("account_changed")
     end
     return false
@@ -441,15 +430,10 @@ function ReadReport:on_resume()
 end
 
 function ReadReport:on_close_document()
-    local config = self:_config()
-    if config.report_on_open ~= false or config.mode == "auto" then
-        self:stop("document_closed")
-        self.current_book_id = nil
-        self.current_book_title = nil
-        self.current_book_source = nil
-        return
-    end
-    self:maybe_start("document_closed_background")
+    self:stop("document_closed")
+    self.current_book_id = nil
+    self.current_book_title = nil
+    self.current_book_source = nil
 end
 
 -- ------------------------------------------------------------------

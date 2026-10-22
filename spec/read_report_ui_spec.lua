@@ -1,11 +1,8 @@
--- Reading-report target picker reuses the bookshelf in books-only mode.
+-- Reading-report controls always follow the current reader session.
 
 package.path = "./?.lua;./?/init.lua;" .. package.path
 
-local closed_view
-package.preload["ui/uimanager"] = function()
-    return { close = function(_self, view) closed_view = view end }
-end
+package.preload["ui/uimanager"] = function() return {} end
 package.preload["weread.lib.logger"] = function()
     return { err = function() end }
 end
@@ -32,9 +29,10 @@ local function expect(condition, message)
     if not condition then error(message or ("check " .. checks .. " failed")) end
 end
 
-local config = { mode = "auto", book_id = "", book_title = "" }
-local picker_options
-local stopped, started, notice, rescheduled
+-- Even a stale in-memory legacy setting must not bring back target selection.
+local config = { enabled = false, mode = "manual", book_id = "old-book", book_title = "Old Book" }
+local stopped, started, rescheduled
+local flushes = 0
 local host = setmetatable({
     settings = {
         get = function(_self, key)
@@ -43,28 +41,26 @@ local host = setmetatable({
         set = function(_self, key, value)
             if key == "read_report" then config = value end
         end,
-        flush = function() end,
+        flush = function() flushes = flushes + 1 end,
     },
     requireLogin = function() return true end,
-    refreshBookshelf = function(_self, _view, options) picker_options = options end,
-    stopReadReport = function(_self, reason) stopped = reason end,
+    refreshBookshelf = function() error("report settings must not open a book picker") end,
+    stopReadReport = function() stopped = true end,
     maybeStartReadReport = function() started = true end,
     read_report = {
         reschedule = function(_self, reason) rescheduled = reason end,
     },
-    showTransientInfo = function(_self, text) notice = text end,
     safeCallback = function(_self, _label, callback) return callback end,
 }, { __index = ReadReportUI })
 
 local report_items = host:getReadReportMenuItems()
+expect(#report_items == 4, "only enable, interval, status and time review remain")
 expect(report_items[1].keep_menu_open == true
         and report_items[2].keep_menu_open == true
-        and report_items[5].keep_menu_open == true,
+        and report_items[3].keep_menu_open == true,
     "reading report actions keep their menu open")
-local target_items = host:getReportTargetMenuItems()
-expect(target_items[1].keep_menu_open == true
-        and target_items[2].keep_menu_open == true,
-    "report target actions keep their menu open")
+expect(host.getReportTargetMenuItems == nil and host.showReadReportBookPicker == nil,
+    "manual target selection must be removed")
 
 local menu_refreshes = 0
 local touchmenu = {
@@ -73,10 +69,12 @@ local touchmenu = {
     end,
 }
 report_items[1].callback(touchmenu)
-report_items[2].callback(touchmenu)
-target_items[1].callback(touchmenu)
-target_items[2].callback(touchmenu)
-expect(menu_refreshes == 4,
+expect(config.enabled == true and started == true and stopped == nil,
+    "enabling must start the current reader session without asking for a target")
+report_items[1].callback(touchmenu)
+expect(config.enabled == false and stopped == true, "disabling stops the reader timer")
+expect(flushes == 2, "both toggle changes must be saved")
+expect(menu_refreshes == 2,
     "reading report toggles did not refresh the open menu")
 
 -- Reporting interval presets: 30 s (default) and 60 s.
@@ -103,48 +101,26 @@ expect(interval_items[2].checked_func() == true,
 -- touch the settings file nor disturb the running report.
 rescheduled = nil
 local stored_before = config.interval_seconds
+local flushes_before = flushes
 interval_items[2].callback(touchmenu)
 expect(rescheduled == nil,
     "re-selecting the current interval must not reschedule the report")
 expect(config.interval_seconds == stored_before,
     "re-selecting the current interval changed the stored value")
-
-host:showReadReportBookPicker()
-expect(picker_options and picker_options.mode == "books",
-    "report picker did not open on the books tab")
-expect(picker_options.wp_enable == false,
-    "report picker did not disable the public-accounts tab")
-
-picker_options.on_select(
-    { bookId = "mp_1", title = "Account" }, "public_account", {}
-)
-expect(config.book_id == "", "disabled public-account selection changed the target")
-
-local view = {}
-host.shelf_view = view
-picker_options.on_select({ bookId = "book_1", title = "Book One" }, "books", view)
-expect(config.mode == "manual" and config.book_id == "book_1"
-        and config.book_title == "Book One",
-    "book selection did not save the manual report target")
-expect(closed_view == view and host.shelf_view == nil,
-    "book selection did not close and release the picker view")
-expect(stopped == "target_changed" and started == true
-        and notice == "Target book set: Book One",
-    "book selection did not restart reporting with feedback")
+expect(flushes == flushes_before, "re-selecting the interval must not write settings")
 
 local status_text
 local report_status = { running = false, count = 0 }
 host.read_report = { status = function() return report_status end }
 host.showInfo = function(_self, text) status_text = text end
 expect(host:onShowWeReadReportStatus(), "status gesture consumes the reader event")
-expect(status_text == "Report book: Book One\nStatus: Stopped\nReported: 0 times, last: --",
-    "status gesture displays the manual target before the first report")
+expect(status_text == "Report book: Auto-associate\nStatus: Stopped\nReported: 0 times, last: --",
+    "without an active reader the status must not show the legacy fixed target")
 local gesture_text = status_text
 status_text = nil
-report_items[5].callback()
+report_items[3].callback()
 expect(status_text == gesture_text, "menu and gesture show the same report status")
 
-config.mode = "auto"
 report_status = {
     running = true, count = 3, target_book_title = "Auto Book",
     last_time = 12345, last_error = "offline",
@@ -152,7 +128,7 @@ report_status = {
 host:onShowWeReadReportStatus()
 expect(status_text == "Report book: Auto: Auto Book\nStatus: Running\nReported: 3 times, last: "
         .. os.date("%H:%M:%S", report_status.last_time) .. "\nLast error: offline",
-    "status gesture preserves the live automatic target, report time, and last error")
+    "status must show the live book even when a legacy manual target exists")
 
 report_status.time_ledger={pending=42.5,uncertain=30}
 host:onShowWeReadReportStatus()
@@ -162,6 +138,6 @@ expect(status_text:find("Unconfirmed reading time: 30 s (not retried)",1,true), 
 
 local reviewed=false
 package.preload['weread.ui.reading_time_review']=function() return {show=function(plugin) reviewed=plugin==host end} end
-report_items[6].callback()
+report_items[4].callback()
 expect(reviewed,'review menu must reach the account time-review controller')
-print(("read_report_picker_spec: %d checks"):format(checks))
+print(("read_report_ui_spec: %d checks"):format(checks))

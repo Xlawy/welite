@@ -90,7 +90,8 @@
     "weread/lib/settings.lua": [
       "spec/settings_spec.lua",
       "spec/mock_environment_spec.lua",
-      "spec/koreader/welite_auth_lifecycle_spec.lua"
+      "spec/koreader/welite_auth_lifecycle_spec.lua",
+      "spec/koreader/welite_report_defaults_spec.lua"
     ],
     "scripts/test_welite.py": [
       "tests/test_welite_runner.py"
@@ -215,11 +216,16 @@
     "weread/ui/welite/prefetch_settings.lua": [
       "spec/koreader/welite_prefetch_settings_spec.lua"
     ],
+    "weread/ui/read_report.lua": [
+      "spec/read_report_ui_spec.lua",
+      "spec/koreader/welite_settingsui_spec.lua"
+    ],
     "weread/lib/read_report.lua": [
       "spec/read_report_progress_spec.lua",
       "spec/read_report_reschedule_spec.lua",
       "spec/koreader/welite_sync_flow_spec.lua",
-      "spec/koreader/welite_time_ledger_spec.lua"
+      "spec/koreader/welite_time_ledger_spec.lua",
+      "spec/koreader/welite_report_defaults_spec.lua"
     ],
     "weread/ui/book_info_controller.lua": [
       "spec/koreader/welite_book_info_spec.lua"

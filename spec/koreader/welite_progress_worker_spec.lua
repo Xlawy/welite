@@ -87,10 +87,19 @@ describe('background progress pull',function()
         local cache=Content.cache_annotation_source
         Content.decode_content_shards=function(a,b) assert.equals(raw,a);assert.equals('',b);return a end
         Content.cache_annotation_source=function() error('child must not write the shared source cache') end
+        local fetching,allow_fetch=root..'/fetching',root..'/allow-fetch'
         plugin.client={get_text=function() return '{"psvts":"fixture"}' end,
             json_encode=function(_,v) return require('json').encode(v) end,
             request=function(_,req)
-                require('socket').sleep(0.03)
+                -- Pause at the network boundary, after the child's cache
+                -- read has closed. The parent can check the old data before
+                -- allowing completion without racing SQLite WAL recovery.
+                local marker=assert(io.open(fetching,'w'));marker:close()
+                local socket=require('socket');local deadline=socket.gettime()+5
+                while not require('libs/libkoreader-lfs').attributes(allow_fetch) do
+                    assert(socket.gettime()<deadline,'parent did not release source fetch')
+                    socket.sleep(0.01)
+                end
                 return req.url:find('t_0',1,true) and raw or '',200
             end}
         local completed,spans,err=false
@@ -98,7 +107,10 @@ describe('background progress pull',function()
             assert.is_true(Worker.source(plugin,book,chapter,function(value,why)
                 spans,err,completed=value,why,true
             end,function() return true end))
-            assert.is_nil(Store:new(plugin.settings):get('book','original','1')[1][5])
+            pump(function() return require('libs/libkoreader-lfs').attributes(fetching)~=nil end)
+            assert.is_false(completed,'source cannot commit before the fetch completes')
+            assert.is_nil(Store:new(plugin.settings):get('book','original','1',true)[1][5])
+            local marker=assert(io.open(allow_fetch,'w'));marker:close()
             pump(function() return completed end)
             assert.is_nil(err);assert.is_table(spans)
             assert.equals('🌿',Source.quote(spans,'1-3','utf16'))

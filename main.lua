@@ -222,13 +222,6 @@ function WeReadPlugin:init()
     end
     self.integrations = Integrations
     self.integrations.register(self)
-    local read_report = self.settings:get("read_report")
-    if read_report.enabled
-        and read_report.mode == "manual"
-        and read_report.book_id ~= ""
-        and read_report.report_on_open == false then
-        self.read_report:maybe_start("plugin_start")
-    end
     self._reader_session_gen = 0
     self.updater:schedule_auto_check()
     logger.info("initialized:", "version=", self.version)

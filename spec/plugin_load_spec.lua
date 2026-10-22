@@ -50,10 +50,10 @@ end
 
 local settings_values = {
     read_report = {
-        enabled = false,
+        enabled = true,
         mode = "manual",
-        book_id = "",
-        report_on_open = true,
+        book_id = "legacy-fixed-target",
+        report_on_open = false,
     },
 }
 local fake_settings = {
@@ -118,10 +118,11 @@ end
 package.preload["weread.lib.qr_login"] = function()
     return { new = function() return { kind = "qr_login" } end }
 end
+local report_starts = 0
 package.preload["weread.lib.read_report"] = function()
     return {
         new = function(_self, options)
-            options.maybe_start = function() end
+            options.maybe_start = function() report_starts = report_starts + 1 end
             return options
         end,
     }
@@ -201,6 +202,7 @@ local plugin = setmetatable({
 }, { __index = Plugin })
 plugin:init()
 
+expect(report_starts == 0, "plugin startup must not revive legacy background reporting")
 expect(plugin.name == "weread", "plugin metadata was not loaded")
 expect(plugin:inherited_from_widget_container(),
     "KOReader WidgetContainer inheritance was broken")
