@@ -64,7 +64,7 @@ describe('WeLite public accounts',function()
         plugin.client.get_mp_articles=function(_,id,offset,count)
             assert.equals(100,count)
             if failing then error('synthetic next-batch failure') end
-            local function item(id) return {review={reviewId=tostring(id),mpInfo={title='Article '..id}}} end
+            local function item(article_id) return {review={reviewId=tostring(article_id),mpInfo={title='Article '..article_id}}} end
             if offset==0 then return {reviews={{subReviews={item(1),item(2)}},{subReviews={item(3)}}}} end
             if offset==2 then return {reviews={{subReviews={item(4)}}}} end
             assert.equals(3,offset);return {reviews={}}

@@ -39,8 +39,8 @@ Content.save_catalog_cache(client,settings,book,chapters)
 local path=Content.fetch_chapter_epub(client,settings,book,chapters[1])
 settings:set('books',{['900001']=book});settings:flush()
 local reader,plugin
-local function open(path)
-    reader=require('apps/reader/readerui'):new{dimen=Screen:getSize(),document=require('document/documentregistry'):openDocument(path)}
+local function open(book_path)
+    reader=require('apps/reader/readerui'):new{dimen=Screen:getSize(),document=require('document/documentregistry'):openDocument(book_path)}
     UI:show(reader);plugin=assert(reader.weread)
     pump(function() return plugin._current_weread_book_id=='900001' end)
 end

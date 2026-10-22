@@ -26,6 +26,42 @@ describe("WeRead plugin integration", function()
         assert.matches("welite%.koplugin$", plugin.path)
     end)
 
+    it("exposes nine dispatcher actions with real plugin event handlers", function()
+        local dispatcher = require("dispatcher")
+        local original = dispatcher.registerAction
+        local actions = {}
+        dispatcher.registerAction = function(_, id, action)
+            assert.is_nil(actions[id])
+            actions[id] = action
+        end
+        local ok, err = pcall(function()
+            require("weread.ui.menu"):onDispatcherRegisterActions()
+            local plugin
+            for _, candidate in ipairs(require("pluginloader").enabled_plugins) do
+                if candidate.name == "welite" then plugin = candidate; break end
+            end
+            assert.is_table(plugin)
+            local count = 0
+            for _, action in pairs(actions) do
+                count = count + 1
+                local handler = plugin["on" .. action.event]
+                -- PluginLoader wraps event handlers in callable HandlerSandbox tables.
+                if type(handler) == "table" then
+                    assert.is_function(getmetatable(handler).__call, action.event)
+                    assert.is_function(handler.f, action.event)
+                    assert.equals("on" .. action.event, handler.fname)
+                else
+                    assert.is_function(handler, action.event)
+                end
+                assert.is_truthy(action.reader or action.general)
+                assert.is_truthy(action.title:find("WeLite", 1, true))
+            end
+            assert.equals(9, count)
+        end)
+        dispatcher.registerAction = original
+        assert.is_true(ok, tostring(err))
+    end)
+
     it("loads project modules only through the weread namespace", function()
         assert.is_table(package.loaded["weread.lib.client"])
         assert.is_table(package.loaded["weread.lib.settings"])

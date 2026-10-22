@@ -26,3 +26,21 @@ assert(batches[1][1].count == 30 and batches[1][1].maxIdx == 0
     "thought pagination parameters changed")
 
 print("client_annotation_batch_spec: 30-range thought batches passed")
+
+local calls=0
+client.gateway=function(_,api,params)
+    assert(api=='/book/readreviews')
+    calls=calls+1
+    if calls==2 then error('fixture authentication expired') end
+    return {reviews={{range=params.reviews[1].range}}}
+end
+local ok,value,err=client:get_chapter_reviews('fixture',1,ranges)
+assert(not ok and value==nil and err:find('batch 2/3',1,true))
+assert(err:find('authentication expired',1,true))
+assert(calls==2,'must stop after failed batch and not report partial data as success')
+calls=0
+client.gateway=function(_,_,params) calls=calls+1;return {reviews={{range=params.reviews[1].range}}} end
+ok,value=client:get_chapter_reviews('fixture',1,ranges)
+assert(ok and #value.reviews==3 and calls==3)
+assert(value.reviews[3].range=='61')
+print('client_annotation_batch_spec: partial failure, bounded abort and successful retry passed')

@@ -76,7 +76,7 @@ local function with_time()
  local plugin,view=fixture()
  local values,clock={},0
  local ledger=Ledger.new({get=function(_,k,d) return values[k] or d end,
-  set=function(_,k,v) values[k]=v end,flush=function() end},function() return clock end)
+  set=function(_,k,value) values[k]=value end,flush=function() end},function() return clock end)
  ledger:start('one','1');clock=17;ledger:stop()
  plugin.read_report={time_ledger=ledger,_auth_fingerprint=function() return fp end,
   _context_fingerprint=function() return 'book' end,_renewal_allowed=function() return false end,
@@ -86,6 +86,7 @@ local function with_time()
   end,_apply_job_outcome=function() end}
  return plugin,view,ledger
 end
+local ledger
 p,v,ledger=with_time();requests={};Sync.refresh(p,v,{});complete()
 assert(requests[1]=='shelf' and requests[2]=='time' and requests[3]=='monthly')
 assert(ledger:status('one','1').acknowledged==17 and p.welite_shelf_status=='数据已刷新')

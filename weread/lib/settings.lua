@@ -292,6 +292,30 @@ function Settings:new()
     return setmetatable(obj, self)
 end
 
+-- Old in-memory records and offline metadata can outlive the one-time layout
+-- migration. Enforce the retired-root boundary on every book read/write too.
+local function has_retired_download(settings, book)
+    if settings.mock_endpoint or type(book) ~= "table" then return false end
+    local root = settings.data_dir .. "/cache"
+    local function retired(path)
+        return type(path) == "string" and (path == root or path:sub(1,#root+1) == root .. "/")
+    end
+    if retired(book.cache_dir) or retired(book.cached_file) or retired(book.cached_full_book) then return true end
+    for _,path in pairs(book.cached_chapters or {}) do if retired(path) then return true end end
+    return false
+end
+
+local function clear_retired_download(settings, book)
+    if not has_retired_download(settings, book) then return end
+    book.cache_dir = nil
+    book.cached_file = nil
+    book.cached_full_book = nil
+    book.cached_chapters = nil
+    book.annotation_documents = nil
+    book._cached = nil
+    book._download_state = nil
+end
+
 function Settings:get(key, default)
     if default == nil then
         default = defaults[key]
@@ -302,7 +326,12 @@ function Settings:get(key, default)
     local indexes = self.store:readSetting("books", {})
     local books = {}
     for book_id, index in pairs(indexes or {}) do
-        books[book_id] = BookStore.load(self, book_id, index)
+        -- Never follow a retired index into its metadata/reading-state files.
+        if not has_retired_download(self, index) then
+            local book = BookStore.load(self, book_id, index)
+            clear_retired_download(self, book)
+            books[book_id] = book
+        end
     end
     return books
 end
@@ -311,6 +340,7 @@ function Settings:set(key, value)
     if key == "books" and type(value) == "table" then
         local indexes = {}
         for book_id, book in pairs(value) do
+            clear_retired_download(self, book)
             local ok, index_or_err = BookStore.save(self, book_id, book)
             if not ok then
                 error("Could not save book data: " .. tostring(index_or_err))

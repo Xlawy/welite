@@ -87,7 +87,7 @@ function M:capture()
     local entry = entries[hi]
     -- Front matter before a known first chapter represents its start.
     if not entry and entries[1] and entries[1].item.index == 1 then
-        entry, hi = entries[1], 1
+        entry = entries[1]
     end
     if not entry or coordinate >= entry.last then return nil, 'chapter_mapping_unavailable' end
     if entry.ambiguous then

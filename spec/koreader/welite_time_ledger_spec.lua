@@ -179,9 +179,10 @@ describe('durable elapsed reading time',function()
     it('recovers abandoned requests from SQLite at home without reopening their book',function()
         clock=40;report:stop('closed')
         local batch=assert(ledger:begin_pending('one','book',30))
+        assert.is_table(batch)
         local adapter=require('weread.lib.reading_time_sync')
         assert.equals(0,ledger:recover('one'),'live request is still owned')
-        batch=nil;collectgarbage('collect')
+        batch=nil;assert.is_nil(batch);collectgarbage('collect')
         local fresh=Ledger.open(settings,function() return clock end)
         report.time_ledger=fresh
         local task=adapter.prepare(report,'one')
@@ -296,7 +297,7 @@ describe('durable elapsed reading time',function()
         assert.equals(19,ledger:status('one','book').inflight)
         assert.equals(0,ledger:status('one','book').uncertain)
         assert.is_nil(ledger:lock_position('one','book'))
-        done=true;deadline=socket.gettime()+5;acquired=nil
+        done=true;deadline=socket.gettime()+5
         repeat UI:_checkTasks();acquired=ledger:lock_position('one','book');if acquired then break end
             socket.sleep(0.01) until socket.gettime()>deadline
         assert.is_table(acquired);ledger:unlock_position(acquired)

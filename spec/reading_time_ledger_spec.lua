@@ -18,7 +18,7 @@ batch=assert(ledger:begin());assert(ledger:settle(batch,'unknown'))
 assert(ledger:status('one','book').uncertain==15 and ledger:status('one','book').pending==0)
 clock=620;batch=assert(ledger:begin());assert(batch.seconds==20,'uncertain duration replayed')
 local dead_batch={};for k,v in pairs(batch) do dead_batch[k]=v end
-batch=nil;collectgarbage('collect')
+batch=nil;assert(batch==nil);collectgarbage('collect')
 ledger=new();assert(ledger:start('one','book'))
 assert(ledger:status('one','book').uncertain==35,'crashed attempt not isolated')
 assert(not ledger:settle(dead_batch,'accepted'),'old callback consumed recovered attempt')
@@ -88,7 +88,7 @@ values={};clock=0;ledger=new()
 ledger:start('one','recover');clock=40;ledger:stop()
 local live=assert(ledger:begin_pending('one','recover',30))
 assert(new():recover('one')==0,'live request must retain ownership')
-local old_id=live.id;live=nil;collectgarbage('collect')
+local old_id=live.id;live=nil;assert(live==nil);collectgarbage('collect')
 local recovered=new()
 assert(recovered:recover('other')==0 and recovered:recover('one')==1)
 assert(recovered:recover('one')==0,'recovery must be idempotent')
@@ -137,7 +137,7 @@ print('reading_time_ledger_spec: uninterrupted timer and shared per-book network
 local durable,fail_disk,wall={},false,0
 local function clone(v)
  if type(v)~='table' then return v end
- local result={};for k,item in pairs(v) do result[k]=clone(item) end;return result
+ local result={};for k,field in pairs(v) do result[k]=clone(field) end;return result
 end
 local function handle()
  local staged,key

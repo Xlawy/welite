@@ -78,3 +78,7 @@ files["spec/koreader/*.lua"] = {
         "load_plugin",
     },
 }
+
+-- Frozen UI reference fixtures: preserve their source hashes verbatim.
+files["spec/reference/welite/pulldown.lua"] = { ignore = { "211/Center" } }
+files["spec/reference/welite/shelf.lua"] = { ignore = { "431/w", "411/filtered", "421/line" } }

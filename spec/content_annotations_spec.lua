@@ -125,3 +125,15 @@ expect(#articles == 1 and articles[1].title == "Article"
     "MP article metadata was not normalized")
 
 print(("content_annotations_spec: %d checks"):format(checks))
+
+-- Failed chapter refresh must preserve the existing book catalog.
+local prior={{chapterUid=1,title='saved',wordCount=10}}
+local book={book_id='fixture',chapters=prior}
+for _,response in ipairs({false,'invalid',{errCode=-2012},{errcode=-2041},{succ=false}}) do
+    local ok=pcall(Content.fetch_catalog,{post_json=function() return response end},book)
+    expect(not ok and book.chapters==prior,'failed catalog refresh overwrote existing chapters')
+end
+local chapters=Content.fetch_catalog({post_json=function() return {
+    {bookId='fixture',updated={{chapterUid=2,title='new',wordCount=12}}}} end},book)
+expect(#chapters==1 and chapters[1].chapterUid==2 and book.chapters==chapters,
+    'successful catalog refresh was not applied')

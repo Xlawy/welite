@@ -6,7 +6,7 @@ WeLite 基于 **[finlater/weread.koplugin](https://github.com/finlater/weread.ko
 
 > **修改版本声明 · 2026-10-21**：本仓库由 Xlawy 维护，是上游项目的独立修改版本，不是上游官方发行版。本次修改包括 WeLite 书架、筛选与下拉界面、数据适配、对应测试及 fork 更新源。项目继续采用 **AGPL-3.0-only**；原作者版权与许可证声明保留，详见本文末尾和 [NOTICE](NOTICE)。
 
-**当前版本：v1.0**（发行版本号 `1.0.0`，独立于上游版本）。
+**当前版本：v1.0.1**（发行版本号 `1.0.1`，独立于上游版本）。
 
 [WeLite 源码](https://github.com/Xlawy/welite) · [版本发布](https://github.com/Xlawy/welite/releases) · [问题反馈](https://github.com/Xlawy/welite/issues)
 

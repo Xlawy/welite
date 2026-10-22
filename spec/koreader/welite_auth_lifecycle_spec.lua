@@ -59,6 +59,29 @@ describe('WeLite login across file manager and reader', function()
         local Content=require('weread.lib.content')
         assert.equals(root..'/welite/cache/new',Content.book_cache_dir(fresh,'new'))
     end)
+    it('rejects legacy paths reintroduced after migration or from offline book metadata',function()
+        local settings=Settings:new()
+        local legacy=root..'/weread/cache/legacy'
+        local lfs=require('libs/libkoreader-lfs')
+        lfs.mkdir(root..'/weread/cache');lfs.mkdir(legacy)
+        local file=assert(io.open(legacy..'/metadata.json','w'))
+        file:write('must never parse this incompatible metadata');file:close()
+        settings.store:saveSetting('welite_cache_layout',1)
+        settings.store:saveSetting('books',{legacy={cache_dir=legacy}})
+        assert.is_nil(settings:get('books').legacy)
+        -- Simulate a cached database record or stale view writing back its paths.
+        local book={book_id='legacy',title='保留云端书名',cache_dir=legacy,
+            cached_full_book=legacy..'/full.epub',cached_file=legacy..'/chapter.epub',
+            cached_chapters={['1']=legacy..'/chapter.epub'},_cached=true,_download_state='full'}
+        settings:set('books',{legacy=book})
+        local fresh=settings:get('books').legacy
+        assert.equals(root..'/welite/cache/legacy',fresh.cache_dir)
+        assert.equals('保留云端书名',fresh.title)
+        assert.is_nil(fresh.cached_full_book);assert.is_nil(fresh.cached_file)
+        assert.is_nil(fresh.cached_chapters);assert.is_nil(book._cached)
+        local retained=assert(io.open(legacy..'/metadata.json','r'))
+        assert.equals('must never parse this incompatible metadata',retained:read('*a'));retained:close()
+    end)
     it('keeps separate profile stores isolated',function()
         local first=Settings:new()
         Storage.getSettingsDir=function() return root..'/other-settings' end

@@ -202,11 +202,9 @@ end)
 expect(not ok and tostring(err):find("HTTP 499", 1, true),
     "HTTP error details were not preserved")
 local raw_response_log = table.concat(logs, "\n")
-expect(raw_response_log:find(
-    'response_body= {"errcode":-202,"errmsg":"raw response"}',
-    1,
-    true
-), "HTTP failure log omitted the raw response body")
+expect(raw_response_log:find("status= 499",1,true) and raw_response_log:find("body_bytes=",1,true),
+    "HTTP failure omitted safe diagnostics")
+expect(not raw_response_log:find("raw response",1,true), "HTTP failure leaked response body")
 
 logs = {}
 local gateway_settings = {
@@ -252,11 +250,9 @@ local application_result = client:decode_http_json(
 expect(application_result.errcode == -300,
     "application error response was not returned to the caller")
 local application_error_log = table.concat(logs, "\n")
-expect(application_error_log:find(
-    'response_body= {"errcode":-300,"errmsg":"application failure"}',
-    1,
-    true
-), "application failure log omitted the raw response body")
+expect(application_error_log:find("body_bytes=",1,true)
+    and not application_error_log:find("application failure",1,true),
+    "application failure must log size without response contents")
 
 logs = {}
 client.json_decode = function()
@@ -265,15 +261,18 @@ end
 ok, err = pcall(function()
     client:decode_http_json("<not-json>", {
         method = "GET",
-        url = "https://weread.qq.com/web/invalid-json",
+        url = "https://weread.qq.com/web/invalid-json?ticket=private-ticket#private-fragment",
         code = 200,
     })
 end)
 expect(not ok and tostring(err):find("invalid JSON", 1, true),
     "JSON decode failure was not preserved")
 local decode_failure_log = table.concat(logs, "\n")
-expect(decode_failure_log:find("response_body= <not-json>", 1, true),
-    "JSON decode failure log omitted the raw response body")
+expect(decode_failure_log:find("/web/invalid-json",1,true)
+    and decode_failure_log:find("body_bytes= 10",1,true), "JSON failure omitted safe diagnostics")
+expect(not decode_failure_log:find("<not-json>",1,true)
+    and not decode_failure_log:find("private-ticket",1,true)
+    and not decode_failure_log:find("private-fragment",1,true), "JSON failure leaked body or URL credentials")
 
 local shelf_client = Client:new(settings)
 shelf_client.gateway = function(_self, api_name, params)
@@ -381,3 +380,11 @@ expect(not ok and io.open(download_path .. ".part", "rb") == nil,
     "oversized file download did not remove its partial output")
 
 print(("client_spec: %d checks"):format(checks))
+
+for _,result in ipairs({{errCode=-2012},{errcode=-2041},{succ=false},{succ=0}}) do
+    responses[#responses+1]={body='{}',code=200}
+    review_client.json_decode=function() return result end
+    local success,data,reason=review_client:get_review_comments('failed-review')
+    expect(not success and data==nil and reason:find('review comments request failed',1,true),
+        'business error must not be returned as successful comments')
+end

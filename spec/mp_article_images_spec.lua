@@ -1,3 +1,4 @@
+local os=require('os') -- Local handle for filesystem failure injection.
 package.path = "./?.lua;./?/init.lua;" .. package.path
 
 local checks = 0

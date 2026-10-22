@@ -58,7 +58,7 @@ function M.ensure(plugin,view)
         if current and not current.welite_closed then
             for _,item in ipairs(current.items or {}) do
                 local cached=state.values[item.id]
-                if cached and item.percent~=cached.percent then item.percent=cached.percent;changed=true end
+                if cached and item.percent~=cached.percent then item.percent=cached.percent end
             end
             current:redraw()
             -- A page selected while the worker was busy gets its own bounded batch.

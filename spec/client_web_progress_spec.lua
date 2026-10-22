@@ -38,3 +38,11 @@ client,count=fixture({{book={progress=0}}})
 assert(client:get_web_progress('fixture').book.progress==0)
 calls,renewals=count();assert(calls==1 and renewals==0)
 print('client_web_progress_spec: expired credentials, bounded renewal, failure and zero progress passed')
+
+for _,response in ipairs({false, 'invalid', {errcode=-2012}, {succ=false}, {errCode='invalid'}}) do
+    client,count=fixture({response,response})
+    assert(not pcall(client.get_web_progress,client,'fixture'),'business failure returned as progress')
+    calls,renewals=count()
+    local expired=type(response)=='table' and response.errcode==-2012
+    assert(calls==(expired and 2 or 1) and renewals==(expired and 1 or 0))
+end

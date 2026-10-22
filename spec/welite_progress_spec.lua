@@ -54,6 +54,6 @@ print('welite_progress_spec: bounded visible-page requests, cache, failures, acc
 plugin.welite_progress=nil
 plugin.settings.get=function(_,key) return key=='account' and {user_vid='one'} or {} end
 current=view(1);plugin.shelf_view=current
-local before=launches
+local before_cloud_only=launches
 P.ensure(plugin,current)
-assert(launches==before,'unread cloud-only pages must not launch progress requests')
+assert(launches==before_cloud_only,'unread cloud-only pages must not launch progress requests')

@@ -2,8 +2,10 @@
 -- at most one chapter; callers may yield/cancel every 256 decoded characters.
 local M = {}
 M.__index = M
-M.MAX_BYTES = 256 * 1024
-M.MAX_CHARACTERS = 32768
+-- Some legitimate chapters exceed 100k characters (including omnibus books).
+-- Keep a finite chapter-local budget; yielding below still bounds UI work.
+M.MAX_BYTES = 1024 * 1024
+M.MAX_CHARACTERS = 256 * 1024
 local function size(byte)
     if byte < 128 then return 1 elseif byte < 224 then return 2
     elseif byte < 240 then return 3 else return 4 end
@@ -16,8 +18,10 @@ function M.new(spans, options)
     options = options or {}
     local normalize = options.normalize or require('weread.lib.external_annotations').flatten_text
     local decode = options.decode or require('util').htmlEntitiesToUtf8
+    local skip = options.skip or (not options.normalize
+        and require('weread.lib.external_annotations').normalization_skip_length)
     local result = setmetatable({starts={}, ends={}, bytes={}}, M)
-    local chunks, decoded, total, output, count, previous = {}, {}, 0, 0, 0, 0
+    local chunks, total, output, count, previous = {}, 0, 0, 0, 0
     for _, span in ipairs(spans or {}) do
         local text, offset, finish = span[3], span[5], span[6]
         if not boundary(offset) or not boundary(finish) then return nil, 'missing_utf16_index' end
@@ -42,23 +46,39 @@ function M.new(spans, options)
                     end
                 end
             end
-            decoded[#decoded+1] = token
-            local flat = normalize(token)
-            if flat ~= '' then
-                if flat ~= token then return nil, 'unsupported_normalization' end
-                local index = #result.starts+1
-                result.starts[index], result.ends[index], result.bytes[index] = offset, offset+units, output+1
-                chunks[#chunks+1], output = token, output+#token
-            end
+            local index = #result.starts+1
+            result.starts[index], result.ends[index], result.bytes[index] = offset, offset+units, output+1
+            chunks[#chunks+1], output = token, output+#token
             i, offset = i+n, offset+units
         end
         if offset ~= finish then return nil, 'invalid_source_index' end
         previous = finish
     end
+    local decoded = table.concat(chunks)
+    local kept, flat_bytes, skip_until = 0, 0, 0
+    local original_count = #result.starts
+    for index=1,original_count do
+        if index % 256 == 0 and options.yield and options.yield() == false then return nil, 'cancelled' end
+        local byte, token = result.bytes[index], chunks[index]
+        if byte >= skip_until then
+            -- Match on the fully decoded chapter, including markers split by
+            -- inline tags/entities. Keep original UTF-16 coordinates unchanged.
+            local ignored = skip and skip(decoded, byte) or (normalize(token)=='' and #token or 0)
+            skip_until = byte + ignored
+            if ignored == 0 then
+                kept = kept + 1
+                result.starts[kept],result.ends[kept],result.bytes[kept] =
+                    result.starts[index],result.ends[index],flat_bytes+1
+                chunks[kept],flat_bytes = token,flat_bytes+#token
+            end
+        end
+    end
+    for index=kept+1,original_count do
+        result.starts[index],result.ends[index],result.bytes[index],chunks[index] = nil,nil,nil,nil
+    end
     result.text = table.concat(chunks)
-    -- Multi-character footnote normalization cannot be inferred token by token.
-    -- Reject such a mismatch instead of shifting every subsequent coordinate.
-    if normalize(table.concat(decoded)) ~= result.text then return nil, 'unsupported_normalization' end
+    -- Keep the fail-closed invariant if normalization rules ever diverge.
+    if normalize(decoded) ~= result.text then return nil, 'unsupported_normalization' end
     if result.text == '' then return nil, 'source_empty' end
     return result
 end

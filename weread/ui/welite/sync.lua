@@ -154,7 +154,7 @@ function M.refresh(plugin,view,options,closed_ok)
             local group=plugin.shelf_group_key
             plugin:applyShelfSnapshot(books,archives)
             local next_options={}
-            for key,value in pairs(options or {}) do next_options[key]=value end
+            for key,option_value in pairs(options or {}) do next_options[key]=option_value end
             next_options.prepared_shelf=nil
             if group~=plugin.shelf_group_key then next_options.page=1 end
             local current=plugin.shelf_view

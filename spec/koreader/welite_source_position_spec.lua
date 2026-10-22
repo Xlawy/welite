@@ -10,7 +10,7 @@ describe('source coordinates in real EPUB text',function()
     before_each(function()
         root=os.tmpname();os.remove(root);require('libs/libkoreader-lfs').mkdir(root)
         local html='<h1>Chapter one</h1>'
-        for i=1,80 do html=html..'<p>Paragraph '..i..': unique synthetic words &amp; text.</p>' end
+        for i=1,80 do html=html..'<p>Paragraph '..i..': unique &#91;<span>'..i..'</span>&#93; synthetic words &amp; text.</p>' end
         html=html..'<p>Distinctive target ending.</p>'
         local spans=Source.index(html)
         map=assert(Position.new(spans))
@@ -55,6 +55,44 @@ describe('source coordinates in real EPUB text',function()
         assert.is_string(result,err);assert.is_true(ticks>1)
         assert.is_nil(plugin._progress_source_request)
     end)
+    it('locates and captures a long downloaded chapter beyond the former source limits',function()
+        reader:onClose()
+        local chunks={'<h1>Chapter one</h1>'}
+        for i=1,1100 do
+            chunks[#chunks+1]=('<p>Paragraph %04d %s unique ending %04d.</p>'):format(i,
+                string.rep('甲乙丙丁戊己庚辛壬癸',10),i)
+        end
+        local html=table.concat(chunks)
+        assert.is_true(#html>256*1024)
+        local spans=Source.index(html)
+        for _,span in ipairs(spans) do
+            if span[3]:find('Paragraph 1000 ',1,true) then offset=span[5] end
+        end
+        assert.is_true(offset>32768)
+        local book={book_id='long-source',title='Long chapter'}
+        local chapters={{chapterUid=1,chapterIdx=1,title='Chapter one',wordCount=150000},
+            {chapterUid=2,chapterIdx=2,title='Chapter two',wordCount=100}}
+        local path=require('weread.lib.content').save_book_epub({cache_dir=root},book,chapters,
+            {['1']=html,['2']='<h1>Chapter two</h1><p>Boundary chapter.</p>'})
+        reader=require('apps/reader/readerui'):new{dimen=require('device').screen:getSize(),
+            document=require('document/documentregistry'):openDocument(path)}
+        plugin.ui=reader
+        context={book=book,chapters=chapters,path=path,book_id=book.book_id,is_full_book=true}
+        assert.is_not_false(require('weread.lib.annotation_store'):new(plugin.settings):put(book.book_id,'original','1',spans,'1'))
+        local result,err,finished
+        local page=reader.document:getCurrentPage()
+        assert.is_true(require('weread.lib.progress_source_locator').start(plugin,context,
+            {chapter_uid=1,chapter_offset=offset},function(xp,reason) result,err,finished=xp,reason,true end,
+            function() return true end))
+        pump(function() return finished end)
+        assert.is_string(result,err)
+        assert.equals(page,reader.document:getCurrentPage(),'preparing progress must not move the reader')
+        local _,ranges=require('weread.lib.annotation_chapters').map(reader.document,chapters,
+            require('weread.lib.annotation_chapters').descriptor(book,path))
+        local long_map=assert(Position.new(spans))
+        local captured,why=long_map:capture_document(reader.document,ranges['1'],result)
+        assert.equals(offset,captured,why)
+    end)
     it('discards a canceled source lookup before applying a result',function()
         local called=false
         local controller=require('weread.lib.progress_source_locator')
@@ -66,7 +104,7 @@ describe('source coordinates in real EPUB text',function()
         pump(function() return worker.job==nil end)
         assert.is_false(called)
     end)
-    it('maps source text through the actual DOM without moving the viewport',function()
+    it('maps source text and split footnote markers through the actual DOM without moving the viewport',function()
         local doc=reader.document
         local page=doc:getCurrentPage()
         local yields=0

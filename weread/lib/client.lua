@@ -94,18 +94,22 @@ local function log_error(err)
     return text
 end
 
+local function diagnostic_url(url)
+    -- Query strings may contain login tickets, signatures or personal searches.
+    return tostring(url or "unknown"):gsub("[?#].*$", ""):gsub("[%c]", " "):sub(1, 256)
+end
+
 local function log_response(label, context, text)
     context = context or {}
     text = text or ""
     logger.err(
         label,
         "method=", tostring(context.method or "unknown"),
-        "url=", tostring(context.url or "unknown"),
+        "url=", diagnostic_url(context.url),
         "api=", tostring(context.api_name or "unknown"),
         "status=", tostring(context.code or "unknown"),
         "content_type=", tostring(header_value(context.headers, "content-type") or "unknown"),
-        "body_bytes=", tostring(#text),
-        "response_body=", text
+        "body_bytes=", tostring(#text)
     )
 end
 
@@ -297,7 +301,7 @@ function Client:request(opts)
         logger.err(
             "HTTP transport failed:",
             "method=", tostring(req_opts.method),
-            "url=", tostring(req_opts.url),
+            "url=", diagnostic_url(req_opts.url),
             "api=", tostring(diagnostic_api or "unknown"),
             "error=", tostring(results[2])
         )
@@ -584,6 +588,16 @@ function Client:renew_cookie()
     return result, code, resp_headers
 end
 
+-- Preserve endpoint-specific return conventions while rejecting business errors.
+local function response_failure(data)
+    if type(data) ~= "table" then return "invalid_response" end
+    local code = data.errCode or data.errcode
+    if code ~= nil and tonumber(code) ~= 0 then return tonumber(code) or "invalid_error_code" end
+    if data.succ ~= nil and data.succ ~= true and tonumber(data.succ) ~= 1 then
+        return "unsuccessful_response"
+    end
+end
+
 function Client:gateway(api_name, params)
     local payload = merge_req_opts({
         api_name = api_name,
@@ -594,13 +608,20 @@ function Client:gateway(api_name, params)
     if api_key == "" then
         error("WeRead API key is not configured")
     end
-    return self:post_json("https://i.weread.qq.com/api/agent/gateway", payload, {
+    local result, code, headers = self:post_json("https://i.weread.qq.com/api/agent/gateway", payload, {
         diagnostic_api = api_name,
         skip_cookie = true,
         headers = {
             ["Authorization"] = "Bearer " .. api_key,
         },
     })
+    -- HTTP 200 may still contain an expired-key or other business error. Never
+    -- let that masquerade as an empty shelf or successful metadata refresh.
+    local failure = response_failure(result)
+    if failure then
+        error("gateway request failed: api=" .. tostring(api_name) .. " errCode=" .. tostring(failure))
+    end
+    return result, code, headers
 end
 
 function Client:get_shelf()
@@ -669,8 +690,8 @@ function Client:get_web_progress(book_id)
         local result = self:decode_http_json(text, {
             method = "GET", url = url, code = code, headers = headers,
         })
-        local err = type(result)=="table" and tonumber(result.errCode)
-        if not err or err==0 then return result end
+        local err = response_failure(result)
+        if not err then return result end
         if attempt==1 and (err==-2012 or err==-2041) then
             self:renew_cookie()
         else
@@ -726,9 +747,8 @@ function Client:get_mp_articles(book_id, offset, count, wr_ticket)
             code = code,
             headers = resp_headers,
         })
-        if data.errCode and data.errCode ~= 0 then
-            return nil, data.errCode
-        end
+        local failure = response_failure(data)
+        if failure then return nil, failure end
         return data, nil
     end
     error(http_error(self, code, text, resp_headers))
@@ -852,11 +872,13 @@ function Client:get_chapter_reviews(book_id, chapter_uid, ranges)
     local socket_ok, socket = pcall(require, "socket")
 
     for batch_index, batch in ipairs(batches) do
-        local ok, result = self:get_chapter_reviews_batch(book_id, chapter_uid, batch)
-        if ok and type(result) == "table" and type(result.reviews) == "table" then
-            for _, review in ipairs(result.reviews) do
-                all_reviews[#all_reviews + 1] = review
-            end
+        local ok, result, err = self:get_chapter_reviews_batch(book_id, chapter_uid, batch)
+        if not ok or type(result) ~= "table" or type(result.reviews) ~= "table" then
+            return false, nil, "readreviews batch " .. tostring(batch_index) .. "/" .. tostring(#batches)
+                .. " failed: " .. tostring(err or "invalid data")
+        end
+        for _, review in ipairs(result.reviews) do
+            all_reviews[#all_reviews + 1] = review
         end
 
         if batch_index < #batches and socket_ok and socket.sleep then
@@ -906,6 +928,8 @@ function Client:get_review_comments(review_id, count, opts)
     if not decode_ok or type(parsed) ~= "table" then
         return false, text, "invalid JSON"
     end
+    local failure = response_failure(parsed)
+    if failure then return false, nil, "review comments request failed: " .. tostring(failure) end
     return true, parsed, nil
 end
 return Client

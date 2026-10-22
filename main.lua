@@ -5,7 +5,6 @@ local WidgetContainer = require("ui/widget/container/widgetcontainer")
 
 local Client = require("weread.lib.client")
 local BackgroundWorker = require("weread.lib.background_worker")
-local Content = require("weread.lib.content")
 local Downloader = require("weread.lib.downloader")
 local ExternalAnnotationsDB = require("weread.lib.external_annotations_db")
 local Integrations = require("integrations.init")
@@ -26,7 +25,7 @@ local _ = PluginUtil.tr
 local WeReadPlugin = WidgetContainer:extend{
     name = "weread",
     is_doc_only = false,
-    version = "1.0.0",
+    version = "1.0.1",
 }
 
 -- Stable entry point used by third-party launchers such as SimpleUI and ZenUI.

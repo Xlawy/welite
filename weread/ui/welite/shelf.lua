@@ -66,8 +66,8 @@ function Shelf:build()
     local actions=self.actions
     local Display=require("weread.ui.welite.display")
     local status=Display.status(Device,require("ui/network/manager"))
-    local function line(w,thickness)
-        return require("ui/widget/linewidget"):new{dimen=Geom:new{w=w,h=math.max(1,math.floor(thickness*s))}}
+    local function divider(line_width,thickness)
+        return require("ui/widget/linewidget"):new{dimen=Geom:new{w=line_width,h=math.max(1,math.floor(thickness*s))}}
     end
     local function slot(widget,bw,bh,align)
         local name=align=="left" and "leftcontainer" or align=="right" and "rightcontainer" or "centercontainer"
@@ -121,7 +121,7 @@ function Shelf:build()
     local function tab(text,category)
         local b=textbutton(text,90*s,function() self:setCollection(category) end,21,"left")
         local body=Vertical:new{align="left",label(text,21,self.category==category),
-            Span:new{width=5*s},self.category==category and line(42*s,2) or Span:new{width=2*s}}
+            Span:new{width=5*s},self.category==category and divider(42*s,2) or Span:new{width=2*s}}
         b.label_widget:free();b.label_container[1]=slot(body,90*s,44*s,"left");return b
     end
     self.collection_sync_button=Button:new{text="同步",width=math.floor(72*s),height=math.floor(32*s),
@@ -143,15 +143,15 @@ function Shelf:build()
     local query_row=Horizontal:new{align="center",slot(summary_label,summary_width,28*s,"left")}
     if self.search_button then query_row[#query_row+1]=self.search_button end
     query_row[#query_row+1]=self.filter_button
-    local header=Vertical:new{align="left",head,line(width,1),Span:new{width=4*s},
-        stats,Span:new{width=4*s},line(width,1),Span:new{width=6*s},tabs,
+    local header=Vertical:new{align="left",head,divider(width,1),Span:new{width=4*s},
+        stats,Span:new{width=4*s},divider(width,1),Span:new{width=6*s},tabs,
         query_row,Span:new{width=12*s}}
     local footer_height=52*s
     local available=h-2*pad-header:getSize().h-footer_height
     local columns=w<screen:scaleBySize(540) and 2 or 3
     local rows=available<330*s and 1 or 2
     self.page_size=columns*rows
-    local filtered=self:filtered()
+    filtered=self:filtered()
     self.pages=math.max(1,math.ceil(#filtered/self.page_size))
     self.page=math.max(1,math.min(self.page,self.pages))
     self.visible={};self.cards={};self.layout={{self.brand,self.login_button,self.sync_button},self.stat_buttons,self.filters,self.search_button and {self.search_button,self.filter_button} or {self.filter_button}}

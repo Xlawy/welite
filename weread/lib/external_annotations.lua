@@ -157,6 +157,13 @@ local function footnote_marker_len_at(text, i)
     return start == i and stop - i + 1 or 0
 end
 
+-- Shared with progress source indexing: skip whole markers, never their
+-- individual characters, so normalized bytes retain the same coordinate basis.
+function ExternalAnnotations.normalization_skip_length(text, i)
+    local marker_len = footnote_marker_len_at(text, i)
+    return marker_len > 0 and marker_len or ws_len_at(text, i)
+end
+
 local function ignored_footnote_bytes(text)
     local ignored = {}
     local i, n = 1, #text
@@ -179,12 +186,9 @@ function ExternalAnnotations.flatten_text(text)
     local chunks = {}
     local i, n = 1, #text
     while i <= n do
-        local marker_len = footnote_marker_len_at(text, i)
-        local wlen = marker_len == 0 and ws_len_at(text, i) or 0
-        if marker_len > 0 then
-            i = i + marker_len
-        elseif wlen > 0 then
-            i = i + wlen
+        local skipped = ExternalAnnotations.normalization_skip_length(text, i)
+        if skipped > 0 then
+            i = i + skipped
         else
             local clen = char_len(text:byte(i))
             chunks[#chunks + 1] = text:sub(i, i + clen - 1)

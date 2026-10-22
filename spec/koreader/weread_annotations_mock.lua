@@ -206,7 +206,7 @@ assert(ok)
 store:put('900001', 'download', '4', { underlines = data.underlines, next_batch = 1, revision = '1' }, '4')
 local before_open = annotation_requests()
 for _, switches in ipairs({ { false, false }, { true, false }, { false, true } }) do
-    local cache = plugin.settings:get('cache')
+    cache = plugin.settings:get('cache')
     cache.auto_prefetch_next_chapter, cache.prefetch_annotations = unpack(switches)
     plugin.settings:set('cache', cache); plugin.settings:flush()
     reader:onClose(); open_reader()
@@ -215,7 +215,7 @@ for _, switches in ipairs({ { false, false }, { true, false }, { false, true } }
     assert(plugin:_annotationStore():get('900001', 'download', '4'), 'opening lost checkpoint')
 end
 print('PASS: three disabled-switch combinations, real close/reopen, saved results and checkpoints retained')
-local cache = plugin.settings:get('cache')
+cache = plugin.settings:get('cache')
 cache.auto_prefetch_next_chapter, cache.prefetch_annotations = true, true
 plugin.settings:set('cache', cache); plugin.settings:flush()
 control { match = '/book/readreviews', delay = 2, times = 0 }

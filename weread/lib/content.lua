@@ -218,15 +218,6 @@ local function unique_asset_name(used, name, ext)
     return candidate
 end
 
-local function write_file(path, data)
-    local file, err = io.open(path, "wb")
-    if not file then
-        error(err)
-    end
-    file:write(data)
-    file:close()
-end
-
 local function make_path(path)
     local ok, util = pcall(require, "util")
     if ok and util and util.makePath then
@@ -1515,6 +1506,12 @@ function Content.fetch_catalog(client, book)
     local catalog = client:post_json("https://weread.qq.com/web/book/chapterInfos", {
         bookIds = { tostring(book_id) },
     }, { referer = reader_url })
+    if type(catalog) ~= "table" then error("chapterInfos returned invalid data") end
+    local code = catalog.errCode or catalog.errcode
+    if (code ~= nil and tonumber(code) ~= 0)
+        or (catalog.succ ~= nil and catalog.succ ~= true and tonumber(catalog.succ) ~= 1) then
+        error("chapterInfos request failed: errCode=" .. tostring(code or "unknown"))
+    end
     local chapters = Content.readable_chapters(Content.normalize_chapters(catalog, book_id))
     book.chapters = chapters
     return chapters

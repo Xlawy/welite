@@ -167,9 +167,8 @@ function S:buildItems()
         end),
     }
 end
-function S:showUnified(section)
-    local items=self:buildItems()
-    local owner=self
+function S.showUnified(owner,section)
+    local items=owner:buildItems()
     local screen=require('device').screen
     local menu={item_table=items,title='WeLite 设置',page=1,stack={},
         max_per_page=math.max(2,math.min(6,math.floor(screen:getHeight()/screen:scaleBySize(65))-4))}
@@ -192,8 +191,8 @@ function S:showUnified(section)
             end
         end
     end
-    self.menu=menu
-    self:renderMenu(menu)
+    owner.menu=menu
+    owner:renderMenu(menu)
     if section then
         for _,item in ipairs(items) do if item.welite_id==section then menu:onMenuSelect(item);break end end
     end

@@ -107,7 +107,8 @@
     "weread/ui/menu.lua": [
       "spec/menu_prefetch_spec.lua",
       "spec/koreader/welite_reader_controls_spec.lua",
-      "spec/koreader/welite_settingsui_spec.lua"
+      "spec/koreader/welite_settingsui_spec.lua",
+      "spec/koreader/weread_plugin_spec.lua"
     ],
     "weread/lib/updater.lua": [
       "spec/updater_spec.lua"
@@ -225,7 +226,9 @@
     ],
     "weread/lib/client.lua": [
       "spec/client_mp_pagination_spec.lua",
-      "spec/client_web_progress_spec.lua"
+      "spec/client_web_progress_spec.lua",
+      "spec/client_gateway_contract_spec.lua",
+      "spec/client_annotation_batch_spec.lua"
     ],
     "weread/lib/progress_pull_worker.lua": [
       "spec/koreader/welite_progress_worker_spec.lua",
@@ -271,6 +274,14 @@
     ],
     "scripts/package_release.sh": [
       "tests/test_package_release.py"
+    ],
+    "weread/ui/download_dialog.lua": [
+      "spec/koreader/welite_download_dialog_spec.lua"
+    ],
+    "weread/lib/external_annotations.lua": [
+      "spec/external_annotations_spec.lua",
+      "spec/source_position_spec.lua",
+      "spec/koreader/welite_source_position_spec.lua"
     ]
   },
   "exemptions": {

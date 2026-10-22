@@ -440,14 +440,14 @@ function ProgressSync:_apply_remote(remote, context, options)
         local request = {}
         self._mapping_request, self.pulling, self.state = request, true, "pulling"
         local function current() return self._mapping_request == request and valid() end
-        local started = self.prepare_remote_async(context, remote, function(xp, reason)
+        local started = self.prepare_remote_async(context, remote, function(xp, mapping_error)
             if not current() then return end
             self._mapping_request, self.pulling = nil, false
             local ok, err
             if xp and self.goto_xpointer then ok, err = self.goto_xpointer(xp) end
             if not ok then
                 self.state = "error"
-                self.notify("jump_failed", {error=reason or err or "source_position_unavailable"})
+                self.notify("jump_failed", {error=mapping_error or err or "source_position_unavailable"})
                 return
             end
             local positions = self:_rendered_positions(context)
