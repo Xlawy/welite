@@ -127,28 +127,28 @@ Feature PRs must describe:
 ### Project conventions / 项目约定
 
 - Code, variable names, and commit messages should be in English.
-- All project-owned Lua modules must live under the `weread/` namespace: non-UI code in `weread/lib/` using `require("weread.lib.<module>")`, and UI code in `weread/ui/` using `require("weread.ui.<module>")`.
+- All project-owned Lua modules must live under the `welite/` namespace: non-UI code in `welite/lib/` using `require("welite.lib.<module>")`, and UI code in `welite/ui/` using `require("welite.ui.<module>")`.
 - Do not add project-owned modules to root-level `lib/` or `ui/`, or load them through bare `lib.*` / `ui.*` module keys. KOReader-owned imports such as `require("ui/widget/menu")` are exempt.
-- Use `require("weread.lib.logger")` for project logging. Do not require KOReader's `logger` directly or manually add a `[WeRead]` prefix.
-- User-facing strings should use `_()` and be translated in `weread/lib/i18n.lua`.
-- If menu items are added, removed, renamed, or moved, update `weread/ui/menu.lua` (or the owning feature UI module), `weread/lib/i18n.lua`, and the README menu tree together.
-- When bumping the release version, keep `_meta.lua` and `main.lua` in sync and add the matching `## [X.Y.Z]` section to `CHANGELOG.md`.
+- Use `require("welite.lib.logger")` for project logging. Do not require KOReader's `logger` directly or manually add a `[WeLite]` prefix.
+- User-facing strings should use `_()` and be translated in `welite/lib/i18n.lua`.
+- If menu items are added, removed, renamed, or moved, update `welite/ui/menu.lua` (or the owning feature UI module), `welite/lib/i18n.lua`, and the README menu tree together.
+- When bumping the release version, update the single source `welite/identity.lua` and add the matching `## [X.Y.Z]` section to `CHANGELOG.md`.
 - For non-public WeRead Web APIs, include a standalone reproducible Python verification script in `scripts/` before implementing it in Lua.
-- Do not commit KOReader `settings/weread.lua`, generated EPUB/cache files, API keys, cookies, anti-abuse headers, or private book content.
-- Keep `settings/weread.lua` limited to small, bounded configuration and critical state. Downloaded content, annotations, thoughts, catalogs, history, and other growing collections must use dedicated SQLite databases under the plugin data directory.
+- Do not commit KOReader `settings/welite-state.lua`, generated EPUB/cache files, API keys, cookies, anti-abuse headers, or private book content.
+- Keep `settings/welite-state.lua` limited to small, bounded configuration and critical state. Downloaded content, annotations, thoughts, catalogs, history, and other growing collections must use dedicated SQLite databases under the plugin data directory.
 
 项目约定：
 
 - 代码、变量名和 commit message 使用英文。
-- 所有项目自有 Lua 模块必须位于 `weread/` 命名空间下：非 UI 代码放在 `weread/lib/`，并使用 `require("weread.lib.<module>")`；UI 代码放在 `weread/ui/`，并使用 `require("weread.ui.<module>")`。
+- 所有项目自有 Lua 模块必须位于 `welite/` 命名空间下：非 UI 代码放在 `welite/lib/`，并使用 `require("welite.lib.<module>")`；UI 代码放在 `welite/ui/`，并使用 `require("welite.ui.<module>")`。
 - 不要在根目录新增项目自有的 `lib/` 或 `ui/` 模块，也不要使用裸 `lib.*` / `ui.*` 模块键。`require("ui/widget/menu")` 等 KOReader 自带依赖不受此限制。
-- 项目日志统一使用 `require("weread.lib.logger")`，不要直接引用 KOReader 的 `logger`，也不要手动添加 `[WeRead]` 前缀。
-- 用户可见文本需要使用 `_()`，并在 `weread/lib/i18n.lua` 中添加中文翻译。
-- 如果新增、删除、重命名或移动菜单项，需要同时更新 `weread/ui/menu.lua`（或对应功能的 UI 模块）、`weread/lib/i18n.lua` 和 README 菜单结构。
-- 发布版本升级时，需要同步修改 `_meta.lua` 和 `main.lua`，并在 `CHANGELOG.md` 中添加匹配的 `## [X.Y.Z]` 段落。
+- 项目日志统一使用 `require("welite.lib.logger")`，不要直接引用 KOReader 的 `logger`，也不要手动添加 `[WeLite]` 前缀。
+- 用户可见文本需要使用 `_()`，并在 `welite/lib/i18n.lua` 中添加中文翻译。
+- 如果新增、删除、重命名或移动菜单项，需要同时更新 `welite/ui/menu.lua`（或对应功能的 UI 模块）、`welite/lib/i18n.lua` 和 README 菜单结构。
+- 发布版本升级时，只修改版本源 `welite/identity.lua`（入口与元数据均引用它），并在 `CHANGELOG.md` 中添加匹配的 `## [X.Y.Z]` 段落。
 - 涉及非公开 WeRead Web API 时，必须先在 `scripts/` 中提交可独立运行、可复现的 Python 验证脚本，再实现 Lua 版本。
-- 不要提交 KOReader 的 `settings/weread.lua`、生成的 EPUB/cache、API key、cookie、反滥用请求头或私人书籍内容。
-- `settings/weread.lua` 只能保存少量、有明确大小上限的配置和关键状态。下载内容、划线、想法、目录、历史记录及其他会持续增长的数据集合，必须存入插件数据目录下相互隔离的 SQLite 数据库。
+- 不要提交 KOReader 的 `settings/welite-state.lua`、生成的 EPUB/cache、API key、cookie、反滥用请求头或私人书籍内容。
+- `settings/welite-state.lua` 只能保存少量、有明确大小上限的配置和关键状态。下载内容、划线、想法、目录、历史记录及其他会持续增长的数据集合，必须存入插件数据目录下相互隔离的 SQLite 数据库。
 
 ## Local checks / 本地检查
 
@@ -157,9 +157,9 @@ Before submitting a PR, run the relevant checks if possible:
 ```bash
 bash scripts/run_lua_specs.sh
 bash scripts/check_lua_namespace.sh
-luacheck main.lua _meta.lua weread spec
+luacheck main.lua _meta.lua welite spec
 python3 -m py_compile scripts/*.py
-bash scripts/package_release.sh /tmp/weread.koplugin-release-test.zip
+bash scripts/package_release.sh /tmp/welite.koplugin-release-test.zip
 rg -n -P "wrk-(?!x{8,})[A-Za-z0-9_-]{12,}|(wr_skey|wr_rt|wr_vid|ptcz)=((?!XXX)[^;[:space:]'\''\"]{8,})|x-wrpa-[0-9]+:\s*((?!\.\.\.)[A-Za-z0-9+/=_-]{12,})|thirdwx[=:]\s*[A-Za-z0-9_-]{8,}" . --glob '!cache/**' --glob '!*.epub'
 ```
 
@@ -168,9 +168,9 @@ rg -n -P "wrk-(?!x{8,})[A-Za-z0-9_-]{12,}|(wr_skey|wr_rt|wr_vid|ptcz)=((?!XXX)[^
 ```bash
 bash scripts/run_lua_specs.sh
 bash scripts/check_lua_namespace.sh
-luacheck main.lua _meta.lua weread spec
+luacheck main.lua _meta.lua welite spec
 python3 -m py_compile scripts/*.py
-bash scripts/package_release.sh /tmp/weread.koplugin-release-test.zip
+bash scripts/package_release.sh /tmp/welite.koplugin-release-test.zip
 rg -n -P "wrk-(?!x{8,})[A-Za-z0-9_-]{12,}|(wr_skey|wr_rt|wr_vid|ptcz)=((?!XXX)[^;[:space:]'\''\"]{8,})|x-wrpa-[0-9]+:\s*((?!\.\.\.)[A-Za-z0-9+/=_-]{12,})|thirdwx[=:]\s*[A-Za-z0-9_-]{8,}" . --glob '!cache/**' --glob '!*.epub'
 ```
 

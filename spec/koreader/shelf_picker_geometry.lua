@@ -29,7 +29,7 @@ local Menu = dofile(native .. '/frontend/ui/widget/menu.lua')
 package.loaded['ui/widget/menu'] = Menu
 local shown
 require('ui/uimanager').show = function(_, widget) shown = widget end
-local LibraryView = require('weread.ui.library_view')
+local LibraryView = require('welite.ui.library_view')
 for _, count in ipairs({1, 8, 12, 13, 14, 26}) do
     local groups = {}
     for i = 2, count do groups[#groups + 1] = { key = tostring(i), label = 'Group ' .. i, books = {} } end

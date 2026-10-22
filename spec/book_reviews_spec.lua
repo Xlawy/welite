@@ -1,9 +1,9 @@
--- Unit tests for weread/lib/book_reviews.lua.
+-- Unit tests for welite/lib/book_reviews.lua.
 -- Run from the repo root with a plain Lua interpreter:
 --   lua spec/book_reviews_spec.lua
 
 package.path = "./?.lua;" .. package.path
-local BookReviews = require("weread.lib.book_reviews")
+local BookReviews = require("welite.lib.book_reviews")
 
 local failures, checks = 0, 0
 local current_test

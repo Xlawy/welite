@@ -1,6 +1,6 @@
 describe('welite fixed-width status clock',function()
     local Clock
-    setup(function() require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path;Clock=require('weread.ui.welite.clock') end)
+    setup(function() require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path;Clock=require('welite.ui.welite.clock') end)
     it('keeps width and child widgets stable across minute changes',function()
         local clock=Clock:new{text='01:11'};local width=clock:getSize().w
         local hour,minute=clock.hours,clock.minutes

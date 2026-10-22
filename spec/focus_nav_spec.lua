@@ -39,7 +39,7 @@ package.preload["ui/widget/focusmanager"] = function()
     }
 end
 
-local FocusNav = require("weread.ui.focus_nav")
+local FocusNav = require("welite.ui.focus_nav")
 
 local checks, failures = 0, 0
 local function expect(value, label)

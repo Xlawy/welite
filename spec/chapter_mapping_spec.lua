@@ -1,5 +1,5 @@
 package.path = "./?.lua;" .. package.path
-local Chapters = require("weread.lib.annotation_chapters")
+local Chapters = require("welite.lib.annotation_chapters")
 local toc = {
     {title="雨季不再来", xpointer="a", depth=1},
     {title="版权信息", xpointer="b", depth=1},

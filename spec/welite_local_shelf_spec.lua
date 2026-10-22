@@ -1,5 +1,5 @@
 package.path='./?.lua;'..package.path
-local M=require('weread.ui.welite.local_shelf')
+local M=require('welite.ui.welite.local_shelf')
 local saved={a={cached_file='full'},b={cached_chapters={['1']='chapter'}},c={cached_file='missing'}}
 local calls=0
 local list=M.select({{bookId='a',title='Cloud title'},{bookId='a'}},saved,function(record)

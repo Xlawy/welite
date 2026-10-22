@@ -29,7 +29,7 @@ package.loaded["fontlist"] = {
 }
 G_reader_settings = require("luasettings"):wrap({})
 
-local Renderer = require("weread.ui.thought_popup.pages")
+local Renderer = require("welite.ui.thought_popup.pages")
 local items = {
     { author = "读者甲", likes_count = 12,
         content = string.rep("这是用于验证分页的示例想法。保留正文行距，检查下一条评论是否被整体移到新的一页。", 3) },

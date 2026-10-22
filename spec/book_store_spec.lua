@@ -30,7 +30,7 @@ package.preload["json"] = function()
     }
 end
 
-local BookStore = require("weread.lib.book_store")
+local BookStore = require("welite.lib.book_store")
 local root = os.tmpname() .. "-weread-book-store"
 os.remove(root)
 local settings = { cache_dir = root }

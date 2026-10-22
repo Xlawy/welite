@@ -1,5 +1,5 @@
 package.path='./?.lua;'..package.path
-local Scope=require('weread.lib.progress_scope')
+local Scope=require('welite.lib.progress_scope')
 -- A retained cache must not become a progress request for the next account.
 local foreign={readUpdateTime=999999,cached_file='old-account.epub',
     home_remote_position={account='old',position={percent=42}}}

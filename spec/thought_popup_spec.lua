@@ -1,4 +1,4 @@
--- Unit tests for weread/ui/thought_popup/paginator.lua and content_builder.lua.
+-- Unit tests for welite/ui/thought_popup/paginator.lua and content_builder.lua.
 -- Run from the repo root with:
 --   lua spec/thought_popup_spec.lua
 
@@ -109,8 +109,8 @@ package.preload["ffi/blitbuffer"] = function()
     }
 end
 
-local Paginator = require("weread.ui.thought_popup.paginator")
-local ContentBuilder = require("weread.ui.thought_popup.content_builder")
+local Paginator = require("welite.ui.thought_popup.paginator")
+local ContentBuilder = require("welite.ui.thought_popup.content_builder")
 
 local failures, checks = 0, 0
 local current_test

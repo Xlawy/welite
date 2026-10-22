@@ -18,10 +18,10 @@ end
 package.preload["ui/widget/confirmbox"] = function()
     return { new = function(_, value) return value end }
 end
-package.preload["weread.lib.logger"] = function()
+package.preload["welite.lib.logger"] = function()
     return { info = function() end, warn = function() end, err = function() end }
 end
-package.preload["weread.lib.plugin_util"] = function()
+package.preload["welite.lib.plugin_util"] = function()
     return {
         tr = function(value) return value end,
         T = function(template, ...)
@@ -33,7 +33,7 @@ package.preload["weread.lib.plugin_util"] = function()
     }
 end
 
-local Updater = require("weread.lib.updater")
+local Updater = require("welite.lib.updater")
 
 expect(Updater.MAX_PACKAGE_BYTES == 10 * 1024 * 1024,
     "update package limit must be 10 MiB")
@@ -161,7 +161,7 @@ local update_state = { prefer_proxy = false }
 local updater = Updater:new{
     settings = {
         get = function() return update_state end,
-        set = function() end,
+        set = function(_, _, state) update_state = state end,
         flush = function() end,
     },
     current_version = "0.6.0",
@@ -238,14 +238,11 @@ expect(request_count == 1,
 expect(io.open(download_path, "rb") == nil,
     "oversized partial download should be removed")
 
-local updater_source = assert(io.open("weread/lib/updater.lua", "r")):read("*a")
+local updater_source = assert(io.open("welite/lib/updater.lua", "r")):read("*a")
 expect(updater_source:find('require("ui/', 1, true) == nil,
     "core updater must not import UI modules")
 
-local meta = assert(io.open("_meta.lua", "r")):read("*a")
-local main = assert(io.open("main.lua", "r")):read("*a")
-local meta_version = meta:match('version%s*=%s*"([^"]+)"')
-local main_version = main:match('version%s*=%s*"([^"]+)"')
-expect(meta_version == main_version, "main.lua and _meta.lua versions must match")
+local Identity = require("welite.identity")
+expect(require("_meta").version == Identity.version, "metadata must use the release identity")
 
 print(("updater_spec: %d checks"):format(checks))

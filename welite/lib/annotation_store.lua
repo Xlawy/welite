@@ -1,0 +1,314 @@
+-- One database per WeRead book. Source data and download progress are shared;
+-- document-specific XPointers are disposable projections in the same database.
+local LegacyDB = require("welite.lib.external_annotations_db")
+local Crypto = require("welite.lib.crypto")
+local ok_json, json = pcall(require, "json")
+if not ok_json then json = require("rapidjson") end
+
+local Store = {}
+Store.__index = Store
+
+function Store:new(settings)
+    return setmetatable({ legacy = LegacyDB:new(settings) }, self)
+end
+
+function Store:open(book_id, create)
+    assert(book_id and tostring(book_id) ~= "", "book id required")
+    local db, err = self.legacy:open("weread-book-" .. tostring(book_id), create)
+    if not db then return nil, err end
+    local ok, schema_err = pcall(function()
+        db:exec([[
+            CREATE TABLE IF NOT EXISTS annotation_data (
+                kind TEXT NOT NULL,
+                entry_key TEXT NOT NULL,
+                chapter_uid TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                PRIMARY KEY(kind, entry_key)
+            ) WITHOUT ROWID;
+            CREATE INDEX IF NOT EXISTS annotation_chapter
+                ON annotation_data(chapter_uid, kind);
+        ]])
+    end)
+    if not ok then db:close(); return nil, tostring(schema_err) end
+    return db
+end
+
+-- Background source lookups must not initialize schemas or change journal
+-- mode while the parent may be accessing the same annotation database.
+function Store:openReadOnly(book_id)
+    assert(book_id and tostring(book_id)~='', 'book id required')
+    local path=self.legacy:databasePath('weread-book-'..tostring(book_id))
+    if not require('libs/libkoreader-lfs').attributes(path,'mode') then return nil end
+    local ok,db=pcall(function() return require('lua-ljsqlite3/init').open(path,'ro') end)
+    if not ok then return nil,tostring(db) end
+    local checked,exists=pcall(db.rowexec,db,
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='annotation_data'")
+    if not checked or not exists then
+        db:close()
+        return nil,not checked and tostring(exists) or nil
+    end
+    return db
+end
+function Store:get(book_id, kind, key, read_only)
+    local db,err
+    if read_only then db,err=self:openReadOnly(book_id)
+    else db,err=self:open(book_id,false) end
+    if not db then
+        if err then error(err) end
+        return nil
+    end
+    local stmt, value
+    local ok, read_err = pcall(function()
+        stmt = db:prepare("SELECT payload FROM annotation_data WHERE kind=? AND entry_key=?")
+        local row = stmt:reset():bind(kind, tostring(key)):step()
+        if row then value = json.decode(row[1]) end
+    end)
+    if stmt then stmt:close() end
+    db:close()
+    if not ok then error(read_err) end
+    return value
+end
+
+-- All mutations in a chapter commit share a transaction. A nil value deletes
+-- an entry; nil key deletes this kind only for the supplied chapter UID.
+function Store:write(book_id, changes)
+    local db, open_err = self:open(book_id, true)
+    if not db then error(open_err) end
+    local stmt
+    local ok, err = pcall(function()
+        db:exec("BEGIN IMMEDIATE")
+        for _, change in ipairs(changes) do
+            if change.value ~= nil then
+                stmt = db:prepare([[
+                    INSERT INTO annotation_data(kind,entry_key,chapter_uid,payload)
+                    VALUES(?,?,?,?) ON CONFLICT(kind,entry_key) DO UPDATE SET
+                    chapter_uid=excluded.chapter_uid,payload=excluded.payload
+                ]])
+                stmt:reset():bind(change.kind, tostring(change.key),
+                    tostring(change.uid or ""), json.encode(change.value)):step()
+            elseif change.key ~= nil then
+                stmt = db:prepare("DELETE FROM annotation_data WHERE kind=? AND entry_key=?")
+                stmt:reset():bind(change.kind, tostring(change.key)):step()
+            else
+                stmt = db:prepare("DELETE FROM annotation_data WHERE kind=? AND chapter_uid=?")
+                stmt:reset():bind(change.kind, tostring(change.uid)):step()
+            end
+            stmt:close()
+            stmt = nil
+        end
+        db:exec("COMMIT")
+    end)
+    if stmt then pcall(function() stmt:close() end) end
+    if not ok then pcall(function() db:exec("ROLLBACK") end) end
+    db:close()
+    if not ok then error(err) end
+end
+
+function Store:put(book_id, kind, key, value, uid)
+    self:write(book_id, { { kind = kind, key = key, value = value, uid = uid } })
+end
+
+-- Invalidate projections whose local chapter boundaries have changed.
+-- Shared downloads, quote indexes and thoughts are deliberately retained.
+function Store:reconcileRanges(book_id, document_key, ranges)
+    local Chapters = require("welite.lib.annotation_chapters")
+    local statuses, changes = self:list(book_id, "status"), {}
+    local prefix = document_key .. ":"
+    for key, status in pairs(statuses) do
+        if key:sub(1, #prefix) == prefix then
+            local uid = key:sub(#prefix + 1)
+            if not ranges[uid] or status.range_key ~= Chapters.rangeKey(ranges[uid]) then
+                for _, kind in ipairs({ "projection", "status", "matching" }) do
+                    changes[#changes + 1] = { kind = kind, key = key }
+                end
+                statuses[key] = nil
+            end
+        end
+    end
+    if #changes > 0 then self:write(book_id, changes) end
+    return statuses
+end
+
+function Store:clearBook(book_id)
+    book_id = tostring(book_id or "")
+    if book_id == "" then return false, "book id required" end
+    return self.legacy:clearDocument("weread-book-" .. book_id)
+end
+
+-- Explicit per-chapter refresh. Retain the binding, catalog, manual mapping,
+-- original book text and monotonic generation; drop only fetched annotations
+-- and derived coordinates for these UIDs, including other local editions.
+function Store:clearChapters(book_id, chapters)
+    local changes = {}
+    for _, chapter in ipairs(chapters) do
+        local uid = require("welite.lib.annotation_chapters").uid(chapter)
+        for _, kind in ipairs({ "source", "source_status", "download", "batch",
+            "thought", "refresh", "projection", "matching", "status" }) do
+            changes[#changes + 1] = { kind = kind, uid = uid }
+        end
+    end
+    if #changes > 0 then self:write(book_id, changes) end
+end
+
+-- Delete whole-book derived data without relying on the currently mapped
+-- chapter list.  Catalog metadata, migration markers and cached original text
+-- are intentionally retained so matching can restart without rebuilding the
+-- local chapter index or re-importing stale legacy records.
+function Store:clearKinds(book_id, kinds)
+    local db, open_err = self:open(book_id, false)
+    if not db then
+        if open_err then error(open_err) end
+        return true
+    end
+    local stmt
+    local ok, err = pcall(function()
+        db:exec("BEGIN IMMEDIATE")
+        stmt = db:prepare("DELETE FROM annotation_data WHERE kind=?")
+        for _, kind in ipairs(kinds or {}) do
+            stmt:reset():bind(tostring(kind)):step()
+        end
+        stmt:close(); stmt = nil
+        db:exec("COMMIT")
+    end)
+    if stmt then pcall(function() stmt:close() end) end
+    if not ok then pcall(function() db:exec("ROLLBACK") end) end
+    db:close()
+    if not ok then error(err) end
+    return true
+end
+
+function Store:list(book_id, kind)
+    local db, err = self:open(book_id, false)
+    if not db then
+        if err then error(err) end
+        return {}
+    end
+    local stmt, result = nil, {}
+    local ok, read_err = pcall(function()
+        stmt = db:prepare("SELECT entry_key,payload FROM annotation_data WHERE kind=?")
+        local row = stmt:reset():bind(kind):step()
+        while row do
+            result[row[1]] = json.decode(row[2])
+            row = stmt:step()
+        end
+    end)
+    if stmt then stmt:close() end
+    db:close()
+    if not ok then error(read_err) end
+    return result
+end
+
+function Store:pruneCatalog(book_id, catalog)
+    local valid = {}
+    for _, chapter in ipairs(catalog) do
+        valid[tostring(chapter.chapterUid or chapter.chapterId)] = true
+    end
+    local db, err = self:open(book_id, false)
+    if not db then if err then error(err) end; return end
+    local stmt
+    local ok, prune_err = pcall(function()
+        db:exec("BEGIN IMMEDIATE")
+        stmt = db:prepare("SELECT DISTINCT chapter_uid FROM annotation_data WHERE chapter_uid<>''")
+        local row, removed = stmt:reset():step(), {}
+        while row do
+            if not valid[row[1]] then removed[#removed + 1] = row[1] end
+            row = stmt:step()
+        end
+        stmt:close()
+        stmt = db:prepare("DELETE FROM annotation_data WHERE chapter_uid=?")
+        for _, uid in ipairs(removed) do stmt:reset():bind(uid):step() end
+        stmt:close(); stmt = nil
+        db:exec("COMMIT")
+    end)
+    if stmt then pcall(function() stmt:close() end) end
+    if not ok then pcall(function() db:exec("ROLLBACK") end) end
+    db:close()
+    if not ok then error(prune_err) end
+end
+
+function Store:projectionKey(document_key, uid)
+    return document_key .. ":" .. tostring(uid)
+end
+
+function Store.documentKey(path)
+    local lfs = require("libs/libkoreader-lfs")
+    local attr = lfs.attributes(path) or {}
+    -- File identity changes after replacement; renderer version also invalidates
+    -- coordinates after a CREngine upgrade without discarding shared sources.
+    local ok, version = pcall(require, "version")
+    local engine = ok and type(version) == "table" and version.getCurrentRevision
+        and version:getCurrentRevision() or "unknown"
+    -- Do not include ctime (`change`). Some Kindle filesystems update it while
+    -- merely reopening an unchanged book, which would orphan every projection
+    -- behind a new document key. Size + mtime still invalidate coordinates
+    -- when the EPUB is replaced, while the version prefix deliberately makes
+    -- this stable-key scheme distinct from older keys.
+    return Crypto.sha256_hex(table.concat({ "document-key-v2", path,
+        tostring(attr.size), tostring(attr.modification), tostring(engine) }, "\n"))
+end
+
+function Store:commitChapter(book_id, uid, source, document_key, projection)
+    local changes = {
+        { kind = "source", key = uid, uid = uid, value = source },
+        { kind = "download", key = uid },
+        { kind = "batch", uid = uid },
+    }
+    if document_key then
+        local key = self:projectionKey(document_key, uid)
+        changes[#changes + 1] = { kind = "projection", key = key, uid = uid, value = projection }
+        changes[#changes + 1] = { kind = "matching", key = key }
+    end
+    self:write(book_id, changes)
+end
+
+-- Legacy databases remain intact until migration is verified. A migration is
+-- idempotent and never overwrites newer shared chapter data from another file.
+function Store:importLegacy(book_id, path, document_key)
+    local marker = Crypto.sha256_hex(path)
+    if self:get(book_id, "migration", marker) then return end
+    local entry = self.legacy:getDocument(path)
+    local checkpoint = self.legacy:getSyncCheckpoint(path)
+    if entry and entry.binding and tostring(entry.binding.book_id) ~= tostring(book_id) then return end
+    if checkpoint and tostring(checkpoint.book_id) == tostring(book_id) then
+        for _, chapter in ipairs(checkpoint.chapters or {}) do
+            local uid = tostring(chapter.chapter_uid)
+            if not self:get(book_id, "source", uid) and not self:get(book_id, "download", uid) then
+                if chapter.complete then
+                    chapter.revision = "legacy-" .. tostring(checkpoint.started_at or 0)
+                    self:put(book_id, "source", uid, chapter, uid)
+                    self:put(book_id, "source_status", uid,
+                        { revision = chapter.revision, total = #(chapter.underlines or {}) }, uid)
+                else
+                    local batches = chapter.review_batches or {}
+                    chapter.next_batch = 1
+                    for _, batch in ipairs(batches) do
+                        if batch.batch_index ~= chapter.next_batch then break end
+                        self:put(book_id, "batch", uid .. ":" .. batch.batch_index, batch.reviews, uid)
+                        chapter.next_batch = chapter.next_batch + 1
+                    end
+                    chapter.review_batches = nil
+                    self:put(book_id, "download", uid, chapter, uid)
+                end
+            end
+        end
+    end
+    local grouped = {}
+    for _, record in ipairs(entry and entry.records or {}) do
+        local uid = record.chapter_uid
+        if uid then
+            uid = tostring(uid)
+            grouped[uid] = grouped[uid] or {}
+            grouped[uid][#grouped[uid] + 1] = record
+        end
+    end
+    for uid, records in pairs(grouped) do
+        local key = self:projectionKey(document_key, uid)
+        if not self:get(book_id, "projection", key) then
+            self:put(book_id, "projection", key, { records = records,
+                legacy = true, stats = { total = #records, located = #records } }, uid)
+        end
+    end
+    self:put(book_id, "migration", marker, { imported = true })
+end
+
+return Store

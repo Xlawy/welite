@@ -2,8 +2,8 @@ describe('WeLite annotation management panel',function()
     local UI,Panel,Bridge,plugin,view,calls,values
     setup(function()
         require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path
-        UI=require('ui/uimanager');Panel=require('weread.ui.welite.annotations')
-        Bridge=require('weread.ui.welite.reader_controls')
+        UI=require('ui/uimanager');Panel=require('welite.ui.welite.annotations')
+        Bridge=require('welite.ui.welite.reader_controls')
     end)
     before_each(function()
         calls={};values={account={user_vid='fixture'},cache={show_annotations=true}}
@@ -11,7 +11,7 @@ describe('WeLite annotation management panel',function()
             settings={get=function(_,key,default) return values[key] or default end},
             _xpointerOverlayPrototypeAvailable=function() return true end,
             _annotationBinding=function() return {book_id='fixture',title='合成书籍'} end,
-            getUnifiedAnnotationMenuItems=require('weread.ui.annotation_sync_controller').getUnifiedAnnotationMenuItems,
+            getUnifiedAnnotationMenuItems=require('welite.ui.annotation_sync_controller').getUnifiedAnnotationMenuItems,
             toggleAnnotationVisibility=function() calls.visibility=true end,
             bindExternalAnnotationsBook=function() calls.binding=true end,
             chooseAnnotationChapters=function() calls.chapters=true;return 'picker' end,

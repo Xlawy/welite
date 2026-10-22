@@ -16,37 +16,37 @@ ignore = {
 
 max_line_length = false
 
-files["weread/lib/client.lua"] = {
+files["welite/lib/client.lua"] = {
     ignore = { "211/_status" },
 }
 
-files["weread/lib/content.lua"] = {
+files["welite/lib/content.lua"] = {
     ignore = {
         "211/normalize_void_elements",
     },
 }
 
-files["weread/lib/i18n.lua"] = {
+files["welite/lib/i18n.lua"] = {
     -- Translation catalogs intentionally repeat a key in two grouped sections.
     ignore = { "314" },
 }
 
-files["weread/lib/plugin_util.lua"] = {
+files["welite/lib/plugin_util.lua"] = {
     ignore = { "143/table" },
 }
 
-files["weread/lib/progress_sync.lua"] = {
+files["welite/lib/progress_sync.lua"] = {
     ignore = {
         "211/_reason",
         "231/_index",
     },
 }
 
-files["weread/lib/protocol.lua"] = {
+files["welite/lib/protocol.lua"] = {
     ignore = { "311/width" },
 }
 
-files["weread/lib/reader_lifecycle.lua"] = {
+files["welite/lib/reader_lifecycle.lua"] = {
     ignore = {
         "211/current_ch",
         "211/_started",
@@ -54,14 +54,14 @@ files["weread/lib/reader_lifecycle.lua"] = {
     },
 }
 
-files["weread/ui/annotations_controller.lua"] = {
+files["welite/ui/annotations_controller.lua"] = {
     ignore = {
         "211/Annotations",
         "211/_current_idx",
     },
 }
 
-files["weread/ui/reader_navigation.lua"] = {
+files["welite/ui/reader_navigation.lua"] = {
     ignore = { "211/current_ch" },
 }
 
@@ -73,11 +73,17 @@ files["spec/koreader/*.lua"] = {
     globals = {
         "describe",
         "setup",
+        "teardown",
+        "before_each",
+        "after_each",
         "it",
         "disable_plugins",
         "load_plugin",
     },
 }
+
+-- Restore os.rename after each migration fault-injection case.
+files["spec/koreader/welite_profile_store_spec.lua"] = { globals = { "os.rename" } }
 
 -- Frozen UI reference fixtures: preserve their source hashes verbatim.
 files["spec/reference/welite/pulldown.lua"] = { ignore = { "211/Center" } }

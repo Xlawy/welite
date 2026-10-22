@@ -6,7 +6,7 @@ local function expect(condition, message)
     if not condition then error(message or ("check " .. checks .. " failed")) end
 end
 
-local Overlay = require("weread.ui.xpointer_overlay")
+local Overlay = require("welite.ui.xpointer_overlay")
 
 local box_calls = 0
 local positions = {
@@ -148,15 +148,15 @@ package.preload["device"] = function()
         },
     }
 end
-package.preload["weread.lib.content"] = function() return {} end
-package.preload["weread.lib.external_annotations"] = function()
+package.preload["welite.lib.content"] = function() return {} end
+package.preload["welite.lib.external_annotations"] = function()
     return {
         normalize_search = function()
             return { { book_id = "book-1", title = "测试书", author = "作者" } }
         end,
     }
 end
-package.preload["weread.lib.plugin_util"] = function()
+package.preload["welite.lib.plugin_util"] = function()
     return {
         tr = function(text) return text end,
         T = function(text, ...)
@@ -167,10 +167,10 @@ package.preload["weread.lib.plugin_util"] = function()
         end,
     }
 end
-package.preload["weread.ui.thought_popup"] = function()
+package.preload["welite.ui.thought_popup"] = function()
     return { show = function(options) shown_popup = options end }
 end
-local Controller = require("weread.ui.xpointer_overlay_controller")
+local Controller = require("welite.ui.xpointer_overlay_controller")
 local invalidations = 0
 local host = {
     _xpointer_overlay = {
@@ -275,7 +275,7 @@ expect(sync_calls == 0,
 confirm_options.ok_callback()
 expect(sync_calls == 1,
     "confirming the match did not start annotation sync")
-local Unified = require("weread.ui.annotation_sync_controller")
+local Unified = require("welite.ui.annotation_sync_controller")
 for name, method in pairs(Unified) do bind_host[name] = method end
 local local_book_items = bind_host:getXPointerOverlayPrototypeMenuItems()
 expect(#local_book_items == 4, "unified annotation management is not concise")

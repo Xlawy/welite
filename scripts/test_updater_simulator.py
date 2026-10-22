@@ -10,6 +10,7 @@ import re
 import shlex
 import subprocess
 import zipfile
+from test_welite import PREVIOUS_REF, upstream_fixture
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -29,6 +30,7 @@ def main():
     root.mkdir(parents=True, exist_ok=False)
     for directory in ("profile/settings", "profile/plugins", "fixtures", "evidence"):
         (root / directory).mkdir(parents=True, exist_ok=True)
+    upstream_fixture(REPO, root / "previous/welite.koplugin", PREVIOUS_REF)
     candidate = root / "candidate.zip"
     subprocess.run(["bash", str(REPO / "scripts/package_release.sh"), str(candidate)], check=True)
     name = "welite.koplugin-v9999.9.1.zip"
@@ -37,7 +39,7 @@ def main():
         with zipfile.ZipFile(root / "fixtures" / name, "w", zipfile.ZIP_DEFLATED) as target:
             for entry in source.infolist():
                 data = source.read(entry.filename)
-                if entry.filename in ("welite.koplugin/_meta.lua", "welite.koplugin/main.lua"):
+                if entry.filename in ("welite.koplugin/welite/identity.lua", "welite.koplugin/_meta.lua"):
                     data = re.sub(rb'version\s*=\s*"[0-9.]+"', b'version = "9999.9.1"', data, count=1)
                 target.writestr(entry.filename, data)
     digest = hashlib.sha256((root / "fixtures" / name).read_bytes()).hexdigest()
@@ -45,7 +47,7 @@ def main():
     notes = "更新内容（模拟数据）\n\n" + "".join(
         f"{index}. 优化更新提醒与长说明阅读体验，正文可上下滑动，底部操作按钮始终可用。\n\n"
         for index in range(1, 46)
-    ) + "最后一条更新：感谢使用微信读书插件。"
+    ) + "最后一条更新：感谢使用 WeLite。"
     metadata = dict(tag_name="v9999.9.1", body=notes, assets=[dict(
         name=asset,
         browser_download_url="https://github.com/Xlawy/welite/releases/download/v9999.9.1/" + asset,

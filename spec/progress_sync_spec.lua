@@ -1,9 +1,9 @@
--- Unit tests for weread/lib/progress_sync.lua.
+-- Unit tests for welite/lib/progress_sync.lua.
 -- Run from the repo root with:
 --   lua spec/progress_sync_spec.lua
 
 package.path = "./?.lua;" .. package.path
-local ProgressSync = require("weread.lib.progress_sync")
+local ProgressSync = require("welite.lib.progress_sync")
 
 local failures, checks = 0, 0
 local current_test
@@ -22,7 +22,7 @@ local function test(name, fn)
     fn()
 end
 
--- Mirrors PULL_RETRY_DELAY_SECONDS in weread/lib/progress_sync.lua.
+-- Mirrors PULL_RETRY_DELAY_SECONDS in welite/lib/progress_sync.lua.
 local PULL_RETRY_DELAY_SECONDS = 15
 
 local chapters = {

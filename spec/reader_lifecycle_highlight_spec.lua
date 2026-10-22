@@ -2,15 +2,15 @@
 
 package.path = "./?.lua;" .. package.path
 
-package.preload["weread.lib.content"] = function() return {} end
-package.preload["weread.lib.logger"] = function()
+package.preload["welite.lib.content"] = function() return {} end
+package.preload["welite.lib.logger"] = function()
     return { scoped = function() return {} end }
 end
-package.preload["weread.lib.protocol"] = function()
+package.preload["welite.lib.protocol"] = function()
     return { is_mp_book = function() return false end }
 end
 package.preload["ui/uimanager"] = function() return {} end
-package.preload["weread.lib.plugin_util"] = function()
+package.preload["welite.lib.plugin_util"] = function()
     return {
         tr = function(text) return text end,
         T = function(text) return text end,
@@ -20,7 +20,7 @@ package.preload["weread.lib.plugin_util"] = function()
     }
 end
 
-local Lifecycle = require("weread.lib.reader_lifecycle")
+local Lifecycle = require("welite.lib.reader_lifecycle")
 
 local checks, failures = 0, 0
 local function expect(value, label)

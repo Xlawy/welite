@@ -36,10 +36,10 @@ package.preload["ffi/util"] = function()
         end,
     }
 end
-package.preload["weread.lib.content"] = function()
+package.preload["welite.lib.content"] = function()
     return { ensure_reader_state = function() end }
 end
-package.preload["weread.ui.download_dialog"] = function()
+package.preload["welite.ui.download_dialog"] = function()
     return {
         new = function(_self, options)
             options.show = function() end
@@ -49,13 +49,13 @@ package.preload["weread.ui.download_dialog"] = function()
         end,
     }
 end
-package.preload["weread.lib.i18n"] = function()
+package.preload["welite.lib.i18n"] = function()
     return { tr = function(text) return text end }
 end
-package.preload["weread.lib.thoughts"] = function() return {} end
-package.preload["weread.lib.protocol"] = function() return {} end
+package.preload["welite.lib.thoughts"] = function() return {} end
+package.preload["welite.lib.protocol"] = function() return {} end
 
-local Downloader = require("weread.lib.downloader")
+local Downloader = require("welite.lib.downloader")
 
 local checks, failures = 0, 0
 local function expect(value, label)

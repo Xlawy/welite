@@ -3,9 +3,9 @@ describe('source coordinates in real EPUB text',function()
     setup(function()
         require('commonrequire');disable_plugins()
         package.path='plugins/welite.koplugin/?.lua;'..package.path
-        Source=require('weread.lib.annotation_source')
-        Position=require('weread.lib.source_position')
-        Locator=require('weread.lib.external_annotations')
+        Source=require('welite.lib.annotation_source')
+        Position=require('welite.lib.source_position')
+        Locator=require('welite.lib.external_annotations')
     end)
     before_each(function()
         root=os.tmpname();os.remove(root);require('libs/libkoreader-lfs').mkdir(root)
@@ -21,20 +21,20 @@ describe('source coordinates in real EPUB text',function()
         local book={book_id='source-position',title='Synthetic source coordinates'}
         local chapters={{chapterUid=1,chapterIdx=1,title='Chapter one',wordCount=1000},
             {chapterUid=2,chapterIdx=2,title='Chapter two',wordCount=100}}
-        local path=require('weread.lib.content').save_book_epub({cache_dir=root},book,chapters,
+        local path=require('welite.lib.content').save_book_epub({cache_dir=root},book,chapters,
             {['1']=html,['2']='<h1>Chapter two</h1><p>Boundary chapter.</p>'})
         reader=require('apps/reader/readerui'):new{dimen=require('device').screen:getSize(),
             document=require('document/documentregistry'):openDocument(path)}
-        local _,ranges=require('weread.lib.annotation_chapters').map(reader.document,chapters,
-            require('weread.lib.annotation_chapters').descriptor(book,path))
+        local _,ranges=require('welite.lib.annotation_chapters').map(reader.document,chapters,
+            require('welite.lib.annotation_chapters').descriptor(book,path))
         range=ranges['1']
         context={book=book,chapters=chapters,path=path,book_id=book.book_id,is_full_book=true}
         plugin={ui=reader,settings={data_dir=root,get=function(_,_,d) return d end}}
-        require('weread.lib.annotation_store'):new(plugin.settings):put(book.book_id,'original','1',spans,'1')
+        require('welite.lib.annotation_store'):new(plugin.settings):put(book.book_id,'original','1',spans,'1')
     end)
     after_each(function()
-        require('weread.lib.progress_source_locator').cancel(plugin)
-        require('weread.lib.progress_pull_worker').cancel(plugin)
+        require('welite.lib.progress_source_locator').cancel(plugin)
+        require('welite.lib.progress_pull_worker').cancel(plugin)
         reader:onClose();require('ffi/util').purgeDir(root)
     end)
     local function pump(predicate)
@@ -47,7 +47,7 @@ describe('source coordinates in real EPUB text',function()
         local UI=require('ui/uimanager')
         local function tick() if not finished then ticks=ticks+1;UI:scheduleIn(0.002,tick) end end
         UI:scheduleIn(0,tick)
-        assert.is_true(require('weread.lib.progress_source_locator').start(plugin,context,
+        assert.is_true(require('welite.lib.progress_source_locator').start(plugin,context,
             {chapter_uid=1,chapter_offset=offset},function(xp,reason) result,err,finished=xp,reason,true end,
             function() return true end))
         assert.is_false(finished)
@@ -72,35 +72,35 @@ describe('source coordinates in real EPUB text',function()
         local book={book_id='long-source',title='Long chapter'}
         local chapters={{chapterUid=1,chapterIdx=1,title='Chapter one',wordCount=150000},
             {chapterUid=2,chapterIdx=2,title='Chapter two',wordCount=100}}
-        local path=require('weread.lib.content').save_book_epub({cache_dir=root},book,chapters,
+        local path=require('welite.lib.content').save_book_epub({cache_dir=root},book,chapters,
             {['1']=html,['2']='<h1>Chapter two</h1><p>Boundary chapter.</p>'})
         reader=require('apps/reader/readerui'):new{dimen=require('device').screen:getSize(),
             document=require('document/documentregistry'):openDocument(path)}
         plugin.ui=reader
         context={book=book,chapters=chapters,path=path,book_id=book.book_id,is_full_book=true}
-        assert.is_not_false(require('weread.lib.annotation_store'):new(plugin.settings):put(book.book_id,'original','1',spans,'1'))
+        assert.is_not_false(require('welite.lib.annotation_store'):new(plugin.settings):put(book.book_id,'original','1',spans,'1'))
         local result,err,finished
         local page=reader.document:getCurrentPage()
-        assert.is_true(require('weread.lib.progress_source_locator').start(plugin,context,
+        assert.is_true(require('welite.lib.progress_source_locator').start(plugin,context,
             {chapter_uid=1,chapter_offset=offset},function(xp,reason) result,err,finished=xp,reason,true end,
             function() return true end))
         pump(function() return finished end)
         assert.is_string(result,err)
         assert.equals(page,reader.document:getCurrentPage(),'preparing progress must not move the reader')
-        local _,ranges=require('weread.lib.annotation_chapters').map(reader.document,chapters,
-            require('weread.lib.annotation_chapters').descriptor(book,path))
+        local _,ranges=require('welite.lib.annotation_chapters').map(reader.document,chapters,
+            require('welite.lib.annotation_chapters').descriptor(book,path))
         local long_map=assert(Position.new(spans))
         local captured,why=long_map:capture_document(reader.document,ranges['1'],result)
         assert.equals(offset,captured,why)
     end)
     it('discards a canceled source lookup before applying a result',function()
         local called=false
-        local controller=require('weread.lib.progress_source_locator')
+        local controller=require('welite.lib.progress_source_locator')
         assert.is_true(controller.start(plugin,context,{chapter_uid=1,chapter_offset=offset},
             function() called=true end,function() return true end))
         controller.cancel(plugin)
         local worker=plugin._progress_pull_worker
-        require('weread.lib.progress_pull_worker').cancel(plugin)
+        require('welite.lib.progress_pull_worker').cancel(plugin)
         pump(function() return worker.job==nil end)
         assert.is_false(called)
     end)

@@ -10,7 +10,7 @@ load_plugin('welite.koplugin')
 package.path=home..'/plugins/welite.koplugin/?.lua;'..package.path
 local UI,Screen=require('ui/uimanager'),require('device').screen
 local socket,util=require('socket'),require('ffi/util')
-local settings=require('weread.lib.settings'):new()
+local settings=require('welite.lib.settings'):new()
 assert(settings.mock_endpoint and settings.data_dir:match('/weread%-mock$'))
 local http,json,ltn12=require('socket.http'),require('json'),require('ltn12')
 local function control(values)
@@ -30,8 +30,8 @@ local cache=settings:get('cache');cache.auto_prefetch_next_chapter=false;cache.p
 cache.show_annotations=false;settings:set('cache',cache)
 settings:set('sync',{pull_on_open=false,upload_on_close=false})
 local report=settings:get('read_report');report.enabled=false;settings:set('read_report',report)
-local client=require('weread.lib.client'):new(settings)
-local Content=require('weread.lib.content')
+local client=require('welite.lib.client'):new(settings)
+local Content=require('welite.lib.content')
 local book=client:get_book_info('900001')
 Content.ensure_reader_state(client,book)
 local chapters=Content.fetch_catalog(client,book)
@@ -41,7 +41,7 @@ settings:set('books',{['900001']=book});settings:flush()
 local reader,plugin
 local function open(book_path)
     reader=require('apps/reader/readerui'):new{dimen=Screen:getSize(),document=require('document/documentregistry'):openDocument(book_path)}
-    UI:show(reader);plugin=assert(reader.weread)
+    UI:show(reader);plugin=assert(reader.welite)
     pump(function() return plugin._current_weread_book_id=='900001' end)
 end
 open(path)
@@ -50,9 +50,9 @@ local picker=assert(plugin:chooseAnnotationChapters())
 picker.layout[1][1].callback();pump(function() return picker.model.count==1 end)
 picker.action_button.callback()
 pump(function() return not plugin._external_annotation_sync and plugin:_annotationStore():get('900001','source_status','1')~=nil end)
-local controller=require('weread.ui.welite.home').settings(plugin)
+local controller=require('welite.ui.welite.home').settings(plugin)
 controller:show();controller.dialog.buttons[3][1].callback()
-local tr=require('weread.lib.i18n').tr
+local tr=require('welite.lib.i18n').tr
 local function select(label,confirm)
     local item
     for _,candidate in ipairs(controller.menu.item_table) do
@@ -84,7 +84,7 @@ local delayed_before=control().delayed_requests
 control{match='/web/book/chapter/e_0',delay=3,times=0}
 open(second)
 pump(function() return plugin.downloader:getActivePrefetch()~=nil and control().delayed_requests>delayed_before end)
-controller=require('weread.ui.welite.home').settings(plugin);controller:show();controller.dialog.buttons[3][1].callback()
+controller=require('welite.ui.welite.home').settings(plugin);controller:show();controller.dialog.buttons[3][1].callback()
 local started=socket.gettime();select('Automatically prefetch next chapter')
 local cancellation_seconds=socket.gettime()-started
 assert(cancellation_seconds<1,'turning prefetch off must not block on the network')

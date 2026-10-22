@@ -29,16 +29,16 @@ package.preload["ui/uimanager"] = function()
         scheduleIn = function(_self, _delay, callback) callback() end,
     }
 end
-package.preload["weread.lib.logger"] = function()
+package.preload["welite.lib.logger"] = function()
     return { info = function() end }
 end
-package.preload["weread.ui.thought_popup"] = function()
+package.preload["welite.ui.thought_popup"] = function()
     return { closeVisible = function() end }
 end
-package.preload["weread.lib.protocol"] = function()
+package.preload["welite.lib.protocol"] = function()
     return { is_mp_book = function(book_id) return book_id == "mp-book" end }
 end
-package.preload["weread.lib.plugin_util"] = function()
+package.preload["welite.lib.plugin_util"] = function()
     return {
         tr = function(text) return text end,
         T = function(text) return text end,
@@ -54,7 +54,7 @@ for _, module in ipairs({
     end
 end
 
-local Menu = require("weread.ui.menu")
+local Menu = require("welite.ui.menu")
 
 local checks, failures = 0, 0
 local function expect(value, label)
@@ -122,29 +122,29 @@ for key, value in pairs(Menu) do host[key] = value end
 host:onDispatcherRegisterActions()
 expect(registered.weread_show == nil,
     "generic WeRead shortcut action is no longer registered")
-local sync_action = registered.weread_sync_progress
-expect(sync_action and sync_action.event == "WeReadSyncProgress"
+local sync_action = registered.welite_sync_progress
+expect(sync_action and sync_action.event == "WeLiteSyncProgress"
         and sync_action.title == "WeLite · Sync progress now"
         and sync_action.category == "none"
         and sync_action.reader == true and sync_action.general ~= true,
     "sync gesture reuses the quick-menu event as a reader-only action")
-local report_action = registered.weread_read_report_status
-expect(report_action and report_action.event == "ShowWeReadReportStatus"
+local report_action = registered.welite_read_report_status
+expect(report_action and report_action.event == "ShowWeLiteReportStatus"
         and report_action.title == "WeLite · Reading time report status"
         and report_action.category == "none"
         and report_action.reader == true and report_action.general ~= true,
     "reading report status is registered as a reader-only action")
-local quick_action = registered.weread_quick_menu
+local quick_action = registered.welite_quick_menu
 expect(quick_action ~= nil, "quick menu dispatcher action is registered")
-expect(quick_action and quick_action.event == "ShowWeReadQuickMenu",
+expect(quick_action and quick_action.event == "ShowWeLiteQuickMenu",
     "quick menu action dispatches the matching reader event")
 expect(quick_action and quick_action.reader == true
         and quick_action.general ~= true,
     "quick menu action remains reader-only")
 expect(quick_action and quick_action.title == "WeLite · Quick menu",
     "quick menu action has the requested title")
-local toggle_action = registered.weread_toggle_annotations
-expect(toggle_action and toggle_action.event == "ToggleWeReadAnnotations",
+local toggle_action = registered.welite_toggle_annotations
+expect(toggle_action and toggle_action.event == "ToggleWeLiteAnnotations",
     "annotation visibility action dispatches the matching reader event")
 expect(toggle_action and toggle_action.reader == true
         and toggle_action.general ~= true,
@@ -152,9 +152,9 @@ expect(toggle_action and toggle_action.reader == true
 expect(toggle_action
         and toggle_action.title == "WeLite · Toggle underlines and thoughts",
     "annotation visibility action has a gesture-friendly title")
-local continue_action = registered.weread_continue_annotation_matching
+local continue_action = registered.welite_continue_annotation_matching
 expect(continue_action
-        and continue_action.event == "WeReadContinueAnnotationMatching",
+        and continue_action.event == "WeLiteContinueAnnotationMatching",
     "continue-matching action dispatches the matching reader event")
 expect(continue_action and continue_action.reader == true
         and continue_action.general ~= true,
@@ -164,8 +164,8 @@ expect(continue_action
     "continue-matching action has a gesture-friendly title")
 expect(registered.weread_current_page_thoughts == nil,
     "current-page thoughts is no longer exposed as a separate shortcut action")
-local bookshelf_action = registered.weread_bookshelf
-expect(bookshelf_action and bookshelf_action.event == "ShowWeReadBookshelf",
+local bookshelf_action = registered.welite_bookshelf
+expect(bookshelf_action and bookshelf_action.event == "ShowWeLiteBookshelf",
     "bookshelf dispatcher action uses the matching event")
 expect(bookshelf_action and bookshelf_action.general == true
         and bookshelf_action.reader ~= true,
@@ -173,16 +173,16 @@ expect(bookshelf_action and bookshelf_action.general == true
 expect(bookshelf_action and bookshelf_action.title == "WeLite · Bookshelf",
     "bookshelf gesture action has the requested title")
 local general_actions = {
-    weread_local_bookshelf = {
-        event = "ShowWeReadLocalBookshelf",
+    welite_local_bookshelf = {
+        event = "ShowWeLiteLocalBookshelf",
         title = "WeLite · Local bookshelf",
     },
-    weread_reading_statistics = {
-        event = "ShowWeReadReadingStatistics",
+    welite_reading_statistics = {
+        event = "ShowWeLiteReadingStatistics",
         title = "WeLite · Reading statistics",
     },
-    weread_search = {
-        event = "ShowWeReadSearch",
+    welite_search = {
+        event = "ShowWeLiteSearch",
         title = "WeLite · Search",
     },
 }
@@ -219,9 +219,10 @@ expect(about_items[4] and about_items[4].text == "Check for updates"
     "update settings follow version and author at the same level")
 available_version = "0.7.0"
 local update_available_items = last_settings_item.sub_item_table_func()
-expect(#update_available_items == 6
-        and update_available_items[4].text == "Update to v%1",
-    "available update replaces the check item without adding a seventh item")
+expect(#update_available_items == 7
+        and update_available_items[4].text == "Update to v%1"
+        and update_available_items[5].text == "Check for updates",
+    "available update preserves an explicit fresh check")
 available_version = nil
 expect(about_items[1].enabled == false and about_items[1].callback == nil,
     "version is informational, never clickable")
@@ -236,10 +237,10 @@ expect(shown_widget.text:find("Xlawy/welite", 1, true), "about links modified so
 expect(not shown_widget.text:find("not for commercial use", 1, true), "about must not add noncommercial restrictions")
 local toolbar = {}
 host:addToMainMenu(toolbar)
-expect(toolbar.weread.text == "WeLite", "KOReader toolbar displays fork name")
+expect(toolbar.welite.text == "WeLite", "KOReader toolbar displays fork name")
 host.settings.mock_endpoint = true
 host:addToMainMenu(toolbar)
-expect(toolbar.weread.text == "WeLite [MOCK]", "mock mode preserves fork name")
+expect(toolbar.welite.text == "WeLite [MOCK]", "mock mode preserves fork name")
 host.settings.mock_endpoint = nil
 local main_items = host:getMainMenuItems()
 expect(main_items[#main_items] and main_items[#main_items].text == "Settings",

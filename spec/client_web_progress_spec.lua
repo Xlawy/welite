@@ -3,10 +3,10 @@ package.preload['ltn12']=function() return {} end
 package.preload['socketutil']=function() return {} end
 package.preload['socket.http']=function() return {} end
 package.preload['json']=function() return {} end
-package.preload['weread.lib.cookie']=function() return {} end
-package.preload['weread.lib.protocol']=function() return {
+package.preload['welite.lib.cookie']=function() return {} end
+package.preload['welite.lib.protocol']=function() return {
     urlencode=function(s) return s end,reader_url=function(id) return 'reader/'..id end} end
-local Client=require('weread.lib.client')
+local Client=require('welite.lib.client')
 local function fixture(responses,renew_error)
     local calls,renewals=0,0
     local client=setmetatable({}, {__index=Client})

@@ -2,7 +2,7 @@ describe('WeLite thought popup in native KOReader',function()
     local Popup,UI,popup,language
     setup(function()
         require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path
-        Popup=require('weread.ui.thought_popup');UI=require('ui/uimanager')
+        Popup=require('welite.ui.thought_popup');UI=require('ui/uimanager')
     end)
     before_each(function()
         language=G_reader_settings:readSetting('language');G_reader_settings:saveSetting('language','zh_CN')

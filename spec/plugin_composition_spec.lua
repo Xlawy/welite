@@ -9,7 +9,7 @@ local function expect(condition, message)
     end
 end
 
-local Mixin = require("weread.lib.mixin")
+local Mixin = require("welite.lib.mixin")
 
 local inherited = { inherited_method = function() return "inherited" end }
 local target = setmetatable({}, { __index = inherited })
@@ -31,7 +31,7 @@ end)
 expect(not duplicate_ok, "duplicate direct methods must be rejected")
 
 local saved_catalogs = 0
-package.loaded["weread.lib.content"] = {
+package.loaded["welite.lib.content"] = {
     save_catalog_cache = function(_client, _settings, _book, chapters)
         saved_catalogs = saved_catalogs + 1
         return #chapters > 0
@@ -41,11 +41,11 @@ package.loaded.logger = {
     info = function() end,
     err = function() end,
 }
-package.loaded["weread.lib.plugin_util"] = {
+package.loaded["welite.lib.plugin_util"] = {
     log_error = tostring,
 }
 
-local Migrations = require("weread.lib.migrations")
+local Migrations = require("welite.lib.migrations")
 local books = {
     ["123"] = { title = "Book", chapters = { { chapterUid = 1 } } },
 }

@@ -14,12 +14,12 @@ package.preload["logger"] = function()
         dbg = function() end,
     }
 end
-package.preload["weread.lib.crypto"] = function() return {} end
-package.preload["weread.lib.reader_state"] = function() return {} end
-package.preload["weread.lib.protocol"] = function() return {} end
-package.preload["weread.lib.thoughts"] = function() return {} end
+package.preload["welite.lib.crypto"] = function() return {} end
+package.preload["welite.lib.reader_state"] = function() return {} end
+package.preload["welite.lib.protocol"] = function() return {} end
+package.preload["welite.lib.thoughts"] = function() return {} end
 
-local Content = require("weread/lib/content")
+local Content = require("welite/lib/content")
 
 -- The hostile rule observed in real WeRead e_2 shards: crengine honors the
 -- root-element zero sizing and p{font-size:1rem} then collapses the whole book.

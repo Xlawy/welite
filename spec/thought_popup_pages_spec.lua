@@ -1,4 +1,4 @@
--- Unit tests for weread/ui/thought_popup/pages.lua (PageRenderer): the
+-- Unit tests for welite/ui/thought_popup/pages.lua (PageRenderer): the
 -- pagination + page-rendering pipeline shared by the bottom and centered
 -- popups. Exercises the real renderer (with mocked koreader deps) so the
 -- public layout fields (content_h / text_w / boundaries) are verified.
@@ -190,7 +190,7 @@ package.preload["cacheitem"] = function()
     }
 end
 
-package.preload["weread.ui.thought_popup.face_factory"] = function()
+package.preload["welite.ui.thought_popup.face_factory"] = function()
     return {
         getFace = function(_self, _name, size, variant)
             local ratio = ({ meta = 0.72, likes = 0.68 })[variant] or 0.9
@@ -205,7 +205,7 @@ package.preload["weread.ui.thought_popup.face_factory"] = function()
     }
 end
 
-local PageRenderer = require("weread.ui.thought_popup.pages")
+local PageRenderer = require("welite.ui.thought_popup.pages")
 
 local failures, checks = 0, 0
 local current_test

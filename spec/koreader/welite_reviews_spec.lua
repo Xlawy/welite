@@ -7,7 +7,7 @@ describe('WeLite reviews UI and background session',function()
     end
     setup(function()
         require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path
-        View=require('weread.ui.book_reviews_view');Controller=require('weread.ui.book_reviews_controller')
+        View=require('welite.ui.book_reviews_view');Controller=require('welite.ui.book_reviews_controller')
         UI=require('ui/uimanager');Screen=require('device').screen
     end)
     before_each(function()
@@ -132,7 +132,7 @@ describe('WeLite reviews UI and background session',function()
         assert.is_true(old.closed);assert.is_true(old_detail.closed)
         drain(function() return session.worker==nil end)
         session.view._review_buttons[1].callback()
-        require('weread.ui.library').closeWeReadUI(plugin)
+        require('welite.ui.library').closeWeReadUI(plugin)
         assert.is_true(session.closed);assert.is_true(detail.closed)
         assert.is_nil(plugin._book_reviews_session)
     end)

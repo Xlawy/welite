@@ -7,7 +7,7 @@ local saved_chapters
 local save_ok, save_err = true, nil
 local warnings = {}
 
-package.preload["weread.lib.content"] = function()
+package.preload["welite.lib.content"] = function()
     return {
         catalog_cache_path = function() return "/cache/book/catalog.json" end,
         load_catalog_cache = function(_client, _settings, book)
@@ -20,7 +20,7 @@ package.preload["weread.lib.content"] = function()
         end,
     }
 end
-package.preload["weread.lib.logger"] = function()
+package.preload["welite.lib.logger"] = function()
     return {
         scoped = function()
             return {
@@ -29,11 +29,11 @@ package.preload["weread.lib.logger"] = function()
         end,
     }
 end
-package.preload["weread.lib.protocol"] = function()
+package.preload["welite.lib.protocol"] = function()
     return { is_mp_book = function() return false end }
 end
 package.preload["ui/uimanager"] = function() return {} end
-package.preload["weread.lib.plugin_util"] = function()
+package.preload["welite.lib.plugin_util"] = function()
     return {
         tr = function(text) return text end,
         T = function(text) return text end,
@@ -43,7 +43,7 @@ package.preload["weread.lib.plugin_util"] = function()
     }
 end
 
-local Lifecycle = require("weread.lib.reader_lifecycle")
+local Lifecycle = require("welite.lib.reader_lifecycle")
 
 local checks, failures = 0, 0
 local function expect(value, label)

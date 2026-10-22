@@ -1,7 +1,7 @@
 describe('welite once-per-process startup',function()
     setup(function() require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path end)
     it('defers first-install choice and opens only when accepted',function()
-        local gate=require('weread.ui.welite.startup').new();local queued,answer,opened
+        local gate=require('welite.ui.welite.startup').new();local queued,answer,opened
         opened=0
         local scheduler={nextTick=function(_,task) queued=task end}
         gate:queue(scheduler,function() return {decided=false} end,function(open) answer=open end,function() opened=opened+1 end)
@@ -9,11 +9,11 @@ describe('welite once-per-process startup',function()
         assert.is_nil(gate:queue(scheduler,function() error('second host must not prompt') end))
     end)
     it('does not show first-run navigation over a reading document',function()
-        local Startup=require('weread.ui.welite.startup')
+        local Startup=require('welite.ui.welite.startup')
         local old=Startup.instance
         local gate=Startup.new();Startup.instance=gate
         local ok,err=pcall(function()
-            assert.is_false(require('weread.ui.welite.home').queueStartup({ui={document={}}}))
+            assert.is_false(require('welite.ui.welite.home').queueStartup({ui={document={}}}))
             assert.is_nil(gate.claimed,'reader must not consume FileManager startup decision')
         end)
         Startup.instance=old
@@ -22,7 +22,7 @@ describe('welite once-per-process startup',function()
     it('honors saved startup choices on a fresh process without prompting',function()
         for _,enabled in ipairs({false,true}) do
             local opened=0;local queued
-            require('weread.ui.welite.startup').new():queue({nextTick=function(_,task) queued=task end},
+            require('welite.ui.welite.startup').new():queue({nextTick=function(_,task) queued=task end},
                 function() return {decided=true,autostart=enabled} end,
                 function() error('already decided') end,function() opened=opened+1 end)
             queued();assert.equals(enabled and 1 or 0,opened)

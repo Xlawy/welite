@@ -2,10 +2,10 @@
 
 package.path = "./?.lua;./?/init.lua;" .. package.path
 
-package.preload["weread.lib.logger"] = function()
+package.preload["welite.lib.logger"] = function()
     return { info = function() end, warn = function() end, err = function() end }
 end
-package.preload["weread.lib.plugin_util"] = function()
+package.preload["welite.lib.plugin_util"] = function()
     return { tr = function(text) return text end }
 end
 
@@ -16,7 +16,7 @@ local function expect(condition, message)
 end
 
 _G.__ZEN_UI_REGISTER_HOME_ITEM = nil
-local ZenUI = require("integrations.zenui")
+local ZenUI = require("welite.integrations.zenui")
 ZenUI.registered = false
 
 local opened = 0
@@ -36,7 +36,7 @@ end
 
 expect(ZenUI:onZenUIReady(plugin) == true,
     "ZenUIReady did not register the WeRead Home widget")
-expect(registered_id == "weread.bookshelf"
+expect(registered_id == "welite.bookshelf"
     and type(registered_builder) == "function",
     "ZenUI registration used the wrong item descriptor")
 expect(registered_options.label == "WeLite",

@@ -29,7 +29,7 @@ end
 package.preload["json"] = function()
     return { encode = encode, decode = function(value) return assert(loadstring("return " .. value))() end }
 end
-package.preload["weread.lib.logger"] = function()
+package.preload["welite.lib.logger"] = function()
     return { info = function() end, warn = function() end, err = function() end }
 end
 local paths, legacy_entries, legacy_checkpoints = {}, {}, {}
@@ -99,10 +99,10 @@ function legacy:clearDocument(path)
     legacy_checkpoints[path] = nil
     return true
 end
-package.preload["weread.lib.external_annotations_db"] = function()
+package.preload["welite.lib.external_annotations_db"] = function()
     return { new = function() return legacy end }
 end
-local Store = require("weread.lib.annotation_store")
+local Store = require("welite.lib.annotation_store")
 return {
     connect = connect,
     new = function() return Store:new({}) end,

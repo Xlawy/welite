@@ -8,7 +8,7 @@ describe('ordinary chapter catalog background loading',function()
     setup(function()
         require('commonrequire');disable_plugins()
         package.path='plugins/welite.koplugin/?.lua;'..package.path
-        UI=require('ui/uimanager');Library=require('weread.ui.library');Content=require('weread.lib.content')
+        UI=require('ui/uimanager');Library=require('welite.ui.library');Content=require('welite.lib.content')
     end)
     before_each(function()
         root=os.tmpname();os.remove(root);require('libs/libkoreader-lfs').mkdir(root)

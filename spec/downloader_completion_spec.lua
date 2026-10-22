@@ -45,7 +45,7 @@ package.preload["ffi/util"] = function()
 end
 local full_book_save_count = 0
 local saved_cover_data
-package.preload["weread.lib.content"] = function()
+package.preload["welite.lib.content"] = function()
     return {
         save_chapter_epub = function(_settings, _book, chapter)
             return "/cache/book/chapter-" .. tostring(chapter.chapterUid) .. ".epub"
@@ -57,16 +57,16 @@ package.preload["weread.lib.content"] = function()
         end,
     }
 end
-package.preload["weread.ui.download_dialog"] = function() return {} end
-package.preload["weread.lib.i18n"] = function()
+package.preload["welite.ui.download_dialog"] = function() return {} end
+package.preload["welite.lib.i18n"] = function()
     return { tr = function(text) return text end }
 end
-package.preload["weread.lib.thoughts"] = function()
+package.preload["welite.lib.thoughts"] = function()
     return { is_download_enabled = function() return false end }
 end
-local Protocol = require("weread.lib.protocol")
+local Protocol = require("welite.lib.protocol")
 
-local Downloader = require("weread.lib.downloader")
+local Downloader = require("welite.lib.downloader")
 
 local failures, checks = 0, 0
 local function eq(got, want, label)

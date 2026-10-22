@@ -26,7 +26,7 @@ package.preload["logger"] = function()
     }
 end
 
-local Footnotes = require("weread.lib.footnotes")
+local Footnotes = require("welite.lib.footnotes")
 
 expect(not Footnotes.FOOTNOTES_CSS:find("-cr-hint:", 1, true),
     "default footnotes must leave display policy to the reading system")

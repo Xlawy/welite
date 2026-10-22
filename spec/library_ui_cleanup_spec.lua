@@ -26,20 +26,20 @@ for _, name in ipairs({
 }) do
     package.preload[name] = function() return {} end
 end
-package.preload["weread.lib.logger"] = function()
+package.preload["welite.lib.logger"] = function()
     return { info = function() end, warn = function() end, err = function() end }
 end
-package.preload["weread.lib.book_reviews"] = function()
+package.preload["welite.lib.book_reviews"] = function()
     return { format_date = function() return "" end }
 end
-package.preload["weread.ui.book_reviews_view"] = function() return {} end
-package.preload["weread.lib.content"] = function()
+package.preload["welite.ui.book_reviews_view"] = function() return {} end
+package.preload["welite.lib.content"] = function()
     return { load_catalog_cache = function() return nil end }
 end
-package.preload["weread.lib.protocol"] = function()
+package.preload["welite.lib.protocol"] = function()
     return { is_mp_book = function() return false end }
 end
-package.preload["weread.lib.plugin_util"] = function()
+package.preload["welite.lib.plugin_util"] = function()
     return {
         tr = function(text) return text end,
         T = function(text) return text end,
@@ -52,18 +52,18 @@ end
 local detail_data
 local detail_view = { id = "detail" }
 local chapter_view = { id = "chapters" }
-package.preload["weread.ui.book_detail_view"] = function()
+package.preload["welite.ui.book_detail_view"] = function()
     return { show = function(data)
         detail_data=data
         expect(data.cover_path == "/fixture-cover.png", "detail receives only the cached cover path")
         return detail_view
     end }
 end
-package.preload["weread.ui.chapter_list_view"] = function()
+package.preload["welite.ui.chapter_list_view"] = function()
     return { show = function() return chapter_view end }
 end
 
-local Library = require("weread.ui.library")
+local Library = require("welite.ui.library")
 local books = {}
 local opened
 local host = {
@@ -125,7 +125,7 @@ expect(#closed == 0 and host.shelf_view == shelf_view,
 
 local review_closed=false
 host._time_review_session={close=function() review_closed=true end}
-require("weread.ui.library").closeWeReadUI(host)
+require("welite.ui.library").closeWeReadUI(host)
 expect(review_closed,'closing plugin UI must close time review and its confirmation')
 closed = {}
 host.shelf_view = shelf_view

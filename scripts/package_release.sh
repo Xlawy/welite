@@ -6,10 +6,10 @@ cd "$repo_dir"
 
 version="$(
     sed -nE 's/^[[:space:]]*version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' \
-        _meta.lua | head -n 1
+        welite/identity.lua | head -n 1
 )"
 if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo "error: _meta.lua version must use X.Y.Z format (got: ${version:-missing})" >&2
+    echo "error: welite/identity.lua version must use X.Y.Z format (got: ${version:-missing})" >&2
     exit 1
 fi
 
@@ -28,7 +28,11 @@ trap cleanup EXIT
 plugin_dir="$stage_dir/welite.koplugin"
 mkdir -p "$plugin_dir"
 cp _meta.lua main.lua LICENSE NOTICE README.md "$plugin_dir/"
-cp -R fonts icons integrations weread "$plugin_dir/"
+# Older WeLite updaters inspect a literal metadata version before activation.
+# Generate it from the same identity; never maintain a second source version.
+sed "s/version = require(\"welite.identity\").version,/version = \"$version\",/" \
+    _meta.lua > "$plugin_dir/_meta.lua"
+cp -R fonts icons welite "$plugin_dir/"
 find "$plugin_dir" -name '.DS_Store' -delete
 
 rm -f "$archive_path"

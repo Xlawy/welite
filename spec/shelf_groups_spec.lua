@@ -1,6 +1,6 @@
 package.path = "./?.lua;./?/init.lua;" .. package.path
 
-local Groups = require("weread.lib.shelf_groups")
+local Groups = require("welite.lib.shelf_groups")
 local checks = 0
 local function expect(condition, message)
     checks = checks + 1

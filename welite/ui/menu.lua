@@ -1,0 +1,1105 @@
+-- Main menu and settings menu composition.
+local BD = require("ui/bidi")
+local ButtonDialog = require("ui/widget/buttondialog")
+local ConfirmBox = require("ui/widget/confirmbox")
+local Dispatcher = require("dispatcher")
+local InfoMessage = require("ui/widget/infomessage")
+local logger = require("welite.lib.logger")
+local UIManager = require("ui/uimanager")
+local ThoughtPopup = require("welite.ui.thought_popup")
+local WeRead = require("welite.lib.protocol")
+
+local PluginUtil = require("welite.lib.plugin_util")
+local _ = PluginUtil.tr
+local T = PluginUtil.T
+
+local M = {}
+
+-- Set the default once per module load; KOReader applies user menu orders later.
+for _i, module in ipairs({
+    "ui/elements/filemanager_menu_order",
+    "ui/elements/reader_menu_order",
+}) do
+    local order = require(module)
+    table.insert(order.tools, 1, "welite")
+end
+
+function M:onDispatcherRegisterActions()
+    Dispatcher:registerAction("welite_quick_menu", {
+        category = "none",
+        event = "ShowWeLiteQuickMenu",
+        title = _("WeLite · Quick menu"),
+        reader = true,
+    })
+    Dispatcher:registerAction("welite_sync_progress", {
+        category = "none",
+        event = "WeLiteSyncProgress",
+        title = _("WeLite · Sync progress now"),
+        reader = true,
+    })
+    Dispatcher:registerAction("welite_read_report_status", {
+        category = "none",
+        event = "ShowWeLiteReportStatus",
+        title = _("WeLite · Reading time report status"),
+        reader = true,
+    })
+    Dispatcher:registerAction("welite_bookshelf", {
+        category = "none",
+        event = "ShowWeLiteBookshelf",
+        title = _("WeLite · Bookshelf"),
+        general = true,
+    })
+    Dispatcher:registerAction("welite_local_bookshelf", {
+        category = "none",
+        event = "ShowWeLiteLocalBookshelf",
+        title = _("WeLite · Local bookshelf"),
+        general = true,
+    })
+    Dispatcher:registerAction("welite_reading_statistics", {
+        category = "none",
+        event = "ShowWeLiteReadingStatistics",
+        title = _("WeLite · Reading statistics"),
+        general = true,
+    })
+    Dispatcher:registerAction("welite_search", {
+        category = "none",
+        event = "ShowWeLiteSearch",
+        title = _("WeLite · Search"),
+        general = true,
+    })
+    Dispatcher:registerAction("welite_toggle_annotations", {
+        category = "none",
+        event = "ToggleWeLiteAnnotations",
+        title = _("WeLite · Toggle underlines and thoughts"),
+        reader = true,
+    })
+    Dispatcher:registerAction("welite_continue_annotation_matching", {
+        category = "none",
+        event = "WeLiteContinueAnnotationMatching",
+        title = _("WeLite · Continue matching underlines and thoughts"),
+        reader = true,
+    })
+end
+
+function M:addToMainMenu(menu_items)
+    menu_items.welite = {
+        text = self.settings.mock_endpoint and _("WeLite [MOCK]") or _("WeLite"),
+        sorting_hint = "tools",
+        sub_item_table_func = function()
+            return self:getMainMenuItems()
+        end,
+    }
+end
+
+function M:getMainMenuItems()
+    local items = {
+        {
+            welite_id = "login",
+            text_func = function()
+                if self.settings.mock_endpoint then return _("Mock account (no QR login)") end
+                local account = self.settings:get("account", {})
+                if account.login_method == "qr" and tonumber(account.login_time or 0) > 0 then
+                    local name = type(account.name) == "string" and account.name or ""
+                    if name == "" then name = _("Unknown account") end
+                    return T(_("Logged in · %1"), name)
+                end
+                return _("QR code login")
+            end,
+            keep_menu_open = true,
+            enabled_func = function() return not self.settings.mock_endpoint end,
+            callback = self:safeCallback(_("QR login"), function(touchmenu_instance)
+                self._login_menu_instance = touchmenu_instance
+                local account = self.settings:get("account", {})
+                if account.login_method == "qr" and tonumber(account.login_time or 0) > 0 then
+                    self:showAccountStatus()
+                else
+                    self.qr_login:start()
+                end
+            end),
+        },
+        {
+            text = _("Bookshelf"),
+            callback = self:safeCallback(_("Bookshelf"), function()
+                self:showBookshelf()
+            end),
+        },
+        {
+            text = _("WeLite favorites"),
+            callback = self:safeCallback(_("WeLite favorites"), function()
+                self:showWereadCollection()
+            end),
+        },
+        {
+            text = _("Search"),
+            keep_menu_open = true,
+            callback = self:safeCallback(_("Search"), function()
+                self:showSearch()
+            end),
+        },
+        {
+            text = _("Reading time report"),
+            sub_item_table_func = function()
+                if not self:requireLogin(true, true) then
+                    return {}
+                end
+                return self:getReadReportMenuItems()
+            end,
+        },
+        {
+            text = _("Reading statistics"),
+            keep_menu_open = true,
+            callback = self:safeCallback(_("Reading statistics"), function()
+                self:showReadStats()
+            end),
+        },
+        {
+            text = _("Settings"),
+            welite_settings_group = true,
+            sub_item_table_func = function()
+                return self:getSettingsMenuItems()
+            end,
+        },
+    }
+
+    if self.ui.document then
+        local book_id = self:detectWeReadBook()
+        local reader_items = {{text="WeLite · 快捷控制",callback=function()
+            require("welite.ui.welite.reader_controls").show(self)
+        end}}
+        if book_id ~= nil then
+            if not WeRead.is_mp_book(book_id) then
+                reader_items[#reader_items + 1] = {
+                    text = _("Sync progress now"),
+                    keep_menu_open = true,
+                    callback = self:safeCallback(_("Sync progress now"), function()
+                        self:onWeLiteSyncProgress()
+                    end),
+                }
+            end
+            reader_items[#reader_items + 1] = {
+                text = _("Book details"),
+                keep_menu_open = true,
+                callback = self:safeCallback(_("Book details"), function()
+                    self:showCurrentBookDetails()
+                end),
+            }
+        end
+        reader_items[#reader_items + 1] = {
+            text = _("Show underlines and thoughts"),
+            welite_id = "annotation_visibility",
+            checked_func = function()
+                -- The checkbox reflects the user's display preference.  Annotation
+                -- data may still be downloading (or may be unavailable for this
+                -- document), but that must not make a checked preference render
+                -- as unchecked.
+                return self.settings:get("cache", {}).show_annotations ~= false
+            end,
+            keep_menu_open = true,
+            check_callback_updates_menu = true,
+            callback = self:safeCallback(_("Show underlines and thoughts"), function(touchmenu_instance)
+                self:toggleAnnotationVisibility()
+                if touchmenu_instance then touchmenu_instance:updateItems() end
+            end),
+        }
+        if self:_xpointerOverlayPrototypeAvailable() then
+            reader_items[#reader_items + 1] = {
+                text = _("Underlines and thoughts management"),
+                enabled_func = function()
+                    return self:_xpointerOverlayPrototypeAvailable()
+                end,
+                sub_item_table_func = function()
+                    return self:getXPointerOverlayPrototypeMenuItems()
+                end,
+            }
+        end
+        for index = #reader_items, 1, -1 do
+            table.insert(items, 2, reader_items[index])
+        end
+    end
+
+    return items
+end
+
+function M:getSettingsMenuItems()
+    return {
+        {
+            text = _("Cache management"),
+            welite_id = "storage",
+            sub_item_table_func = function()
+                return {
+                    {
+                        text = _("Scan and match local books"),
+                        keep_menu_open = true,
+                        callback = self:safeCallback(_("Scan and match local books"), function()
+                            self:confirmScanLocalCache()
+                        end),
+                    },
+                    {
+                        text = _("Cache cleanup"),
+                        keep_menu_open = true,
+                        callback = self:safeCallback(_("Cache cleanup"), function()
+                            self:showCacheManagement()
+                        end),
+                    },
+                    {
+                        text_func = function()
+                            return T(_("Cache directory: %1"), BD.dirpath(self.settings:get_download_dir()))
+                        end,
+                        enabled_func = function() return not self.settings.mock_endpoint end,
+                        keep_menu_open = true,
+                        callback = self:safeCallback(_("Cache directory"), function(touchmenu_instance)
+                            self:showDownloadDirPicker(touchmenu_instance)
+                        end),
+                    },
+                }
+            end,
+        },
+        {
+            text = _("Progress management"),
+            welite_id = "sync",
+            sub_item_table_func = function()
+                return {
+                    {
+                        text = _("Pull progress on open"),
+                        keep_menu_open = true,
+                        check_callback_updates_menu = true,
+                        checked_func = function()
+                            return self.settings:get("sync").pull_on_open == true
+                        end,
+                        callback = self:safeCallback(_("Pull progress on open"),
+                            function(touchmenu_instance)
+                                local sync = self.settings:get("sync")
+                                sync.pull_on_open = not (sync.pull_on_open == true)
+                                self.settings:set("sync", sync)
+                                self.settings:flush()
+                                if touchmenu_instance then
+                                    touchmenu_instance:updateItems()
+                                end
+                            end),
+                     },
+                    {
+                        text = _("Upload progress on close"),
+                        keep_menu_open = true,
+                        check_callback_updates_menu = true,
+                        checked_func = function()
+                            return self.settings:get("sync").upload_on_close == true
+                        end,
+                        callback = self:safeCallback(_("Upload progress on close"),
+                            function(touchmenu_instance)
+                                local sync = self.settings:get("sync")
+                                sync.upload_on_close =
+                                    not (sync.upload_on_close == true)
+                                self.settings:set("sync", sync)
+                                self.settings:flush()
+                                if touchmenu_instance then
+                                    touchmenu_instance:updateItems()
+                                end
+                            end),
+                    },
+                }
+            end,
+        },
+        {
+            text = _("Download settings"),
+            welite_id = "download",
+            sub_item_table_func = function()
+                return {
+                    {
+                        text = _("Book images"),
+                        keep_menu_open = true,
+                        checked_func = function()
+                            return self.settings:get("cache").download_book_images
+                        end,
+                        callback = self:safeCallback(_("Book images"), function()
+                            local cache = self.settings:get("cache")
+                            cache.download_book_images = not cache.download_book_images
+                            self.settings:set("cache", cache)
+                            self.settings:flush()
+                            logger.info(
+                                "image download setting changed:",
+                                "target=book",
+                                "enabled=", tostring(cache.download_book_images)
+                            )
+                        end),
+                    },
+                    {
+                        text = _("Public account article images"),
+                        keep_menu_open = true,
+                        checked_func = function()
+                            return self.settings:get("cache").download_mp_images
+                        end,
+                        check_callback_updates_menu = true,
+                        callback = self:safeCallback(_("Public account article images"), function(touchmenu_instance)
+                            local cache = self.settings:get("cache")
+                            if cache.download_mp_images then
+                                self:setMPImageDownload(false)
+                                touchmenu_instance:updateItems()
+                                return
+                            end
+                            UIManager:show(ConfirmBox:new{
+                                text = _("Downloading public account article images may significantly increase download time. Continue?"),
+                                ok_text = _("Confirm"),
+                                ok_callback = self:safeCallback(_("Confirm"), function()
+                                    self:setMPImageDownload(true)
+                                    touchmenu_instance:updateItems()
+                                end),
+                                cancel_text = _("Cancel"),
+                            })
+                        end),
+                    },
+                    {
+                        text = _("Chapter prefetch"),
+                        welite_id = "prefetch",
+                        sub_item_table_func = function()
+                            return {
+                                {
+                                    text = _("Automatically prefetch next chapter"),
+                                    keep_menu_open = true,
+                                    check_callback_updates_menu = true,
+                                    checked_func = function()
+                                        return self.settings:get("cache").auto_prefetch_next_chapter
+                                            == true
+                                    end,
+                                    callback = self:safeCallback(
+                                        _("Automatically prefetch next chapter"),
+                                        function(touchmenu_instance)
+                                            local cache = self.settings:get("cache")
+                                            local function apply(enabled)
+                                                require("welite.lib.prefetch_preferences").set_chapters(self, enabled)
+                                                if touchmenu_instance then
+                                                    touchmenu_instance:updateItems()
+                                                end
+                                            end
+
+                                            if cache.auto_prefetch_next_chapter == true then
+                                                apply(false)
+                                                return
+                                            end
+
+                                            UIManager:show(ConfirmBox:new{
+                                                text = _("Automatic prefetch runs in a background process and uses extra network and storage. Enable it?"),
+                                                ok_text = _("Confirm"),
+                                                ok_callback = self:safeCallback(
+                                                    _("Confirm"), function()
+                                                        apply(true)
+                                                    end),
+                                                cancel_text = _("Cancel"),
+                                            })
+                                        end),
+                                },
+                                {
+                                    text = _("Prefetch underlines and thoughts"),
+                                    keep_menu_open = true,
+                                    check_callback_updates_menu = true,
+                                    enabled_func = function()
+                                        return self.settings:get("cache").auto_prefetch_next_chapter
+                                            == true
+                                    end,
+                                    checked_func = function()
+                                        return self:isAnnotationPrefetchEnabled()
+                                    end,
+                                    callback = self:safeCallback(
+                                        _("Prefetch underlines and thoughts"),
+                                        function(touchmenu_instance)
+                                            local function apply(enabled)
+                                                require("welite.lib.prefetch_preferences").set_annotations(self, enabled)
+                                                if touchmenu_instance then
+                                                    touchmenu_instance:updateItems()
+                                                end
+                                            end
+                                            if self:isAnnotationPrefetchEnabled() then
+                                                apply(false)
+                                                return
+                                            end
+                                            UIManager:show(ConfirmBox:new{
+                                                text = _("Prefetching underlines and thoughts adds extra requests and may significantly increase prefetch time. Continue?"),
+                                                ok_text = _("Confirm"),
+                                                ok_callback = self:safeCallback(
+                                                    _("Confirm"), function() apply(true) end),
+                                                cancel_text = _("Cancel"),
+                                            })
+                                        end),
+                                },
+                                {
+                                    text = _("Show prefetch notifications"),
+                                    keep_menu_open = true,
+                                    check_callback_updates_menu = true,
+                                    enabled_func = function()
+                                        return self.settings:get("cache").auto_prefetch_next_chapter
+                                            == true
+                                    end,
+                                    checked_func = function()
+                                        return self.settings:get("cache").show_prefetch_notifications
+                                            ~= false
+                                    end,
+                                    callback = self:safeCallback(
+                                        _("Show prefetch notifications"),
+                                        function(touchmenu_instance)
+                                            local cache = self.settings:get("cache")
+                                            require("welite.lib.prefetch_preferences").set_notifications(
+                                                self, cache.show_prefetch_notifications == false)
+                                            if touchmenu_instance then
+                                                touchmenu_instance:updateItems()
+                                            end
+                                        end),
+                                },
+                            }
+                        end,
+                    },
+                }
+            end,
+        },
+        {
+            text = _("Underline settings"),
+            welite_id = "reading",
+            sub_item_table_func = function()
+                return {
+                    {
+                        text = _("Ignore edge taps on underlines"),
+                        checked_func = function()
+                            return self.settings:get("cache").ignore_edge_thought_taps ~= false
+                        end,
+                        keep_menu_open = true,
+                        callback = self:safeCallback(_("Ignore edge taps on underlines"), function(touchmenu_instance)
+                            local cache = self.settings:get("cache")
+                            cache.ignore_edge_thought_taps = not (cache.ignore_edge_thought_taps ~= false)
+                            self.settings:set("cache", cache)
+                            self.settings:flush()
+                            logger.info(
+                                "ignore_edge_thought_taps changed:",
+                                "enabled=", tostring(cache.ignore_edge_thought_taps)
+                            )
+                            if touchmenu_instance then
+                                touchmenu_instance:updateItems()
+                            end
+                        end),
+                    },
+                    {
+                        text_func = function()
+                            local ratio = tonumber(self.settings:get("cache").edge_tap_ratio) or 0.20
+                            return T(_("Edge zone: %1%"), math.floor(ratio * 100 + 0.5))
+                        end,
+                        enabled_func = function()
+                            return self.settings:get("cache").ignore_edge_thought_taps ~= false
+                        end,
+                        keep_menu_open = true,
+                        callback = self:safeCallback(_("Edge zone"), function(touchmenu_instance)
+                            self:showEdgeTapRatioPicker(touchmenu_instance)
+                        end),
+                    },
+                    {
+                        text = _("Thought popup settings"),
+                        welite_id = "thought_popup",
+                        sub_item_table_func = function()
+                            return {
+                                {
+                                    text_func = function()
+                                        local position = self.settings:get("thought_popup").position or "center"
+                                        return T(_("Position: %1"),
+                                            position == "center" and _("Center") or _("Bottom"))
+                                    end,
+                                    keep_menu_open = true,
+                                    callback = self:safeCallback(_("Thought popup position"), function(touchmenu_instance)
+                                        self:showThoughtPopupPositionPicker(touchmenu_instance)
+                                    end),
+                                },
+                                {
+                                    text_func = function()
+                                        local height = tonumber(self.settings:get("thought_popup").height_ratio) or 0.70
+                                        return T(_("Height: %1%"), math.floor(height * 100 + 0.5))
+                                    end,
+                                    keep_menu_open = true,
+                                    callback = self:safeCallback(_("Thought popup height"), function(touchmenu_instance)
+                                        self:showThoughtPopupHeightPicker(touchmenu_instance)
+                                    end),
+                                },
+                                {
+                                    text_func = function()
+                                        local ratio = tonumber(self.settings:get("thought_popup").width_ratio) or 0.8
+                                        return T(_("Width: %1%"), math.floor(ratio * 100 + 0.5))
+                                    end,
+                                    enabled_func = function()
+                                        return (self.settings:get("thought_popup").position or "center") == "center"
+                                    end,
+                                    keep_menu_open = true,
+                                    callback = self:safeCallback(_("Thought popup width"), function(touchmenu_instance)
+                                        self:showThoughtPopupWidthPicker(touchmenu_instance)
+                                    end),
+                                },
+                                {
+                                    text = _("Font size"),
+                                    keep_menu_open = true,
+                                    callback = self:safeCallback(_("Thought popup font size"), function()
+                                        self:showThoughtPopupFontSizePicker()
+                                    end),
+                                },
+                                {
+                                    text_func = function()
+                                        local contrast = tonumber(self.settings:get("thought_popup").contrast) or 9
+                                        if contrast == 9 then
+                                            return _("Font contrast: Pure black (default)")
+                                        end
+                                        return T(_("Font contrast: %1"),
+                                            (contrast > 0 and "+" or "") .. tostring(contrast))
+                                    end,
+                                    keep_menu_open = true,
+                                    callback = self:safeCallback(_("Thought popup font contrast"), function(touchmenu_instance)
+                                        self:showThoughtPopupContrastPicker(touchmenu_instance)
+                                    end),
+                                },
+                                {
+                                    text = _("Tap left/right to turn pages"),
+                                    checked_func = function()
+                                        return self.settings:get("thought_popup").tap_to_page == true
+                                    end,
+                                    keep_menu_open = true,
+                                    callback = self:safeCallback(_("Thought popup: tap left/right to turn pages"), function(touchmenu_instance)
+                                        local thought_popup = self.settings:get("thought_popup")
+                                        thought_popup.tap_to_page = not (thought_popup.tap_to_page == true)
+                                        self.settings:set("thought_popup", thought_popup)
+                                        self.settings:flush()
+                                        logger.info("thought popup tap_to_page changed:",
+                                            "enabled=", tostring(thought_popup.tap_to_page))
+                                        if touchmenu_instance then
+                                            touchmenu_instance:updateItems()
+                                        end
+                                    end),
+                                },
+                            }
+                        end,
+                    },
+                }
+            end,
+        },
+        {
+            text = _("Account management"),
+            welite_id = "account",
+            sub_item_table_func = function()
+                return {
+                    {
+                        text = _("Account status"),
+                        welite_id = "account_status",
+                        keep_menu_open = true,
+                        callback = self:safeCallback(_("Account status"), function()
+                            self:showAccountStatus()
+                        end),
+                    },
+                    {
+                        text = _("Renew cookie now"),
+                        enabled_func = function() return not self.settings.mock_endpoint end,
+                        keep_menu_open = true,
+                        callback = self:safeCallback(_("Renew cookie now"), function()
+                            self:renewCookieWithUI()
+                        end),
+                    },
+                    {
+                        text = _("Clear account data"),
+                        enabled_func = function() return not self.settings.mock_endpoint end,
+                        keep_menu_open = true,
+                        callback = self:safeCallback(_("Clear account data"), function()
+                            self:confirmClearAccount()
+                        end),
+                    },
+                }
+            end,
+        },
+        {
+            text = _("Advanced options"),
+            welite_id = "advanced",
+            sub_item_table_func = function()
+                return {
+                    {
+                        text = _("Mock service"),
+                        sub_item_table_func = function() return self:getMockMenuItems() end,
+                    },
+                }
+            end,
+        },
+        {
+            text = _("About"),
+            welite_id = "about",
+            sub_item_table_func = function()
+                return self:getAboutMenuItems()
+            end,
+        },
+    }
+end
+
+function M:getMockMenuItems()
+    local Environment = require("welite.lib.mock_environment")
+    local function save(config, menu)
+        local ok, err = Environment.save(config)
+        if not ok then self:showInfo(_(err)); return end
+        if menu then menu:updateItems() end
+        self:showInfo(_("Saved. Restart KOReader to apply. Until then, the current environment remains active."))
+    end
+    local function edit(key, title, menu)
+        local config = Environment.read()
+        local InputDialog = require("ui/widget/inputdialog")
+        local dialog
+        dialog = InputDialog:new{
+            title = title,
+            input = tostring(config[key]),
+            input_type = key == "port" and "number" or "text",
+            buttons = { {
+                { text = _("Cancel"), id = "close", callback = function() UIManager:close(dialog) end },
+                { text = _("Save"), is_enter_default = true, callback = function()
+                    config[key] = dialog:getInputText():match("^%s*(.-)%s*$")
+                    local endpoint, err = Environment.endpoint(config)
+                    if not endpoint then self:showInfo(_(err)); return end
+                    UIManager:close(dialog)
+                    save(config, menu)
+                end },
+            } },
+        }
+        self:showInputDialog(dialog)
+    end
+    return {
+        {
+            text = self.settings.mock_endpoint and T(_("Active: Mock · %1"), self.settings.mock_endpoint)
+                or _("Active: Real WeRead service"),
+            enabled = false,
+        },
+        {
+            text = _("Enable mock after restart"),
+            checked_func = function() return Environment.read().enabled end,
+            keep_menu_open = true,
+            callback = function(menu)
+                local config = Environment.read()
+                config.enabled = not config.enabled
+                save(config, menu)
+            end,
+        },
+        {
+            text_func = function() return T(_("Server IP: %1"), Environment.read().host) end,
+            keep_menu_open = true,
+            callback = function(menu) edit("host", _("Mock server IP"), menu) end,
+        },
+        {
+            text_func = function() return T(_("Server port: %1"), Environment.read().port) end,
+            keep_menu_open = true,
+            callback = function(menu) edit("port", _("Mock server port"), menu) end,
+        },
+        {
+            text = _("Test connection"),
+            keep_menu_open = true,
+            callback = function()
+                local config = Environment.read()
+                local Trapper = require("ui/trapper")
+                Trapper:wrap(function()
+                    local completed, result = Trapper:dismissableRunInSubprocess(function()
+                        local ok, value = pcall(function()
+                            return require("welite.lib.client"):test_mock_connection(config)
+                        end)
+                        return { ok = ok, value = value }
+                    end, _("Testing mock connection..."))
+                    if not completed then return end
+                    if result and result.ok then
+                        self:showInfo(T(_("Mock connection succeeded: %1"), result.value))
+                    else
+                        logger.warn("mock connection failed:", result and tostring(result.value) or "unknown")
+                        self:showInfo(T(_("Mock connection failed: %1\nCheck the IP, port, Wi-Fi and server. No fallback to the real service."),
+                            Environment.endpoint(config) or tostring(config.host)))
+                    end
+                end)
+            end,
+        },
+    }
+end
+
+-- Open the local WeRead collection.
+-- From FileManager: open in place. From the reader: leave the book first and
+-- open via FileManager — showing the collection on top of ReaderUI leaves the
+-- document underneath, so navigating up/closing the shelf drops back into it.
+function M:showWereadCollection()
+    local COLLECTION_NAME = self.settings.collection_name or "weread"
+    local FileManager = require("apps/filemanager/filemanager")
+    local ReadCollection = require("readcollection")
+
+    if not ReadCollection.coll then
+        ReadCollection:_read()
+    end
+    if not ReadCollection.coll[COLLECTION_NAME] then
+        ReadCollection:addCollection(COLLECTION_NAME)
+        ReadCollection:write({ [COLLECTION_NAME] = true })
+    end
+
+    local fm = FileManager.instance
+    if fm and fm.collections then
+        fm.collections:onShowColl(COLLECTION_NAME)
+        return
+    end
+    if self.ui and self.ui.document and self.ui.showFileManager then
+        local file = self.ui.document.file
+        self.ui:onClose()
+        self.ui:showFileManager(file)
+        UIManager:scheduleIn(0.1, function()
+            local fm2 = FileManager.instance
+            if fm2 and fm2.collections then
+                fm2.collections:onShowColl(COLLECTION_NAME)
+            end
+        end)
+        return
+    end
+    if self.ui and self.ui.collections then
+        self.ui.collections:onShowColl(COLLECTION_NAME)
+    end
+end
+
+function M:showAbout()
+    UIManager:show(InfoMessage:new{
+        text = _("Open source acknowledgements") .. "\n\n" .. T(_("WeLite v%1\n\nBased on finlater/weread.koplugin. Copyright (C) 2026 finlater and contributors. WeLite modifications: Xlawy and contributors, 2026-10-21.\n\nLicensed under AGPL-3.0-only; see LICENSE and NOTICE in the plugin directory. You may redistribute this software under that license. No warranty is provided. Third-party fonts retain their OFL license.\n\nSource: https://github.com/Xlawy/welite\nUpstream: https://github.com/finlater/weread.koplugin"), self.version) .. "\n\nKOReader · https://github.com/koreader/koreader\nNoto Emoji · Copyright 2013 Google LLC · SIL OFL 1.1 (fonts/LICENSE)",
+    })
+end
+
+function M:getAboutMenuItems()
+    local items = {
+        {
+            text = T(_("Version %1"), "v" .. self.version),
+            enabled = false,
+            keep_menu_open = true,
+        },
+        {
+            text = T(_("Author: %1"), "Xlawy"),
+            enabled = false,
+            keep_menu_open = true,
+        },
+        {
+            text = _("Open source acknowledgements"),
+            keep_menu_open = true,
+            callback = function() self:showAbout() end,
+        },
+    }
+    for _, item in ipairs(self:getUpdateMenuItems()) do
+        items[#items + 1] = item
+    end
+    return items
+end
+
+function M:getUpdateMenuItems()
+    local items = {}
+    local available = self.updater:available_version()
+    if available then
+        table.insert(items, {
+            text = T(_("Update to v%1"), available),
+            keep_menu_open = true,
+            callback = self:safeCallback(_("Update plugin"), function()
+                self.updater:show_cached_update()
+            end),
+        })
+    end
+    -- A cached release never removes the explicit refresh action.
+    table.insert(items, {
+        text = _("Check for updates"),
+        keep_menu_open = true,
+        callback = self:safeCallback(_("Check for updates"), function()
+            self.updater:check(true)
+        end),
+    })
+    table.insert(items, {
+        text = _("Automatically check once an hour"),
+        keep_menu_open = true,
+        check_callback_updates_menu = true,
+        checked_func = function()
+            return self.settings:get("update").auto_check == true
+        end,
+        callback = self:safeCallback(_("Automatically check once an hour"),
+            function(touchmenu_instance)
+                local update = self.settings:get("update")
+                update.auto_check = not (update.auto_check == true)
+                self.settings:set("update", update)
+                self.settings:flush()
+                if update.auto_check then self.updater:schedule_auto_check() end
+                if touchmenu_instance then touchmenu_instance:updateItems() end
+            end),
+    })
+    table.insert(items, {
+        text = _("Prefer proxy for updates"),
+        keep_menu_open = true,
+        check_callback_updates_menu = true,
+        checked_func = function()
+            return self.settings:get("update").prefer_proxy == true
+        end,
+        callback = self:safeCallback(_("Prefer proxy for updates"),
+            function(touchmenu_instance)
+                local update = self.settings:get("update")
+                local function apply(enabled)
+                    update.prefer_proxy = enabled
+                    self.settings:set("update", update)
+                    self.settings:flush()
+                    if touchmenu_instance then touchmenu_instance:updateItems() end
+                end
+                if update.prefer_proxy == true then
+                    apply(false)
+                    return
+                end
+                UIManager:show(ConfirmBox:new{
+                    text = _("Update proxies are third-party services. They can see update requests and may be unavailable without notice. Release packages will still be verified before installation. Prefer proxies?"),
+                    ok_text = _("Enable"),
+                    cancel_text = _("Cancel"),
+                    ok_callback = function() apply(true) end,
+                })
+            end),
+    })
+    return items
+end
+
+-- Let the user set the thought popup height as a percentage of the screen.
+function M:showThoughtPopupHeightPicker(touchmenu_instance)
+    local SpinWidget = require("ui/widget/spinwidget")
+    local current = math.floor((tonumber(self.settings:get("thought_popup").height_ratio) or 0.70) * 100)
+    local spin = SpinWidget:new{
+        value = current,
+        value_min = 20,
+        value_max = 90,
+        value_step = 5,
+        precision = "%d%%",
+        ok_text = _("Set height"),
+        title_text = _("Thought popup height"),
+        info_text = _("Set the thought popup height as a percentage of the screen height (20%-90%)."),
+        callback = function(spin_widget)
+            local thought_popup = self.settings:get("thought_popup")
+            thought_popup.height_ratio = spin_widget.value / 100
+            self.settings:set("thought_popup", thought_popup)
+            self.settings:flush()
+            logger.info("thought popup height changed:",
+                "ratio=", tostring(thought_popup.height_ratio))
+            if touchmenu_instance then
+                touchmenu_instance:updateItems()
+            end
+        end,
+    }
+    UIManager:show(spin)
+end
+
+-- Set the thought popup font size: a fixed absolute size or a size relative
+-- to the document font. Mirrors KOReader's footnote popup font size setting
+-- (frontend/apps/reader/modules/readerlink.lua).
+function M:showThoughtPopupFontSizePicker()
+    local Screen = require("device").screen
+    local thought_popup = self.settings:get("thought_popup")
+    local spin_widget
+    local get_font_size_widget
+    get_font_size_widget = function(show_absolute_font_size_widget)
+        local SpinWidget = require("ui/widget/spinwidget")
+        if show_absolute_font_size_widget then
+            spin_widget = SpinWidget:new{
+                width = math.floor(Screen:getWidth() * 0.75),
+                value = tonumber(thought_popup.font_size)
+                        or Screen:scaleBySize((self.ui
+                            and self.ui.document
+                            and self.ui.document.configurable
+                            and self.ui.document.configurable.font_size) or 18),
+                value_min = 12,
+                value_max = 255,
+                precision = "%d",
+                ok_text = _("Set font size"),
+                title_text = _("Thought popup font size"),
+                info_text = _([[
+The thought popup font adjusts to the font size you've set for the document, but you can specify here a fixed absolute font size to be used instead.]]),
+                callback = function(spin)
+                    local tp = self.settings:get("thought_popup")
+                    tp.font_size = spin.value
+                    tp.font_size_relative = nil
+                    self.settings:set("thought_popup", tp)
+                    self.settings:flush()
+                    logger.info("thought popup font size changed:", "absolute=", spin.value)
+                end,
+                extra_text = _("Set a relative font size instead"),
+                extra_callback = function()
+                    UIManager:close(spin_widget)
+                    spin_widget = get_font_size_widget(false)
+                    UIManager:show(spin_widget)
+                end,
+            }
+        else
+            spin_widget = SpinWidget:new{
+                width = math.floor(Screen:getWidth() * 0.75),
+                value = tonumber(thought_popup.font_size_relative) or 0,
+                value_min = -10,
+                value_max = 5,
+                precision = "%+d",
+                ok_text = _("Set font size"),
+                title_text = _("Thought popup font size"),
+                info_text = _([[
+The thought popup font adjusts to the font size you've set for the document.
+You can specify here how much smaller or larger it should be relative to the document font size.
+A negative value will make it smaller, while a positive one will make it larger.
+The default value is 0, which matches the document font size.]]),
+                callback = function(spin)
+                    local tp = self.settings:get("thought_popup")
+                    tp.font_size_relative = spin.value
+                    tp.font_size = nil
+                    self.settings:set("thought_popup", tp)
+                    self.settings:flush()
+                    logger.info("thought popup font size changed:", "relative=", spin.value)
+                end,
+                extra_text = _("Set an absolute font size instead"),
+                extra_callback = function()
+                    UIManager:close(spin_widget)
+                    spin_widget = get_font_size_widget(true)
+                    UIManager:show(spin_widget)
+                end,
+            }
+        end
+        return spin_widget
+    end
+    spin_widget = get_font_size_widget(thought_popup.font_size ~= nil)
+    UIManager:show(spin_widget)
+end
+
+-- Set the thought popup text contrast: positive values darken the text,
+-- negative values lighten it (+9 = the default pure black rendering).
+function M:showThoughtPopupContrastPicker(touchmenu_instance)
+    local SpinWidget = require("ui/widget/spinwidget")
+    local current = tonumber(self.settings:get("thought_popup").contrast) or 9
+    local spin = SpinWidget:new{
+        value = current,
+        value_min = -3,
+        value_max = 9,
+        precision = "%+d",
+        ok_text = _("Set contrast"),
+        title_text = _("Thought popup font contrast"),
+        info_text = _([[
+The thought popup text is pure black by default (maximum contrast). Lower the contrast to render it in lighter gray shades.]]),
+        callback = function(spin_widget)
+            local thought_popup = self.settings:get("thought_popup")
+            thought_popup.contrast = spin_widget.value
+            self.settings:set("thought_popup", thought_popup)
+            self.settings:flush()
+            logger.info("thought popup contrast changed:",
+                "contrast=", tostring(thought_popup.contrast))
+            if touchmenu_instance then
+                touchmenu_instance:updateItems()
+            end
+        end,
+    }
+    UIManager:show(spin)
+end
+
+-- Let the user choose where the thought popup appears: bottom (the solid-line
+-- bar) or centered (the TextViewer-style window with page buttons).
+function M:showThoughtPopupPositionPicker(touchmenu_instance)
+    local current = self.settings:get("thought_popup").position or "center"
+    local buttons = {}
+    for _i, choice in ipairs({
+        { key = "bottom", label = _("Bottom") },
+        { key = "center", label = _("Center") },
+    }) do
+        local label = choice.label
+        if choice.key == current then
+            label = label .. "  ✓"
+        end
+        table.insert(buttons, {
+            {
+                text = label,
+                callback = function()
+                    UIManager:close(self._thought_popup_position_dialog)
+                    self._thought_popup_position_dialog = nil
+                    local thought_popup = self.settings:get("thought_popup")
+                    thought_popup.position = choice.key
+                    self.settings:set("thought_popup", thought_popup)
+                    self.settings:flush()
+                    logger.info("thought popup position changed:",
+                        "position=", tostring(thought_popup.position))
+                    -- Close any open popup; the next open uses the new position.
+                    ThoughtPopup.closeVisible()
+                    if touchmenu_instance then
+                        touchmenu_instance:updateItems()
+                    end
+                end,
+            },
+        })
+    end
+    table.insert(buttons, {
+        {
+            text = _("Cancel"),
+            callback = function()
+                UIManager:close(self._thought_popup_position_dialog)
+                self._thought_popup_position_dialog = nil
+            end,
+        },
+    })
+    self._thought_popup_position_dialog = ButtonDialog:new{
+        title = _("Thought popup position"),
+        buttons = buttons,
+    }
+    UIManager:show(self._thought_popup_position_dialog)
+end
+
+-- Set the centered thought popup width as a percentage of the screen width.
+-- Only meaningful when the popup position is "center".
+function M:showThoughtPopupWidthPicker(touchmenu_instance)
+    local SpinWidget = require("ui/widget/spinwidget")
+    local current = math.floor((tonumber(self.settings:get("thought_popup").width_ratio) or 0.8) * 100)
+    local spin = SpinWidget:new{
+        value = current,
+        value_min = 40,
+        value_max = 100,
+        value_step = 5,
+        precision = "%d%%",
+        ok_text = _("Set width"),
+        title_text = _("Thought popup width"),
+        info_text = _("Set the centered thought popup width as a percentage of the screen width (40%-100%)."),
+        callback = function(spin_widget)
+            local thought_popup = self.settings:get("thought_popup")
+            thought_popup.width_ratio = spin_widget.value / 100
+            self.settings:set("thought_popup", thought_popup)
+            self.settings:flush()
+            logger.info("thought popup width changed:",
+                "ratio=", tostring(thought_popup.width_ratio))
+            if touchmenu_instance then
+                touchmenu_instance:updateItems()
+            end
+        end,
+    }
+    UIManager:show(spin)
+end
+
+-- Let the user pick how wide the left/right page-turn edge zone is (percent of
+-- screen width on each side). Only used when ignore_edge_thought_taps is on.
+function M:showEdgeTapRatioPicker(touchmenu_instance)
+    local choices = { 0.10, 0.15, 0.20, 0.25, 0.30, 0.40 }
+    local current = tonumber(self.settings:get("cache").edge_tap_ratio) or 0.20
+    local buttons = {}
+    for _i, ratio in ipairs(choices) do
+        local pct = math.floor(ratio * 100 + 0.5)
+        local label = T(_("%1%"), pct)
+        if math.abs(ratio - current) < 0.001 then
+            label = label .. "  ✓"
+        end
+        table.insert(buttons, {
+            {
+                text = label,
+                callback = function()
+                    UIManager:close(self._edge_ratio_dialog)
+                    self._edge_ratio_dialog = nil
+                    local cache = self.settings:get("cache")
+                    cache.edge_tap_ratio = ratio
+                    self.settings:set("cache", cache)
+                    self.settings:flush()
+                    logger.info("edge_tap_ratio changed:", "ratio=", tostring(ratio))
+                    if touchmenu_instance then
+                        touchmenu_instance:updateItems()
+                    end
+                end,
+            },
+        })
+    end
+    table.insert(buttons, {
+        {
+            text = _("Cancel"),
+            callback = function()
+                UIManager:close(self._edge_ratio_dialog)
+                self._edge_ratio_dialog = nil
+            end,
+        },
+    })
+    self._edge_ratio_dialog = ButtonDialog:new{
+        title = _("Edge zone width (each side)"),
+        buttons = buttons,
+    }
+    UIManager:show(self._edge_ratio_dialog)
+end
+
+return M

@@ -1,5 +1,5 @@
 package.path = "./?.lua;" .. package.path
-local External = require("weread.lib.external_annotations")
+local External = require("welite.lib.external_annotations")
 local text, searches, positions, moves = "abcdef", 0, 0, 0
 local function xp(value) return tonumber(value) end
 local document = {

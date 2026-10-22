@@ -1,4 +1,4 @@
--- Unit tests for the weread.ui.thought_popup entry module: the pooling
+-- Unit tests for the welite.ui.thought_popup entry module: the pooling
 -- contract between the public `pages` argument and the widget's `items`
 -- field, and the per-position dispatch (bottom vs centered popups).
 -- Run from the repo root with:
@@ -45,13 +45,13 @@ local function widget_mock(created_list)
     }
 end
 
-package.preload["weread.ui.thought_popup.face_factory"] = function()
+package.preload["welite.ui.thought_popup.face_factory"] = function()
     return { init = function() end }
 end
-package.preload["weread.ui.thought_popup.widget"] = function()
+package.preload["welite.ui.thought_popup.widget"] = function()
     return widget_mock(created_widgets)
 end
-package.preload["weread.ui.thought_popup.center_widget"] = function()
+package.preload["welite.ui.thought_popup.center_widget"] = function()
     return widget_mock(created_centers)
 end
 package.preload["ui/uimanager"] = function()
@@ -64,7 +64,7 @@ package.preload["ui/uimanager"] = function()
     }
 end
 
-local M = require("weread.ui.thought_popup")
+local M = require("welite.ui.thought_popup")
 
 local failures, checks = 0, 0
 local current_test

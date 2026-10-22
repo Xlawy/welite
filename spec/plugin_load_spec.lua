@@ -71,19 +71,19 @@ local menu_registered = false
 local bookshelf_opened = false
 local backup_cleaned = false
 
-package.preload["weread.lib.client"] = function()
+package.preload["welite.lib.client"] = function()
     return { new = function(_self, settings) return { settings = settings } end }
 end
-package.preload["weread.lib.background_worker"] = function()
+package.preload["welite.lib.background_worker"] = function()
     return { new = function(_self, options) return { options = options } end }
 end
-package.preload["weread.lib.downloader"] = function()
+package.preload["welite.lib.downloader"] = function()
     return { new = function(_self, options) return options end }
 end
-package.preload["weread.lib.settings"] = function()
+package.preload["welite.lib.settings"] = function()
     return { new = function() return fake_settings end }
 end
-package.preload["weread.lib.updater"] = function()
+package.preload["welite.lib.updater"] = function()
     return {
         new = function(_self, options)
             options.cleanup_backup = function()
@@ -94,7 +94,7 @@ package.preload["weread.lib.updater"] = function()
         end,
     }
 end
-package.preload["weread.ui.updater"] = function()
+package.preload["welite.ui.updater"] = function()
     return {
         new = function(_self, options)
             options.schedule_auto_check = function() end
@@ -102,7 +102,7 @@ package.preload["weread.ui.updater"] = function()
         end,
     }
 end
-package.preload["weread.lib.migrations"] = function()
+package.preload["welite.lib.migrations"] = function()
     return {
         run = function(settings, client)
             migrations_ran = settings == fake_settings
@@ -110,16 +110,16 @@ package.preload["weread.lib.migrations"] = function()
         end,
     }
 end
-package.preload["weread.lib.plugin_util"] = function()
+package.preload["welite.lib.plugin_util"] = function()
     return {
         tr = function(text) return text end,
     }
 end
-package.preload["weread.lib.qr_login"] = function()
+package.preload["welite.lib.qr_login"] = function()
     return { new = function() return { kind = "qr_login" } end }
 end
 local report_starts = 0
-package.preload["weread.lib.read_report"] = function()
+package.preload["welite.lib.read_report"] = function()
     return {
         new = function(_self, options)
             options.maybe_start = function() report_starts = report_starts + 1 end
@@ -127,16 +127,16 @@ package.preload["weread.lib.read_report"] = function()
         end,
     }
 end
-package.preload["weread.lib.progress_sync"] = function()
+package.preload["welite.lib.progress_sync"] = function()
     return { new = function(_self, options) return options end }
 end
-package.preload["weread.ui.progress_sync_dialog"] = function()
+package.preload["welite.ui.progress_sync_dialog"] = function()
     return {
         show_choice = function() end,
         notify = function() end,
     }
 end
-package.preload["weread.lib.reader_lifecycle"] = function()
+package.preload["welite.lib.reader_lifecycle"] = function()
     return {
         inherited_feature = function()
             return "reader_lifecycle"
@@ -144,7 +144,7 @@ package.preload["weread.lib.reader_lifecycle"] = function()
     }
 end
 
-package.preload["weread.ui.common"] = function()
+package.preload["welite.ui.common"] = function()
     return {
         showInfo = function() end,
         showTransientInfo = function() end,
@@ -157,20 +157,20 @@ package.preload["weread.ui.common"] = function()
         isNetworkConnected = function() return true end,
     }
 end
-package.preload["weread.ui.menu"] = function()
+package.preload["welite.ui.menu"] = function()
     return {
         onDispatcherRegisterActions = function()
             dispatcher_registered = true
         end,
     }
 end
-package.preload["weread.ui.cache"] = function()
+package.preload["welite.ui.cache"] = function()
     return {}
 end
-package.preload["weread.ui.read_report"] = function()
+package.preload["welite.ui.read_report"] = function()
     return {}
 end
-package.preload["weread.ui.library"] = function()
+package.preload["welite.ui.library"] = function()
     return {
         ensureChaptersLoaded = function() return {} end,
         showBookshelf = function()
@@ -179,10 +179,10 @@ package.preload["weread.ui.library"] = function()
         end,
     }
 end
-package.preload["weread.ui.annotations_controller"] = function()
+package.preload["welite.ui.annotations_controller"] = function()
     return {}
 end
-package.preload["weread.ui.reader_navigation"] = function()
+package.preload["welite.ui.reader_navigation"] = function()
     return {
         detectWeReadBook = function() return nil end,
         getChapterInfoFromFile = function() return nil end,
@@ -203,7 +203,7 @@ local plugin = setmetatable({
 plugin:init()
 
 expect(report_starts == 0, "plugin startup must not revive legacy background reporting")
-expect(plugin.name == "weread", "plugin metadata was not loaded")
+expect(plugin.name == "welite", "plugin metadata was not loaded")
 expect(plugin:inherited_from_widget_container(),
     "KOReader WidgetContainer inheritance was broken")
 expect(plugin:inherited_feature() == "reader_lifecycle",
@@ -222,9 +222,9 @@ expect(plugin:launch() == true and bookshelf_opened,
     "standard third-party launcher entry did not open the bookshelf")
 expect(type(plugin.openBookshelf) == "function",
     "stable bookshelf entry point was not exposed")
-expect(package.loaded["weread.lib.client"] ~= nil,
+expect(package.loaded["welite.lib.client"] ~= nil,
     "namespaced client module was not loaded")
-expect(package.loaded["weread.ui.menu"] ~= nil,
+expect(package.loaded["welite.ui.menu"] ~= nil,
     "namespaced menu module was not loaded")
 
 for _, module_name in ipairs({

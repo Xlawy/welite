@@ -1,7 +1,7 @@
 package.path = "./?.lua;./?/init.lua;" .. package.path
 local helper = require("spec.helpers.annotation_test_store")
 package.preload["lua-ljsqlite3/init"] = function() return { open = helper.connect } end
-local LibraryDB = require("weread.lib.library_db")
+local LibraryDB = require("welite.lib.library_db")
 local user = os.tmpname()
 os.remove(user)
 local account = { user_vid = user }

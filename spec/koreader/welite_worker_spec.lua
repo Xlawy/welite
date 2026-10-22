@@ -3,7 +3,7 @@ describe("welite background worker", function()
     setup(function()
         require("commonrequire")
         package.path = "plugins/welite.koplugin/?.lua;" .. package.path
-        Worker = require("weread.ui.welite.worker"); socket = require("socket")
+        Worker = require("welite.ui.welite.worker"); socket = require("socket")
     end)
     local function drain()
         local until_time=socket.gettime()+5

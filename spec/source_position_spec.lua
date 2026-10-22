@@ -1,6 +1,6 @@
 package.path='./?.lua;'..package.path
-local Source=require('weread.lib.annotation_source')
-local Position=require('weread.lib.source_position')
+local Source=require('welite.lib.annotation_source')
+local Position=require('welite.lib.source_position')
 local options={normalize=function(s) return (s:gsub('%s','')) end,
  decode=function(s) return ({['&amp;']='&',['&#128511;']='🗿'})[s] or s end}
 local function make(s,plain)

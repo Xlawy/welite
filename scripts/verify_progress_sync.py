@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Validate WeRead reading-progress pull and same-position upload.
 
-The script reads credentials from KOReader's ``settings/weread.lua`` and never
+The script reads credentials from KOReader's ``settings/welite-state.lua`` and never
 prints API keys, cookie values, or Web Reader session tokens.
 
 By default it performs read-only checks:
@@ -131,10 +131,10 @@ def load_settings(path: Path) -> dict[str, Any]:
     default_book_id = _lua_string(read_report, "book_id")
 
     if not api_key:
-        raise ValidationError("settings/weread.lua does not contain api_key")
+        raise ValidationError("settings/welite-state.lua does not contain api_key")
     if not cookies.get("wr_vid") or not cookies.get("wr_skey"):
         raise ValidationError(
-            "settings/weread.lua must contain wr_vid and wr_skey cookies"
+            "settings/welite-state.lua must contain wr_vid and wr_skey cookies"
         )
     return {
         "api_key": api_key,
@@ -473,10 +473,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--settings",
         type=Path,
-        default=Path("settings/weread.lua"),
+        default=Path("settings/welite-state.lua"),
         help=(
-            "KOReader WeRead settings file, or - for stdin "
-            "(default: settings/weread.lua)"
+            "KOReader WeLite settings file, or - for stdin "
+            "(default: settings/welite-state.lua)"
         ),
     )
     parser.add_argument(

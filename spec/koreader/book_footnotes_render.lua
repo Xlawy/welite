@@ -21,11 +21,11 @@ require("document/canvascontext"):init(Device)
 local Screen = Device.screen
 local UIManager = require("ui/uimanager")
 local Geom = require("ui/geometry")
-local Content = require("weread.lib.content")
-local Footnotes = require("weread.lib.footnotes")
+local Content = require("welite.lib.content")
+local Footnotes = require("welite.lib.footnotes")
 local ReaderUI = require("apps/reader/readerui")
 local Registry = require("document/documentregistry")
-local tr = require("weread.lib.i18n").tr
+local tr = require("welite.lib.i18n").tr
 local legacy_settings = require("luasettings"):open(home .. "/settings/weread.lua")
 legacy_settings:saveSetting("cache", { book_footnotes_in_popup = true })
 legacy_settings:flush()
@@ -53,8 +53,8 @@ local reader, popup, normal_height, hide_item
 local function open()
     if reader then reader:onClose() end
     reader = ReaderUI:new{ dimen = Screen:getSize(), document = Registry:openDocument(path) }
-    assert(reader.weread, "candidate plugin must be loaded")
-    assert(reader.weread.settings:get("cache").book_footnotes_in_popup == nil,
+    assert(reader.welite, "candidate plugin must be loaded")
+    assert(reader.welite.settings:get("cache").book_footnotes_in_popup == nil,
         "obsolete footnote setting was not removed")
     UIManager:show(reader)
     reader.rolling:onGotoPage(1)

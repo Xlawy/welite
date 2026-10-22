@@ -1,6 +1,6 @@
 describe('welite display formatting',function()
     local D
-    setup(function() require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path;D=require('weread.ui.welite.display') end)
+    setup(function() require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path;D=require('welite.ui.welite.display') end)
     it('fits real font widths for long durations without changing neighboring columns',function()
         local width=require('device').screen:scaleBySize(166)
         for _,hours in ipairs({2,1000,10000,100000,100000000}) do

@@ -33,7 +33,7 @@ package.preload["ui/renderimage"] = function()
     }
 end
 
-local Thumbnail = require("weread.lib.cover_thumbnail")
+local Thumbnail = require("welite.lib.cover_thumbnail")
 expect(Thumbnail.render("/tmp/source.png", "/tmp/thumb.png", 300, 450)
         == "/tmp/thumb.png", "thumbnail renderer did not return its output path")
 expect(scaled_to[1] == 300 and scaled_to[2] == 450,

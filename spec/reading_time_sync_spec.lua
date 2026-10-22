@@ -1,6 +1,6 @@
 package.path='./?.lua;'..package.path
-local Ledger=require('weread.lib.reading_time_ledger')
-local Sync=require('weread.lib.reading_time_sync')
+local Ledger=require('welite.lib.reading_time_ledger')
+local Sync=require('welite.lib.reading_time_sync')
 local function fixture()
  local values,now={},0
  local store={get=function(_,k,d) return values[k] or d end,set=function(_,k,v) values[k]=v end,flush=function() end}

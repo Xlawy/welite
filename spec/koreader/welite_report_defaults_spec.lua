@@ -3,7 +3,7 @@ describe('WeLite default reading reports with native storage and scheduler',func
     setup(function()
         require('commonrequire');disable_plugins()
         package.path='plugins/welite.koplugin/?.lua;'..package.path
-        Storage=require('datastorage');Settings=require('weread.lib.settings');UI=require('ui/uimanager')
+        Storage=require('datastorage');Settings=require('welite.lib.settings');UI=require('ui/uimanager')
     end)
     before_each(function()
         root=os.tmpname();os.remove(root)
@@ -14,8 +14,8 @@ describe('WeLite default reading reports with native storage and scheduler',func
         settings=Settings:new()
         settings:update_auth({cookies={wr_vid='fixture',wr_skey='fixture'},account={user_vid='fixture'}})
         clock=0;document=nil;book=nil
-        ledger=require('weread.lib.reading_time_ledger').open(settings,function() return clock end)
-        report=require('weread.lib.read_report'):new{settings=settings,client={},scheduler=UI,time_ledger=ledger,
+        ledger=require('welite.lib.reading_time_ledger').open(settings,function() return clock end)
+        report=require('welite.lib.read_report'):new{settings=settings,client={},scheduler=UI,time_ledger=ledger,
             get_document=function() return document end,detect_book=function() return book end,
             is_online=function() return false end}
     end)

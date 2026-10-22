@@ -29,7 +29,7 @@ if not has_bit then
         }
     end
 end
-package.preload["weread.lib.crypto"] = function()
+package.preload["welite.lib.crypto"] = function()
     return {
         md5_hex = function()
             return "0123456789abcdef0123456789abcdef"
@@ -40,7 +40,7 @@ package.preload["weread.lib.crypto"] = function()
     }
 end
 
-local WeRead = require("weread.lib.protocol")
+local WeRead = require("welite.lib.protocol")
 local failures, checks = 0, 0
 
 local function eq(got, want, label)

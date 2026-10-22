@@ -1,6 +1,6 @@
 describe('welite display and startup preferences',function()
     local P,settings,path
-    setup(function() require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path;P=require('weread.ui.welite.preferences') end)
+    setup(function() require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path;P=require('welite.ui.welite.preferences') end)
     before_each(function() path=os.tmpname();os.remove(path);settings=require('luasettings'):open(path) end)
     after_each(function() os.remove(path);os.remove(path..'.old') end)
     it('validates quarter-hour offsets and formats UTC rollover independently of the device clock',function()

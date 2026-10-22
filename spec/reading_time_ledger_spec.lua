@@ -1,5 +1,5 @@
 package.path='./?.lua;'..package.path
-local Ledger=require('weread.lib.reading_time_ledger')
+local Ledger=require('welite.lib.reading_time_ledger')
 local values,clock,writes={},0,0
 local settings={get=function(_,k,d) return values[k] or d end,set=function(_,k,v) values[k]=v end,
  flush=function() writes=writes+1 end}

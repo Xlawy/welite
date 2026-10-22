@@ -23,7 +23,7 @@ end
 package.preload["ui/widget/buttondialog"] = function() return class() end
 package.preload["ui/widget/container/bottomcontainer"] = function() return class() end
 package.preload["ui/widget/linewidget"] = function() return class() end
-package.preload["weread.ui.thought_popup.scroll_container"] = function() return class() end
+package.preload["welite.ui.thought_popup.scroll_container"] = function() return class() end
 package.preload["ffi/blitbuffer"] = function() return { COLOR_WHITE = 255 } end
 package.preload["ui/widget/buttontable"] = function() return class() end
 package.preload["ui/widget/container/centercontainer"] = function() return class() end
@@ -47,9 +47,9 @@ end
 package.preload["ui/geometry"] = function() return class() end
 package.preload["ui/gesturerange"] = function() return class() end
 package.preload["ui/widget/container/inputcontainer"] = function() return class() end
-package.preload["weread.ui.thought_popup.pages"] = function() return {} end
-package.preload["weread.ui.thought_popup.page_viewport"] = function() return class() end
-package.preload["weread.lib.plugin_util"] = function()
+package.preload["welite.ui.thought_popup.pages"] = function() return {} end
+package.preload["welite.ui.thought_popup.page_viewport"] = function() return class() end
+package.preload["welite.lib.plugin_util"] = function()
     return { tr = function(text) return text end }
 end
 package.preload["ui/size"] = function()
@@ -73,7 +73,7 @@ package.preload["ui/widget/container/widgetcontainer"] = function()
     return { free = function() end }
 end
 
-local CenterWidget = require("weread.ui.thought_popup.center_widget")
+local CenterWidget = require("welite.ui.thought_popup.center_widget")
 local failures, checks = 0, 0
 local function eq(got, want, label)
     checks = checks + 1
@@ -100,7 +100,7 @@ eq(dirty_target, popup, "page navigation redraws the popup itself")
 eq(dirty_mode, "partial", "page navigation requests a partial refresh")
 eq(dirty_region, popup.container.dimen, "page navigation refreshes the popup region")
 
-for _, widget in ipairs({ CenterWidget, require("weread.ui.thought_popup.widget") }) do
+for _, widget in ipairs({ CenterWidget, require("welite.ui.thought_popup.widget") }) do
     local first, second = { content = "first thought" }, { content = "second thought" }
     local view = setmetatable({
         items = { first, second },

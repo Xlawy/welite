@@ -2,7 +2,7 @@ describe('welite native settings dialogs',function()
     local S,P,UI,settings,path,dialog,old_language
     setup(function()
         require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path
-        S=require('weread.ui.welite.settingsui');P=require('weread.ui.welite.preferences');UI=require('ui/uimanager')
+        S=require('welite.ui.welite.settingsui');P=require('welite.ui.welite.preferences');UI=require('ui/uimanager')
     end)
     before_each(function() old_language=G_reader_settings:readSetting('language');path=os.tmpname();os.remove(path);settings=require('luasettings'):open(path);dialog=S.new{settings=settings} end)
     after_each(function() G_reader_settings:saveSetting('language',old_language);dialog:close();os.remove(path);os.remove(path..'.old') end)
@@ -28,13 +28,13 @@ describe('welite native settings dialogs',function()
     end)
     it('returns to the native host without quitting or changing startup preferences',function()
         local host=require('ui/widget/infomessage'):new{text='KOReader host'}
-        local Library=require('weread.ui.library')
+        local Library=require('welite.ui.library')
         local plugin={ui=host,closeWeReadUI=Library.closeWeReadUI,
             getMainMenuItems=function() return {} end}
         dialog.plugin=plugin
         P.save({autostart=true},settings)
         UI:show(host)
-        local shelf=require('weread.ui.welite.shelf_adapter').show({mode='books',books={},
+        local shelf=require('welite.ui.welite.shelf_adapter').show({mode='books',books={},
             welite_host=host,welite_plugin=plugin},{})
         plugin.shelf_view=shelf
         shelf:onQuickMenu()
@@ -55,14 +55,14 @@ describe('welite native settings dialogs',function()
     end)
     it('groups settings without duplicate entries and preserves upstream actions and navigation',function()
         G_reader_settings:saveSetting('language','zh_CN')
-        local Menu=require('weread.ui.menu')
-        local Report=require('weread.ui.read_report')
-        local tr=require('weread.lib.i18n').tr
+        local Menu=require('welite.ui.menu')
+        local Report=require('welite.ui.read_report')
+        local tr=require('welite.lib.i18n').tr
         settings:saveSetting('sync',{pull_on_open=false,upload_on_close=false})
         settings:saveSetting('cache',{download_book_images=true})
         local authenticated,login_checks=false,0
         local plugin=setmetatable({ui={},version='1.0.0',
-            closeWeReadUI=require('weread.ui.library').closeWeReadUI,
+            closeWeReadUI=require('welite.ui.library').closeWeReadUI,
             updater={available_version=function() return nil end},
             isAnnotationPrefetchEnabled=function() return false end,
             requireLogin=function() login_checks=login_checks+1;return authenticated end,
@@ -113,7 +113,7 @@ describe('welite native settings dialogs',function()
         assert.equals(3,#menu.item_table,'login and account status are a single entry')
         assert.equals('login',menu.item_table[1].welite_id);back()
         menu:onMenuSelect(root[6])
-        assert.equals('版本 v1.0',menu.item_table[1].text)
+        assert.equals('版本 v1.0.0',menu.item_table[1].text)
         assert.equals('作者：Xlawy',menu.item_table[2].text)
         assert.is_false(menu.item_table[1].enabled)
         assert.is_nil(menu.item_table[1].callback)

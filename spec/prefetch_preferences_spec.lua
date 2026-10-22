@@ -1,7 +1,7 @@
 package.path='./?.lua;'..package.path
 local pending={}
 package.preload['ui/uimanager']=function() return {scheduleIn=function(_,_,fn) pending[#pending+1]=fn end} end
-local P=require('weread.lib.prefetch_preferences')
+local P=require('welite.lib.prefetch_preferences')
 local values={cache={},account={user_vid='one'}}
 local started,cancelled,annotations,flushed=0,0,0,0
 local plugin={_current_weread_book_id='book',settings={get=function(_,k,d) return values[k] or d end,

@@ -53,7 +53,7 @@ end
 local resumable_raw = {}
 local resumable_rendered = {}
 local rendered_resets = 0
-package.preload["weread.lib.content"] = function()
+package.preload["welite.lib.content"] = function()
     return {
         reset_full_download_rendered_text = function()
             rendered_resets = rendered_resets + 1
@@ -67,19 +67,19 @@ package.preload["weread.lib.content"] = function()
         end,
     }
 end
-package.preload["weread.ui.download_dialog"] = function() return {} end
-package.preload["weread.lib.i18n"] = function()
+package.preload["welite.ui.download_dialog"] = function() return {} end
+package.preload["welite.lib.i18n"] = function()
     return { tr = function(text) return text end }
 end
-package.preload["weread.lib.thoughts"] = function()
+package.preload["welite.lib.thoughts"] = function()
     return { is_download_enabled = function() return false end }
 end
-package.preload["weread.lib.protocol"] = function()
+package.preload["welite.lib.protocol"] = function()
     return { normalize_cover_url = function(value) return value end }
 end
 
-local Footnotes = require("weread.lib.footnotes")
-local Downloader = require("weread.lib.downloader")
+local Footnotes = require("welite.lib.footnotes")
+local Downloader = require("welite.lib.downloader")
 
 local source_chapter = {
     chapterUid = 1, chapterIdx = 1, files = { "Text/chapter1.xhtml" },

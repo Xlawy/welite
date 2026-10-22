@@ -21,9 +21,9 @@ local Screen = Device.screen
 local UIManager = require("ui/uimanager")
 local ffiutil = require("ffi/util")
 local json = require("json")
-local Updater = require("weread.lib.updater")
-local UpdaterUI = require("weread.ui.updater")
-local Settings = require("weread.lib.settings")
+local Updater = require("welite.lib.updater")
+local UpdaterUI = require("welite.ui.updater")
+local Settings = require("welite.lib.settings")
 local function read(path)
     local file = assert(io.open(path, "rb"))
     local data = file:read("*a")
@@ -31,7 +31,7 @@ local function read(path)
     return data
 end
 local metadata = json.decode(read(root .. "/fixtures/release.json"))
-local current_version = assert(read(home .. "/plugins/welite.koplugin/_meta.lua")
+local current_version = assert(read(home .. "/plugins/welite.koplugin/welite/identity.lua")
     :match('version%s*=%s*"([^"]+)"'))
 local settings = Settings:new()
 local state = settings:get("update")
@@ -138,8 +138,8 @@ assert(not top(), "native back/close left a viewer open")
 local original_tag = metadata.tag_name
 metadata.tag_name = "v9999.9.2"
 metadata.assets = {
-    { name = "welite.koplugin-v9999.9.2.zip", browser_download_url = Updater.RELEASE_PREFIX .. "v9999.9.2/test.zip" },
-    { name = "welite.koplugin-v9999.9.2.zip.sha256", browser_download_url = Updater.RELEASE_PREFIX .. "v9999.9.2/test.sha256" },
+    { name = "welite.koplugin-v9999.9.2.zip", browser_download_url = Updater.RELEASE_PREFIX .. "v9999.9.2/welite.koplugin-v9999.9.2.zip" },
+    { name = "welite.koplugin-v9999.9.2.zip.sha256", browser_download_url = Updater.RELEASE_PREFIX .. "v9999.9.2/welite.koplugin-v9999.9.2.zip.sha256" },
 }
 check(false)
 assert(top() and top().title:find("9999.9.2", 1, true), "newer release did not notify")
@@ -155,7 +155,7 @@ broken:write(string.rep("0", 64)); broken:close()
 viewer.button_table:getButtonById("install").callback()
 wait_for(function() return top() and top().text and top().text:find("SHA-256", 1, true) end)
 paint("03-checksum-failed")
-assert(read(core.plugin_dir .. "/_meta.lua"):find('version = "' .. current_version .. '"', 1, true),
+assert(read(core.plugin_dir .. "/welite/identity.lua"):find('version = "' .. current_version .. '"', 1, true),
     "checksum failure replaced the candidate")
 UIManager:close(top())
 local restored = assert(io.open(checksum_path, "wb"))
@@ -164,10 +164,27 @@ viewer = assert(ui:show_cached_update(), "failed install left updater locked")
 viewer.button_table:getButtonById("install").callback()
 wait_for(function() return top() and top().ok_text == "立即重启" end)
 paint("04-installed")
-assert(read(core.plugin_dir .. "/_meta.lua"):find('version = "9999.9.1"', 1, true), "candidate not replaced")
-assert(read(core.plugin_dir .. ".backup/_meta.lua"):find('version = "' .. current_version .. '"', 1, true),
+assert(read(core.plugin_dir .. "/welite/identity.lua"):find('version = "9999.9.1"', 1, true), "candidate not replaced")
+assert(read(core.plugin_dir .. ".backup/welite/identity.lua"):find('version = "' .. current_version .. '"', 1, true),
     "old candidate not preserved")
 assert(not core:has_update(), "successful install left cached update active")
 UIManager:close(top())
 UIManager:quit()
+-- The actual previous WeLite updater must accept the generated metadata and
+-- replace only its own plugin directory with the new namespaced package.
+local previous_dir = root .. "/previous/welite.koplugin"
+package.path = previous_dir .. "/?.lua;" .. package.path
+local PreviousUpdater = dofile(previous_dir .. "/weread/lib/updater.lua")
+local previous = PreviousUpdater:new{
+    settings = settings, current_version = "1.0.4", plugin_dir = previous_dir,
+}
+previous._http_get = core._http_get
+assert(previous:install_release(assert(PreviousUpdater.parse_release(metadata))))
+assert(read(previous_dir .. "/welite/identity.lua"):find('version = "9999.9.1"', 1, true),
+    "previous updater did not install the namespaced package")
+assert(not require('libs/libkoreader-lfs').attributes(previous_dir .. '/weread', 'mode'),
+    "previous updater left old runtime modules in the plugin directory")
+assert(read(previous_dir .. '.backup/_meta.lua'):find('version = "1.0.4"', 1, true),
+    "previous updater did not retain its original backup")
 print("PASS: native scrolling + fixed buttons + automatic/manual reminders + disk persistence + checksum rejection/retry + subprocess install")
+print("PASS: real WeLite v1.0.4 updater installs the namespaced package and preserves its backup")

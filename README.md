@@ -4,7 +4,7 @@
 
 基于 **[finlater/weread.koplugin](https://github.com/finlater/weread.koplugin)** 开发，由 **Xlawy** 维护。感谢 finlater 及上游贡献者提供的功能实现。
 
-**当前版本：v1.0.4** · [下载最新版](https://github.com/Xlawy/welite/releases/latest) · [更新日志](CHANGELOG.md) · [问题反馈](https://github.com/Xlawy/welite/issues)
+**当前版本：v1.0.5** · [下载最新版](https://github.com/Xlawy/welite/releases/latest) · [更新日志](CHANGELOG.md) · [问题反馈](https://github.com/Xlawy/welite/issues)
 
 > **修改版本声明 · 2026-10-22**：WeLite 是上游的独立修改版本，提供自己的 UI、阅读位置适配与交互优化，并非上游官方发行版。保留上游版权与署名，继续采用 **AGPL-3.0-only**，详见 [NOTICE](NOTICE)。
 
@@ -20,7 +20,9 @@
 koreader/plugins/welite.koplugin/
 ```
 
-从旧版升级时，请先备份配置，并移走旧的 `weread.koplugin`，避免同时加载两份插件。登录与偏好设置保留；默认下载目录为 KOReader 数据目录下的 **`welite/cache`**。旧 `weread/cache` 不再复用，需要重新下载书籍，旧文件不会自动删除。
+从旧版 WeLite 升级时，替换整个 `welite.koplugin` 目录后重启 KOReader。手动安装应先移走原 WeLite 插件目录，再解压新包，避免覆盖解压残留旧模块；设置和书籍数据目录请保留。在线更新会自动完成整个目录替换。首次启动会将原 `settings/weread.lua` 中的登录、偏好和阅读索引复制到独立的 `settings/welite-state.lua`，原文件保留；已有下载、阅读位置、批注和待同步记录不会因这次隔离而删除。WeLite 1.0.5 可与原版 `weread.koplugin` 并存，两者各有菜单、版本和更新入口。此前绑定的 `WeRead · …` 快捷动作属于原版插件，若要启动 WeLite，请重新绑定 `WeLite · …`。
+
+默认下载目录为 KOReader 数据目录下的 **`welite/cache`**。更早版本已弃用的 `weread/cache` 下载布局仍不复用，旧文件不会自动删除。
 
 后续可通过 **WeLite 设置 → 关于与高级 → 检查更新** 在线更新。下载包同时提供 `.sha256` 校验文件。
 

@@ -2,7 +2,7 @@ describe('WeLite chapter prefetch settings',function()
     local UI,Home,settings,path,plugin,controller,started,cancelled,annotation_cancelled
     setup(function()
         require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path
-        UI=require('ui/uimanager');Home=require('weread.ui.welite.home')
+        UI=require('ui/uimanager');Home=require('welite.ui.welite.home')
     end)
     before_each(function()
         path=os.tmpname();os.remove(path);settings=require('luasettings'):open(path)
@@ -12,7 +12,7 @@ describe('WeLite chapter prefetch settings',function()
             downloader={cancelPrefetch=function() cancelled=cancelled+1 end},
             cancelAnnotationPrefetch=function() annotation_cancelled=annotation_cancelled+1 end,
             _current_weread_book_id='fixture',maybePrefetchNextChapter=function() started=started+1 end}
-        local upstream=require('weread.ui.annotation_sync_controller')
+        local upstream=require('welite.ui.annotation_sync_controller')
         plugin.isAnnotationPrefetchEnabled=upstream.isAnnotationPrefetchEnabled
         plugin.setAnnotationPrefetchEnabled=upstream.setAnnotationPrefetchEnabled
         settings:saveSetting('cache',{});settings:saveSetting('account',{user_vid='fixture'})

@@ -35,7 +35,7 @@ describe("WeRead plugin integration", function()
             actions[id] = action
         end
         local ok, err = pcall(function()
-            require("weread.ui.menu"):onDispatcherRegisterActions()
+            require("welite.ui.menu"):onDispatcherRegisterActions()
             local plugin
             for _, candidate in ipairs(require("pluginloader").enabled_plugins) do
                 if candidate.name == "welite" then plugin = candidate; break end
@@ -63,9 +63,9 @@ describe("WeRead plugin integration", function()
     end)
 
     it("loads project modules only through the weread namespace", function()
-        assert.is_table(package.loaded["weread.lib.client"])
-        assert.is_table(package.loaded["weread.lib.settings"])
-        assert.is_table(package.loaded["weread.ui.menu"])
+        assert.is_table(package.loaded["welite.lib.client"])
+        assert.is_table(package.loaded["welite.lib.settings"])
+        assert.is_table(package.loaded["welite.ui.menu"])
         assert.is_nil(package.loaded["lib.client"])
         assert.is_nil(package.loaded["lib.settings"])
         assert.is_nil(package.loaded["ui.menu"])

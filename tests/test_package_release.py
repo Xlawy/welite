@@ -18,15 +18,16 @@ class PackageReleaseTest(unittest.TestCase):
             shutil.copy(ROOT / 'scripts/package_release.sh', repo / 'scripts')
             for name in ('_meta.lua', 'main.lua', 'LICENSE', 'NOTICE', 'README.md'):
                 shutil.copy(ROOT / name, repo / name)
-            for name in ('fonts', 'icons', 'integrations', 'weread'):
+            for name in ('fonts', 'icons', 'welite'):
                 (repo / name).mkdir()
             shutil.copy(ROOT / 'fonts/NotoEmoji-Regular.ttf', repo / 'fonts')
             shutil.copy(ROOT / 'fonts/LICENSE', repo / 'fonts')
+            shutil.copy(ROOT / 'welite/identity.lua', repo / 'welite')
             (repo / 'private-cookie.txt').write_text('must not ship')
             subprocess.run(['bash', 'scripts/package_release.sh'], cwd=repo,
                            check=True, capture_output=True, text=True)
             version = re.search(r'^\s*version\s*=\s*"(\d+\.\d+\.\d+)"',
-                                (repo / '_meta.lua').read_text(), re.MULTILINE)
+                                (repo / 'welite/identity.lua').read_text(), re.MULTILINE)
             self.assertIsNotNone(version, 'plugin metadata must declare its release version')
             archive = repo / f'dist/welite.koplugin-v{version.group(1)}.zip'
             self.assertTrue(archive.is_file())
@@ -38,6 +39,13 @@ class PackageReleaseTest(unittest.TestCase):
                     self.assertIn('welite.koplugin/' + name, names)
                 self.assertNotIn('welite.koplugin/private-cookie.txt', names)
                 self.assertFalse(any('/scripts/' in name for name in names))
+                meta = packed.read('welite.koplugin/_meta.lua').decode()
+                identity = packed.read('welite.koplugin/welite/identity.lua').decode()
+                self.assertIn(f'version = "{version.group(1)}"', meta)
+                self.assertIn(f'version = "{version.group(1)}"', identity)
+                self.assertNotIn('require("welite.identity")', meta)
+                self.assertFalse(any(name.startswith(('welite.koplugin/weread/',
+                                                     'welite.koplugin/integrations/')) for name in names))
 
     def test_release_notes_select_welite_version_and_retain_upstream_history(self):
         result = subprocess.run(['bash', str(ROOT / 'scripts/extract_release_notes.sh'), '1.0.1'],

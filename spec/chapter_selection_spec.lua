@@ -1,5 +1,5 @@
 package.path = "./?.lua;" .. package.path
-local Selection = require("weread.lib.chapter_selection")
+local Selection = require("welite.lib.chapter_selection")
 local chapters = {
     { chapterUid = "a", title = "Remote A", level = 1 },
     { chapterUid = "b", title = "Remote B", level = 1 },

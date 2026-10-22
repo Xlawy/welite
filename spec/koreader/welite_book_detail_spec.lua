@@ -2,7 +2,7 @@ describe('WeLite book details',function()
     local Detail,UI,Screen,view
     setup(function()
         require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path
-        Detail=require('weread.ui.book_detail_view');UI=require('ui/uimanager');Screen=require('device').screen
+        Detail=require('welite.ui.book_detail_view');UI=require('ui/uimanager');Screen=require('device').screen
     end)
     after_each(function() if view then view:onClose();view=nil end end)
     local function data(callback)

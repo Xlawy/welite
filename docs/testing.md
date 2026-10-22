@@ -14,7 +14,7 @@ Run these before every PR:
 ```bash
 bash scripts/run_lua_specs.sh
 bash scripts/check_lua_namespace.sh
-luacheck main.lua _meta.lua weread spec
+luacheck main.lua _meta.lua welite spec
 python3 scripts/test_mock_weread.py
 ```
 
@@ -29,10 +29,11 @@ not touched.
 
 `check_lua_namespace.sh` enforces the project module layout:
 
-- non-UI modules belong in `weread/lib/`;
-- UI modules belong in `weread/ui/`;
-- project modules use `weread.lib.*` or `weread.ui.*`;
-- root-level project `lib/` and `ui/` directories are forbidden.
+- non-UI modules belong in `welite/lib/`;
+- UI modules belong in `welite/ui/`;
+- project modules use `welite.lib.*` or `welite.ui.*`;
+- integration modules use `welite.integrations.*`;
+- root-level project `lib/`, `ui/`, `weread/` and `integrations/` directories are forbidden.
 
 KOReader-owned imports such as `require("ui/widget/menu")` remain valid.
 
@@ -44,7 +45,7 @@ injection and `package.preload` fakes over live network or UI automation.
 High-risk areas that require focused coverage:
 
 - HTTP redirect, timeout, cookie, and credential boundaries in
-  `weread/lib/client.lua`;
+  `welite/lib/client.lua`;
 - settings, authentication schema migrations, and split book storage;
 - UTF-8 content decoding, HTML transformation, underlines, and thoughts;
 - downloader cancellation, retry, completion callbacks, and standby guards;
@@ -79,9 +80,16 @@ macOS is not sufficient; install Homebrew Bash and ensure `bash` resolves to
 that version before running the script.
 
 The runner temporarily links this plugin into KOReader's `plugins/` directory,
-copies the integration spec into KOReader's test tree, runs only that Busted
-file, and removes both temporary entries on exit. It refuses to overwrite an
+copies the native integration specs into KOReader's test tree, runs those Busted
+files with the SQLite helper, and removes temporary entries on exit. It refuses to overwrite an
 existing plugin or spec.
+
+`make test` uses an already built `.dev/emulator` (or `KOREADER_RUNTIME`) and
+also runs the updater simulator. All profile data is temporary. Coexistence
+loads the actual WeRead v1.6.0 ancestor in both orders. The updater regression
+also installs the generated package using the actual WeLite v1.0.4 updater.
+These fixtures require full Git history; they never download a plugin or use
+the developer's login data.
 
 When updating the pinned KOReader commit, update all three locations together:
 

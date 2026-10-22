@@ -30,7 +30,7 @@ UIManager.unschedule = function(_self, callback)
         if tasks[index].callback == callback then table.remove(tasks, index) end
     end
 end
-local Guard = require("weread.lib.standby_guard")
+local Guard = require("welite.lib.standby_guard")
 Guard.acquire = function() UIManager:preventStandby(); return {} end
 Guard.release = function() UIManager:allowStandby() end
 local terminate = FFIUtil.terminateSubProcess
@@ -62,7 +62,7 @@ local host = setmetatable({
     isNetworkConnected = function() return true end,
     showInfo = function(_self, message) error(message) end,
     showTransientInfo = function() end,
-}, { __index = require("weread.ui.annotation_sync_controller") })
+}, { __index = require("welite.ui.annotation_sync_controller") })
 local context = { path = "probe.epub", book_id = "probe", binding = { title = "Probe" },
     chapters = { { chapterUid = "1" } }, ranges = {}, statuses = {}, document_key = "probe",
     store = {

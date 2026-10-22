@@ -11,35 +11,37 @@ fi
 
 failed=0
 
-for legacy_dir in lib ui; do
+for legacy_dir in lib ui weread integrations; do
     if [[ -d "$legacy_dir" ]]; then
         echo "error: project modules must not be added to root-level $legacy_dir/" >&2
         failed=1
     fi
 done
 
-legacy_pattern='require[[:space:]]*\([[:space:]]*["'\''](lib|ui)\.|package\.(loaded|preload)[[:space:]]*\[[[:space:]]*["'\''](lib|ui)\.'
-if rg -n --pcre2 "$legacy_pattern" --glob '*.lua' main.lua _meta.lua weread; then
-    echo "error: use weread.lib.* or weread.ui.* for project-owned Lua modules" >&2
+legacy_pattern='require[[:space:]]*\([[:space:]]*["'\''](lib|ui|weread|integrations)\.|package\.(loaded|preload)[[:space:]]*\[[[:space:]]*["'\''](lib|ui|weread|integrations)\.'
+if rg -n --pcre2 "$legacy_pattern" --glob '*.lua' main.lua _meta.lua welite; then
+    echo "error: use welite.lib.* or welite.ui.* for project-owned Lua modules" >&2
     failed=1
 fi
 
 if rg -n 'require[[:space:]]*\([[:space:]]*["'\'']logger["'\'']' \
     --glob '*.lua' \
-    --glob '!weread/lib/logger.lua' \
-    main.lua _meta.lua weread; then
-    echo "error: use weread.lib.logger so project log messages receive a consistent prefix" >&2
+    --glob '!welite/lib/logger.lua' \
+    main.lua _meta.lua welite; then
+    echo "error: use welite.lib.logger so project log messages receive a consistent prefix" >&2
     failed=1
 fi
 
 unexpected_modules="$(
-    find weread -type f -name '*.lua' \
-        ! -path 'weread/lib/*' \
-        ! -path 'weread/ui/*' \
+    find welite -type f -name '*.lua' \
+        ! -path 'welite/lib/*' \
+        ! -path 'welite/ui/*' \
+        ! -path 'welite/integrations/*' \
+        ! -path 'welite/identity.lua' \
         -print
 )"
 if [[ -n "$unexpected_modules" ]]; then
-    echo "error: Lua modules below weread/ must be classified under lib/ or ui/:" >&2
+    echo "error: Lua modules below welite/ must have a defined namespace:" >&2
     echo "$unexpected_modules" >&2
     failed=1
 fi

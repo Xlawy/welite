@@ -75,7 +75,7 @@ package.preload["ffi/util"] = function()
         end,
     }
 end
-package.preload["weread.lib.content"] = function()
+package.preload["welite.lib.content"] = function()
     return {
         save_chapter_epub = function(_settings, _book, chapter)
             return "/cache/book/chapter-" .. tostring(chapter.chapterUid) .. ".epub"
@@ -88,14 +88,14 @@ package.preload["weread.lib.content"] = function()
         end,
     }
 end
-package.preload["weread.ui.download_dialog"] = function() return {} end
-package.preload["weread.lib.i18n"] = function()
+package.preload["welite.ui.download_dialog"] = function() return {} end
+package.preload["welite.lib.i18n"] = function()
     return { tr = function(text) return text end }
 end
-package.preload["weread.lib.thoughts"] = function()
+package.preload["welite.lib.thoughts"] = function()
     return { is_download_enabled = function() return false end }
 end
-package.preload["weread.lib.protocol"] = function()
+package.preload["welite.lib.protocol"] = function()
     return {
         normalize_cover_url = function(value) return value end,
         reader_url = function(book_id)
@@ -107,7 +107,7 @@ package.preload["weread.lib.protocol"] = function()
     }
 end
 
-local Downloader = require("weread.lib.downloader")
+local Downloader = require("welite.lib.downloader")
 
 local failures, checks = 0, 0
 local function eq(got, want, label)
@@ -220,16 +220,16 @@ do
     eq(#coll_adds, 0, "separate chapters does not add")
 end
 
--- Cache clear helpers: preload remaining UI deps used by weread.ui.cache.
+-- Cache clear helpers: preload remaining UI deps used by welite.ui.cache.
 package.preload["ui/widget/buttondialog"] = function()
     return { new = function(_self, options) return options end }
 end
 package.preload["ui/widget/pathchooser"] = function()
     return { new = function(_self, options) return options end }
 end
-package.preload["weread.lib.scan"] = function() return {} end
+package.preload["welite.lib.scan"] = function() return {} end
 local annotation_clears, legacy_annotation_clears = {}, {}
-package.preload["weread.lib.annotation_store"] = function()
+package.preload["welite.lib.annotation_store"] = function()
     return { new = function() return {
         clearBook = function(_self, book_id)
             annotation_clears[#annotation_clears + 1] = tostring(book_id)
@@ -237,14 +237,14 @@ package.preload["weread.lib.annotation_store"] = function()
         end,
     } end }
 end
-package.preload["weread.lib.logger"] = function()
+package.preload["welite.lib.logger"] = function()
     return {
         info = function() end,
         warn = function() end,
         err = function() end,
     }
 end
-package.preload["weread.lib.plugin_util"] = function()
+package.preload["welite.lib.plugin_util"] = function()
     return {
         tr = function(text) return text end,
         T = function(text, ...)
@@ -262,10 +262,10 @@ end
 local real_os_execute = os.execute
 rawset(os, "execute", function() return 0 end)
 
-package.loaded["weread.ui.cache"] = nil
-package.loaded["weread.lib.content"] = nil
-package.loaded["weread.lib.protocol"] = nil
-local Cache = require("weread.ui.cache")
+package.loaded["welite.ui.cache"] = nil
+package.loaded["welite.lib.content"] = nil
+package.loaded["welite.lib.protocol"] = nil
+local Cache = require("welite.ui.cache")
 
 local function make_cache_host(books)
     local stored = books

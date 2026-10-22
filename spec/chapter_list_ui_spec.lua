@@ -5,7 +5,7 @@ package.path = "./?.lua;" .. package.path
 local function empty_module() return {} end
 local catalog_view_data
 local catalog_view_callbacks
-package.preload["weread.ui.chapter_list_view"] = function()
+package.preload["welite.ui.chapter_list_view"] = function()
     return {
         show = function(data, callbacks)
             catalog_view_data = data
@@ -14,21 +14,21 @@ package.preload["weread.ui.chapter_list_view"] = function()
         end,
     }
 end
-package.preload["weread.lib.book_reviews"] = function()
+package.preload["welite.lib.book_reviews"] = function()
     return { format_date = function() return "" end }
 end
-package.preload["weread.ui.book_reviews_view"] = empty_module
+package.preload["welite.ui.book_reviews_view"] = empty_module
 package.preload["ui/widget/buttondialog"] = empty_module
 package.preload["ui/widget/confirmbox"] = empty_module
-package.preload["weread.lib.content"] = empty_module
+package.preload["welite.lib.content"] = empty_module
 package.preload["ui/widget/infomessage"] = empty_module
 package.preload["ui/widget/inputdialog"] = empty_module
-package.preload["weread.lib.logger"] = function()
+package.preload["welite.lib.logger"] = function()
     return { info = function() end, warn = function() end, err = function() end }
 end
 package.preload["ui/widget/progressbardialog"] = empty_module
 package.preload["ui/widget/textviewer"] = empty_module
-package.preload["weread.lib.protocol"] = empty_module
+package.preload["welite.lib.protocol"] = empty_module
 
 local closed = 0
 local existing_files = {}
@@ -38,7 +38,7 @@ package.preload["ui/uimanager"] = function()
         close = function() closed = closed + 1 end,
     }
 end
-package.preload["weread.lib.plugin_util"] = function()
+package.preload["welite.lib.plugin_util"] = function()
     return {
         tr = function(text) return text end,
         T = function(text, ...)
@@ -59,7 +59,7 @@ G_reader_settings = {
     end,
 }
 
-local Library = require("weread.ui.library")
+local Library = require("welite.ui.library")
 
 local checks, failures = 0, 0
 local function expect(value, label)

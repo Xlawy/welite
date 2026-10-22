@@ -13,18 +13,18 @@ local archive_calls = {}
 package.preload["logger"] = function()
     return { info = function() end, warn = function() end, err = function() end }
 end
-package.preload["weread.lib.crypto"] = function()
+package.preload["welite.lib.crypto"] = function()
     return {
         sha256_hex = function(data)
             return ("%08x%08x"):format(#data, #data * 31)
         end,
     }
 end
-package.preload["weread.lib.reader_state"] = function() return {} end
-package.preload["weread.lib.protocol"] = function()
+package.preload["welite.lib.reader_state"] = function() return {} end
+package.preload["welite.lib.protocol"] = function()
     return { reader_url = function(book_id) return "https://reader/" .. tostring(book_id) end }
 end
-package.preload["weread.lib.thoughts"] = function() return {} end
+package.preload["welite.lib.thoughts"] = function() return {} end
 package.preload["ffi/util"] = function()
     return {
         purgeDir = function(path)
@@ -77,7 +77,7 @@ package.preload["ffi/archiver"] = function()
     return { Writer = Writer }
 end
 
-local Content = require("weread.lib.content")
+local Content = require("welite.lib.content")
 local root = os.tmpname()
 os.remove(root)
 assert(os.execute("mkdir -p " .. string.format("%q", root)))

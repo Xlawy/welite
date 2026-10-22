@@ -3,7 +3,7 @@ package.preload['ltn12']=function() return {} end
 package.preload['socketutil']=function() return {} end
 package.preload['socket.http']=function() return {} end
 package.preload['json']=function() return {} end
-local Client=require('weread.lib.client')
+local Client=require('welite.lib.client')
 local client=Client:new{get=function(_,key) assert(key=='api_key');return 'fixture-key' end}
 local response,request={books={}},nil
 client.post_json=function(_,url,payload,options)

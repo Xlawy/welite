@@ -1,6 +1,6 @@
 describe('welite device control boundary',function()
     local C
-    setup(function() require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path;C=require('weread.ui.welite.controls') end)
+    setup(function() require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path;C=require('welite.ui.welite.controls') end)
     it('opens the owning plugin settings without creating a reading or network session',function()
         local opened=0
         local c=C.new({welite={showSettings=function() opened=opened+1 end}})

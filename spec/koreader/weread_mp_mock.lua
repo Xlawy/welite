@@ -61,7 +61,7 @@ session.view:onClose()
 pump(function() return worker.job==nil end)
 assert(opened==0 and session.closed)
 local article=plugin:getCachedMPArticles(book.bookId)[1]
-assert(not require('weread.lib.content').mp_article_cached_path(plugin.settings,book,article))
+assert(not require('welite.lib.content').mp_article_cached_path(plugin.settings,book,article))
 control{match='',delay=0,times=0}
 plugin:showMPAccount(book);session=plugin._mp_session
 assert(not session.worker,'cached list should not fetch')

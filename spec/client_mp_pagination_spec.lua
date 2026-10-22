@@ -3,9 +3,9 @@ package.preload['ltn12']=function() return {} end
 package.preload['socketutil']=function() return {} end
 package.preload['socket.http']=function() return {} end
 package.preload['json']=function() return {} end
-package.preload['weread.lib.cookie']=function() return {} end
-package.preload['weread.lib.protocol']=function() return {urlencode=function(s) return s end} end
-local Client=require('weread.lib.client')
+package.preload['welite.lib.cookie']=function() return {} end
+package.preload['welite.lib.protocol']=function() return {urlencode=function(s) return s end} end
+local Client=require('welite.lib.client')
 local client=setmetatable({settings={get=function(_,_,d) return d end}}, {__index=Client})
 local request
 client.request=function(_,value) request=value;return '{}',200,{} end

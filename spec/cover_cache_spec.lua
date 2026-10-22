@@ -43,7 +43,7 @@ package.preload["libs/libkoreader-lfs"] = function()
     }
 end
 
-local CoverCache = require("weread.lib.cover_cache")
+local CoverCache = require("welite.lib.cover_cache")
 local function open_file(path, mode)
     expect(mode == "wb", "cover cache did not use binary writes")
     local data

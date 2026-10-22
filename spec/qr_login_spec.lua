@@ -10,11 +10,11 @@ package.preload["device"] = function()
     return { screen = { getWidth = function() return 600 end,
         getHeight = function() return 800 end } }
 end
-package.preload["weread.lib.i18n"] = function()
+package.preload["welite.lib.i18n"] = function()
     return { tr = function(text) return text end }
 end
 package.preload["ui/widget/inputdialog"] = function() return {} end
-package.preload["weread.lib.logger"] = function()
+package.preload["welite.lib.logger"] = function()
     return {
         scoped = function()
             return { warn = function() end, err = function() end, info = function() end }
@@ -26,7 +26,7 @@ package.preload["ffi/util"] = function()
     return { template = function(text) return text end }
 end
 package.preload["ui/uimanager"] = function() return {} end
-package.preload["weread.lib.protocol"] = function()
+package.preload["welite.lib.protocol"] = function()
     return {
         urlencode = function(value)
             return tostring(value):gsub(" ", "%%20")
@@ -45,7 +45,7 @@ local client = {
     end,
 }
 
-local QRLogin = require("weread.lib.qr_login")
+local QRLogin = require("welite.lib.qr_login")
 local login = QRLogin:new({}, client, {})
 
 login:_poll_protocol("uid value", "")

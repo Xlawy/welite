@@ -57,16 +57,16 @@ package.preload["ffi/util"] = function()
         end,
     }
 end
-package.preload["weread.lib.protocol"] = function()
+package.preload["welite.lib.protocol"] = function()
     return {
         normalize_cover_url = function(value) return value end,
         reader_url = function(book_id) return "https://reader/" .. tostring(book_id) end,
     }
 end
-package.preload["weread.lib.i18n"] = function()
+package.preload["welite.lib.i18n"] = function()
     return { tr = function(text) return text end }
 end
-package.preload["weread.ui.download_dialog"] = function()
+package.preload["welite.ui.download_dialog"] = function()
     return {
         new = function(_self, _options)
             return {
@@ -78,10 +78,10 @@ package.preload["weread.ui.download_dialog"] = function()
         end,
     }
 end
-package.preload["weread.lib.thoughts"] = function()
+package.preload["welite.lib.thoughts"] = function()
     return { is_download_enabled = function() return false end }
 end
-package.preload["weread.lib.footnotes"] = function()
+package.preload["welite.lib.footnotes"] = function()
     return {
         scan_chapter = function() return {} end,
         transform_chapter = function(body) return body, {} end,
@@ -91,7 +91,7 @@ package.preload["weread.lib.footnotes"] = function()
         FOOTNOTES_CSS = "",
     }
 end
-package.preload["weread.lib.content"] = function()
+package.preload["welite.lib.content"] = function()
     local persisted = { [1] = true }
     local workspace = {
         path = "/cache/book/.weread-download-resume-full",
@@ -146,7 +146,7 @@ package.preload["weread.lib.content"] = function()
     }
 end
 
-local Downloader = require("weread.lib.downloader")
+local Downloader = require("welite.lib.downloader")
 local books = {}
 local settings = {
     get = function(_self, key, default)

@@ -51,7 +51,7 @@ package.preload["ffi/util"] = function()
         end,
     }
 end
-package.preload["weread.lib.content"] = function()
+package.preload["welite.lib.content"] = function()
     return {
         ensure_reader_state = function() end,
         fetch_single_chapter_source = function()
@@ -59,7 +59,7 @@ package.preload["weread.lib.content"] = function()
         end,
     }
 end
-package.preload["weread.ui.download_dialog"] = function()
+package.preload["welite.ui.download_dialog"] = function()
     return {
         new = function(_self, options)
             dialog = {
@@ -74,20 +74,20 @@ package.preload["weread.ui.download_dialog"] = function()
         end,
     }
 end
-package.preload["weread.lib.i18n"] = function()
+package.preload["welite.lib.i18n"] = function()
     return { tr = function(text) return text end }
 end
-package.preload["weread.lib.thoughts"] = function()
+package.preload["welite.lib.thoughts"] = function()
     return { is_download_enabled = function() return false end }
 end
-package.preload["weread.lib.protocol"] = function()
+package.preload["welite.lib.protocol"] = function()
     return {
         normalize_cover_url = function(value) return value end,
         reader_url = function(book_id) return "https://reader/" .. tostring(book_id) end,
     }
 end
 
-local Downloader = require("weread.lib.downloader")
+local Downloader = require("welite.lib.downloader")
 
 local completions = {}
 local messages = {}
@@ -183,7 +183,7 @@ expect(retry_download.index == 2 and retry_download.failed[1] == "30",
     "chapter was not skipped after exhausting two retries")
 
 -- Preparation must already be painted while DNS/session/cache work blocks.
-local Content = require("weread.lib.content")
+local Content = require("welite.lib.content")
 local pending_init, painted, reader_calls = nil, false, 0
 downloader.refresh_ui = function()
     expect(dialog.visible, "preparation dialog was not shown before repaint")

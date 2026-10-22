@@ -3,12 +3,12 @@ local current,dialog,message
 package.preload['ui/uimanager']=function() return {
  show=function(_,v) dialog=v end,close=function(_,v) if v.callbacks then v.callbacks.on_close() end end} end
 package.preload['ui/widget/confirmbox']=function() return {new=function(_,v) return v end} end
-package.preload['weread.ui.welite.record_list']=function() return {show=function(data,callbacks)
+package.preload['welite.ui.welite.record_list']=function() return {show=function(data,callbacks)
  current={data=data,callbacks=callbacks};return current end} end
 package.preload['ffi/util']=function() return {template=function(s,...)
  local args={...};return (s:gsub('%%(%d+)',function(n) return tostring(args[tonumber(n)]) end)) end} end
-local Review=require('weread.ui.reading_time_review')
-local Ledger=require('weread.lib.reading_time_ledger')
+local Review=require('welite.ui.reading_time_review')
+local Ledger=require('welite.lib.reading_time_ledger')
 local values,clock={},0
 local storage={get=function(_,k,d) return values[k] or d end,set=function(_,k,v) values[k]=v end,flush=function() end}
 local ledger=Ledger.new(storage,function() return clock end)

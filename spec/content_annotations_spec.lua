@@ -13,9 +13,9 @@ package.preload["logger"] = function()
         err = function() end,
     }
 end
-package.preload["weread.lib.crypto"] = function() return {} end
-package.preload["weread.lib.reader_state"] = function() return {} end
-package.preload["weread.lib.protocol"] = function()
+package.preload["welite.lib.crypto"] = function() return {} end
+package.preload["welite.lib.reader_state"] = function() return {} end
+package.preload["welite.lib.protocol"] = function()
     return {
         reader_url = function(book_id, chapter_uid)
             return "https://weread.qq.com/web/reader/"
@@ -23,10 +23,10 @@ package.preload["weread.lib.protocol"] = function()
         end,
     }
 end
-package.preload["weread.lib.thoughts"] = function() return {} end
+package.preload["welite.lib.thoughts"] = function() return {} end
 
-local Annotations = require("weread.lib.annotations")
-local Content = require("weread.lib.content")
+local Annotations = require("welite.lib.annotations")
+local Content = require("welite.lib.content")
 
 local original = "\xef\xbb\xbf<p>你好世界</p>"
 local processed = Annotations.injectUnderlines(original, {

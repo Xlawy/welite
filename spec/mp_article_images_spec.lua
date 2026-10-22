@@ -7,11 +7,11 @@ local function expect(condition, message)
     if not condition then error(message or ("check " .. checks .. " failed")) end
 end
 
-package.preload["weread.lib.logger"] = function()
+package.preload["welite.lib.logger"] = function()
     return { info = function() end, warn = function() end, err = function() end }
 end
-package.preload["weread.lib.reader_state"] = function() return {} end
-package.preload["weread.lib.protocol"] = function()
+package.preload["welite.lib.reader_state"] = function() return {} end
+package.preload["welite.lib.protocol"] = function()
     return {
         reader_url = function(book_id, chapter_uid)
             return "https://weread.qq.com/reader/" .. tostring(book_id)
@@ -19,9 +19,9 @@ package.preload["weread.lib.protocol"] = function()
         end,
     }
 end
-package.preload["weread.lib.thoughts"] = function() return {} end
+package.preload["welite.lib.thoughts"] = function() return {} end
 
-local Content = require("weread.lib.content")
+local Content = require("welite.lib.content")
 
 local root = os.tmpname()
 os.remove(root)

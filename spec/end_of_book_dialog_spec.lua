@@ -13,11 +13,11 @@ package.preload["ui/uimanager"] = function()
         scheduleIn = function(_self, _delay, callback) callback() end,
     }
 end
-package.preload["weread.lib.i18n"] = function()
+package.preload["welite.lib.i18n"] = function()
     return { tr = function(text) return text end }
 end
 
-local Dialog = require("weread.ui.end_of_book_dialog")
+local Dialog = require("welite.ui.end_of_book_dialog")
 
 local callbacks = {
     on_bookshelf = function() end,

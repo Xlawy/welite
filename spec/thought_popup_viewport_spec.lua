@@ -1,4 +1,4 @@
--- Unit tests for weread/ui/thought_popup/page_viewport.lua: the centered
+-- Unit tests for welite/ui/thought_popup/page_viewport.lua: the centered
 -- popup viewport must paint the page reported by page_index_getter() on
 -- every paint, so navigation (which only changes the popup page index)
 -- shows the new page without syncing a copy of the index into the viewport.
@@ -23,7 +23,7 @@ package.preload["ui/widget/widget"] = function()
     }
 end
 
-local PageViewport = require("weread.ui.thought_popup.page_viewport")
+local PageViewport = require("welite.ui.thought_popup.page_viewport")
 
 local failures, checks = 0, 0
 local current_test

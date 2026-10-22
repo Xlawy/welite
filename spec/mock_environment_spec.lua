@@ -3,7 +3,7 @@ package.path = "./?.lua;./?/init.lua;" .. package.path
 -- Separate stores model independent configuration files, including reopening
 -- Settings while the same KOReader process still has active workers.
 local stores = {
-    ["/settings/weread.lua"] = {
+    ["/settings/welite-state.lua"] = {
         auth_schema_version = 1, api_key = "production-sentinel",
         cookies = { wr_skey = "production-sentinel" },
         books = { real_book = { cache_dir = "/real/downloads/book" } },
@@ -39,12 +39,12 @@ package.preload["libs/libkoreader-lfs"] = function()
         mkdir = function(path) directories[path] = true; return true end,
     }
 end
-package.preload["weread.lib.book_store"] = function()
+package.preload["welite.lib.book_store"] = function()
     return { load = function(_settings, _id, index) return index end }
 end
 
-local Environment = require("weread.lib.mock_environment")
-local Settings = require("weread.lib.settings")
+local Environment = require("welite.lib.mock_environment")
+local Settings = require("welite.lib.settings")
 local config = Environment.read()
 assert(config.host == "192.168.31.111" and config.port == 8765 and not config.enabled)
 for _, host in ipairs({ "8.8.8.8", "example.com", "192.168.1.1/path", "192.168.999.1", "172.32.0.1", "0.0.0.0" }) do
@@ -64,12 +64,12 @@ assert(Environment.read().enabled and not Environment.active().enabled, "save mu
 assert(not Settings:new().mock_endpoint, "new plugin instance in the same process must not hot-switch")
 
 -- Simulate a fresh process's module cache, retaining persisted files.
-package.loaded["weread.lib.mock_environment"] = nil
-Environment = require("weread.lib.mock_environment")
+package.loaded["welite.lib.mock_environment"] = nil
+Environment = require("welite.lib.mock_environment")
 local mock = Settings:new()
 assert(mock.mock_endpoint == "http://192.168.31.111:8765")
 assert(mock.data_dir == "/data/weread-mock" and mock.cache_dir == "/data/weread-mock/cache")
-assert(mock.settings_file == "/settings/weread-mock.lua" and mock.collection_name == "weread-mock")
+assert(mock.settings_file == "/settings/welite-mock-state.lua" and mock.collection_name == "weread-mock")
 assert(mock:get("api_key") == "mock-api-key" and mock:get("account").login_method == "mock")
 assert(next(mock:get("books")) == nil and mock:get("shelf").view_mode == "cover")
 assert(mock:set_download_dir("/real/downloads") == "/data/weread-mock/cache")
@@ -79,7 +79,7 @@ assert(Environment.save(config))
 assert(Settings:new().mock_endpoint == "http://192.168.31.111:8765", "active endpoint changed")
 assert(production:get("api_key") == "production-sentinel")
 assert(production:get("books").real_book.cache_dir == "/real/downloads/book")
-package.loaded["weread.lib.mock_environment"] = nil
+package.loaded["welite.lib.mock_environment"] = nil
 local restored = Settings:new()
 assert(not restored.mock_endpoint and restored:get("shelf").view_mode == "cover")
 assert(restored:get("cookies").wr_skey == "production-sentinel")

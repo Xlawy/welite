@@ -61,7 +61,7 @@ package.preload["socket.http"] = function()
         end,
     }
 end
-package.preload["weread.lib.protocol"] = function()
+package.preload["welite.lib.protocol"] = function()
     return {
         USER_AGENT = "WeRead client spec",
         SKILL_VERSION = "test-skill",
@@ -73,7 +73,7 @@ package.preload["weread.lib.protocol"] = function()
     }
 end
 
-local Client = require("weread.lib.client")
+local Client = require("welite.lib.client")
 local merged_cookies = {}
 local settings = {
     get = function(_self, key, default)

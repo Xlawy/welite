@@ -151,10 +151,10 @@ package.preload["ui/widget/button"] = function()
     return Button
 end
 
-package.preload["weread.lib.i18n"] = function()
+package.preload["welite.lib.i18n"] = function()
     return { tr = function(text) return text end }
 end
-package.preload["weread.lib.book_reviews"] = function()
+package.preload["welite.lib.book_reviews"] = function()
     return {
         format_date = function() return "" end,
         format_rating = tostring,
@@ -190,7 +190,7 @@ if native_widgets then
     end
 end
 
-local LibraryView = require("weread.ui.library_view")
+local LibraryView = require("welite.ui.library_view")
 has_keys = true
 local empty_paged_view
 local ok, error_message = pcall(function()
@@ -453,7 +453,7 @@ expect(invalid_page_size_view.page_size == 1
         and #invalid_page_size_view._item_rows == 1,
     "invalid page size was not clamped to a safe positive value")
 
-local BookReviewsView = require("weread.ui.book_reviews_view")
+local BookReviewsView = require("welite.ui.book_reviews_view")
 ok, error_message = pcall(function()
     BookReviewsView.show({
         book_title = "Book",

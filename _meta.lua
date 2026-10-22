@@ -1,4 +1,4 @@
-local I18n = require("weread.lib.i18n")
+local I18n = require("welite.lib.i18n")
 
 local function _(text)
     return I18n.tr(text)
@@ -7,5 +7,5 @@ end
 return {
     fullname = _("WeLite"),
     description = _([[Read WeRead books in KOReader, cache chapters, and sync reading progress.]]),
-    version = "1.0.4",
+    version = require("welite.identity").version,
 }

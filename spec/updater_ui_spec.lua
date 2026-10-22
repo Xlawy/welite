@@ -32,13 +32,13 @@ package.preload["ui/uimanager"] = function()
         unschedule = function() end,
     }
 end
-package.preload["weread.ui.download_dialog"] = function()
+package.preload["welite.ui.download_dialog"] = function()
     return { new = function(_, value) return value end }
 end
-package.preload["weread.lib.logger"] = function()
+package.preload["welite.lib.logger"] = function()
     return { warn = function() end, err = function() end }
 end
-package.preload["weread.lib.plugin_util"] = function()
+package.preload["welite.lib.plugin_util"] = function()
     return {
         tr = function(value) return value end,
         T = function(template, ...)
@@ -50,15 +50,23 @@ package.preload["weread.lib.plugin_util"] = function()
     }
 end
 
-local UpdaterUI = require("weread.ui.updater")
-local state = { available_version = "0.7.0" }
+local UpdaterUI = require("welite.ui.updater")
+local function fixture(version, notes)
+    local url = "https://github.com/Xlawy/welite/releases/download/v" .. version
+        .. "/welite.koplugin-v" .. version .. ".zip"
+    return {source = "Xlawy/welite", version = version, notes = notes,
+        archive_url = url, checksum_url = url .. ".sha256"}
+end
+local initial = fixture("0.7.0")
+local state = {source = initial.source, available_version = initial.version,
+    archive_url = initial.archive_url, checksum_url = initial.checksum_url}
 local settings = {
     data_dir = "/tmp",
     get = function() return state end,
     set = function(_, _, value) state = value end,
     flush = function() end,
 }
-local core = require("weread.lib.updater"):new{
+local core = require("welite.lib.updater"):new{
     settings = settings, current_version = "0.6.0", plugin_dir = "/tmp/welite.koplugin",
 }
 local ui = UpdaterUI:new{
@@ -87,11 +95,8 @@ expect(ui:_progress_title{ stage = "extracting" }
 expect(ui:_progress_title{ stage = "installing" }
     == "Installing update…", "installation stage title was wrong")
 
-ui:_show_release{
-    version = "0.7.0",
-    notes = "First change\nSecond change",
-}
-expect(shown_widget.title == "New version available\nWeRead v0.6.0 → v0.7.0",
+ui:_show_release(fixture("0.7.0", "First change\nSecond change"))
+expect(shown_widget.title == "New version available\nWeLite v0.6.0 → v0.7.0",
     "release notes viewer title was wrong")
 expect(shown_widget.text == "First change\nSecond change"
     and shown_widget.buttons_table[1][2].text == "Skip this version"
@@ -102,7 +107,7 @@ expect(shown_widget.add_default_buttons == false and shown_widget.show_menu == f
 shown_widget.buttons_table[1][1].callback()
 expect(shown_widget == nil and not core:should_notify("0.7.0"), "later button did not snooze")
 
-local fetched = { version = "0.7.0", notes = "Release notes" }
+local fetched = fixture("0.7.0", "Release notes")
 core.fetch_release = function() return fetched end
 ui._run_subprocess = function(_self, message, task, callback)
     callback(task())
@@ -124,7 +129,7 @@ ui:show_cached_update()
 expect(shown_widget ~= nil, "manual cached update must ignore suppression")
 shown_widget.close_callback()
 shown_widget = nil
-fetched = { version = "0.8.0", notes = "Newer notes" }
+fetched = fixture("0.8.0", "Newer notes")
 ui:check(false)
 expect(shown_widget and shown_widget.text == "Newer notes", "newer version should notify again")
 shown_widget.close_callback()
@@ -134,7 +139,7 @@ ui:check(true)
 expect(shown_widget ~= nil, "manual check must ignore snoozing")
 shown_widget.close_callback()
 shown_widget = nil
-fetched = { version = "0.6.0" }
+fetched = fixture("0.6.0")
 ui:check(false)
 expect(shown_widget == nil, "current version should remain silent automatically")
 fetched = nil
@@ -175,7 +180,7 @@ setfenv(UpdaterUI.schedule_auto_check, original_env)
 
 local installed
 ui.install = function(_self, value) installed = value end
-local install_release = { version = "0.9.0", notes = "Install now" }
+local install_release = fixture("0.9.0", "Install now")
 ui:_show_release(install_release)
 local install_button = shown_widget.buttons_table[2][1]
 install_button.callback()

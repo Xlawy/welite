@@ -12,12 +12,12 @@ local FocusManager = require("ui/widget/focusmanager")
 FocusManager.ges_events, FocusManager.selected = {}, { x = 1, y = 1 }
 FocusManager.getSize = function(self) return self[1]:getSize() end
 require("ui/widget/button").getSize = function(self) return self[1]:getSize() end
-package.preload["weread.lib.plugin_util"] = function()
+package.preload["welite.lib.plugin_util"] = function()
     return { tr = function(text) return text end,
         T = function(text, value) return (text:gsub("%%1", tostring(value))) end }
 end
-local Selection = require("weread.lib.chapter_selection")
-local Picker = require("weread.ui.annotation_chapter_picker")
+local Selection = require("welite.lib.chapter_selection")
+local Picker = require("welite.ui.annotation_chapter_picker")
 local chapters, toc, ranges = {}, {}, {}
 for index = 1, 1000 do
     local uid = tostring(index)

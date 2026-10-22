@@ -1,5 +1,5 @@
 package.path='./?.lua;'..package.path
-local Search=require('weread.lib.book_search')
+local Search=require('welite.lib.book_search')
 assert(Search.query('  山间 来信  ')=='山间 来信')
 assert(select(2,Search.query(' \n\t '))=='empty_query')
 assert(select(2,Search.query(string.rep('长',200)))=='query_too_long')

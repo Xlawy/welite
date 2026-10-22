@@ -12,16 +12,16 @@ load_plugin("welite.koplugin")
 -- this standalone test need the same installed candidate directory.
 package.path = home .. "/plugins/welite.koplugin/?.lua;" .. package.path
 
-local Settings = require("weread.lib.settings")
-local Client = require("weread.lib.client")
-local Content = require("weread.lib.content")
+local Settings = require("welite.lib.settings")
+local Client = require("welite.lib.client")
+local Content = require("welite.lib.content")
 local settings = Settings:new()
 assert(settings.mock_endpoint and settings.data_dir:match("/weread%-mock$"), "isolated mock environment")
 local client = Client:new(settings)
 -- A configured Internet proxy must not intercept local mock traffic or probes.
 local http = require("socket.http")
 http.PROXY = "http://127.0.0.1:1"
-assert(client:test_mock_connection(require("weread.lib.mock_environment").active()) == settings.mock_endpoint)
+assert(client:test_mock_connection(require("welite.lib.mock_environment").active()) == settings.mock_endpoint)
 local shelf = client:get_shelf()
 assert(#shelf.books == 26 and #shelf.archive == 3, "shelf contract")
 assert(http.PROXY == "http://127.0.0.1:1", "mock changed the global HTTP proxy")
@@ -46,7 +46,7 @@ local reader = require("apps/reader/readerui"):new{
     dimen = Screen:getSize(),
     document = require("document/documentregistry"):openDocument(path),
 }
-assert(reader.weread, "real plugin instance")
+assert(reader.welite, "real plugin instance")
 UIManager:show(reader)
 fastforward_ui_events()
 assert(reader.document:getPageCount() > 1, "real downloaded EPUB must paginate")
@@ -86,7 +86,7 @@ local function pump(predicate)
     error("download UI did not finish before deadline")
 end
 control{match="/web/book/chapter/e_0", delay=0.3, times=0}
-local downloader = reader.weread.downloader
+local downloader = reader.welite.downloader
 local cancelled, cancel_reason
 assert(downloader:start(book, chapters, "full", {
     offer_read=false, silent_completion=true,

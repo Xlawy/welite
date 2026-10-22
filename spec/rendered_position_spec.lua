@@ -1,7 +1,7 @@
 package.path='./?.lua;'..package.path
 local version={mode='file',size=100,modification=1}
 package.preload['libs/libkoreader-lfs']=function() return {attributes=function() return version end} end
-local Mapping=require('weread.lib.rendered_position')
+local Mapping=require('welite.lib.rendered_position')
 local chapters={{chapterUid=1,wordCount=1000,title='开篇'}, {chapterUid=2,wordCount=1000,title='续篇'}, {chapterUid=3,wordCount=1000,title='终篇'}}
 local reads,hash,page=0,1,1
 local anchors={a=2,b=5,c=17,z=30}

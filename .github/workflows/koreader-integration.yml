@@ -10,7 +10,7 @@ on:
     paths:
       - main.lua
       - _meta.lua
-      - "weread/**"
+      - "welite/**"
       - "spec/koreader/**"
       - scripts/run_koreader_integration.sh
       - .github/workflows/koreader-integration.yml
@@ -34,6 +34,8 @@ jobs:
     steps:
       - name: Checkout plugin
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Checkout pinned KOReader
         uses: actions/checkout@v6
@@ -50,7 +52,7 @@ jobs:
           path: .koreader-integration/build
           key: koreader-linux-${{ env.KOREADER_COMMIT }}-v1
 
-      - name: Run real PluginLoader integration spec
+      - name: Run native integration and both plugin load orders
         env:
           KOREADER_DIR: ${{ github.workspace }}/.koreader-integration
           KOREADER_SKIP_FETCH: "1"

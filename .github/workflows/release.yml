@@ -49,9 +49,9 @@ jobs:
               | head -n 1
           }
 
-          current="$(read_version < _meta.lua)"
+          current="$(read_version < welite/identity.lua)"
           if [[ ! "$current" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "error: _meta.lua version must use X.Y.Z format (got: ${current:-missing})" >&2
+            echo "error: welite/identity.lua version must use X.Y.Z format (got: ${current:-missing})" >&2
             exit 1
           fi
 
@@ -131,9 +131,9 @@ jobs:
           unzip -Z1 "${{ steps.version.outputs.archive }}" \
             | grep -qx "welite.koplugin/icons/weread-w-book.svg"
           unzip -Z1 "${{ steps.version.outputs.archive }}" \
-            | grep -qx "welite.koplugin/integrations/init.lua"
+            | grep -qx "welite.koplugin/welite/integrations/init.lua"
           unzip -Z1 "${{ steps.version.outputs.archive }}" \
-            | grep -qx "welite.koplugin/integrations/zenui.lua"
+            | grep -qx "welite.koplugin/welite/integrations/zenui.lua"
           if unzip -Z1 "${{ steps.version.outputs.archive }}" \
             | grep -Eq '^welite\.koplugin/(spec|scripts|docs|\.github)/'; then
             echo "error: development-only files were included in the release package" >&2
@@ -165,7 +165,7 @@ jobs:
           TAG: ${{ steps.version.outputs.tag }}
         run: |
           if git rev-parse --verify --quiet "refs/tags/$TAG"; then
-            echo "error: tag $TAG already exists; bump _meta.lua to a new version" >&2
+            echo "error: tag $TAG already exists; bump welite/identity.lua to a new version" >&2
             exit 1
           fi
 

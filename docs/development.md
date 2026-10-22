@@ -23,7 +23,7 @@ make package  # 生成 dist/welite.koplugin-vX.Y.Z.zip
 KOREADER_RUNTIME=/绝对路径/koreader make test
 ```
 
-测试入口不会自动下载或编译 KOReader。测试报告和渲染预览写入 `.dev/reports/`，不进入发行包。
+测试入口不会自动下载或编译 KOReader。测试在临时配置中运行，不使用 `.dev/profile` 的登录数据。并存测试从 Git 历史提取固定 WeRead v1.6.0（`1f4861d3d66549c658e87d8aee96f8977863d836`），分别验证两种加载顺序；请使用完整 Git 历史，浅克隆需先补全历史。测试报告和渲染预览写入 `.dev/reports/`，不进入发行包。
 
 - [原版 WeLite UI 精确迁移与像素验证](welite-ui-parity.md)
 - [社区版功能评估与首次迁移记录](welite-migration.md)
@@ -31,3 +31,7 @@ KOREADER_RUNTIME=/绝对路径/koreader make test
 - [上游贡献指南](../CONTRIBUTING.md)
 
 当前已验证桌面模拟器中的布局与交互，不代表 Kindle 真机性能验收。部分上游网络路径仍在 UI 线程执行；真实设备的耗时、内存、无线连接、休眠与墨水屏刷新仍需验证。
+
+运行时模块位于 `welite/lib`、`welite/ui` 和 `welite/integrations`。版本和仓库身份由 `welite/identity.lua` 声明；`make check` 对所有运行时 Lua 模块检查测试映射，并拒绝旧 `weread.*` / `integrations.*` 导入。
+
+配置迁移仅复制有大小上限的设置文件，不扫描或复制书籍目录。生产配置为 `settings/welite-state.lua`，模拟配置为 `settings/welite-mock-state.lua`，环境选项为 `settings/welite-environment.lua`；原配置保留。更新暂存和进度文件在 `welite/update`，已有下载、数据库、收藏和阅读状态继续使用兼容路径。

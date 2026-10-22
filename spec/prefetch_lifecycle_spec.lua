@@ -4,13 +4,13 @@ package.path = "./?.lua;" .. package.path
 
 local existing = {}
 local logs = {}
-package.preload["weread.lib.content"] = function()
+package.preload["welite.lib.content"] = function()
     return {
         catalog_cache_path = function() return "/cache/catalog.json" end,
         save_catalog_cache = function() return true end,
     }
 end
-package.preload["weread.lib.logger"] = function()
+package.preload["welite.lib.logger"] = function()
     return {
         scoped = function()
             return {
@@ -20,13 +20,13 @@ package.preload["weread.lib.logger"] = function()
         end,
     }
 end
-package.preload["weread.lib.protocol"] = function()
+package.preload["welite.lib.protocol"] = function()
     return { is_mp_book = function(book_id) return book_id == "mp-book" end }
 end
 package.preload["ui/uimanager"] = function()
     return { scheduleIn = function() end }
 end
-package.preload["weread.lib.plugin_util"] = function()
+package.preload["welite.lib.plugin_util"] = function()
     return {
         tr = function(text) return text end,
         T = function(text, ...)
@@ -41,7 +41,7 @@ package.preload["weread.lib.plugin_util"] = function()
     }
 end
 
-local Lifecycle = require("weread.lib.reader_lifecycle")
+local Lifecycle = require("welite.lib.reader_lifecycle")
 
 local checks, failures = 0, 0
 local function expect(value, label)
@@ -156,7 +156,7 @@ expect(host:getFullBookCachePath(legacy_single) == "/cache/one.epub",
     "legacy combined EPUB remains a full-book cache")
 
 notices = {}
-expect(not host:onWeReadSyncProgress(),
+expect(not host:onWeLiteSyncProgress(),
     "standalone sync gesture rejects a local document")
 expect(notices[1] and notices[1][2] == 1,
     "standalone sync gesture explains missing WeRead context")

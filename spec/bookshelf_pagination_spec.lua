@@ -50,9 +50,9 @@ package.preload["ui/widget/confirmbox"] = function()
         return data
     end }
 end
-package.preload["weread.lib.book_reviews"] = function() return {} end
-package.preload["weread.ui.book_reviews_view"] = function() return {} end
-package.preload["weread.lib.content"] = function() return {} end
+package.preload["welite.lib.book_reviews"] = function() return {} end
+package.preload["welite.ui.book_reviews_view"] = function() return {} end
+package.preload["welite.lib.content"] = function() return {} end
 local cached_covers = {}
 local cover_path_lookups = 0
 local fake_cover_cache = {
@@ -67,18 +67,18 @@ local fake_cover_cache = {
     prune = function() return 0 end,
     sourcePathFor = function() return nil end,
 }
-package.preload["weread.lib.cover_cache"] = function()
+package.preload["welite.lib.cover_cache"] = function()
     return {
         new = function() return fake_cover_cache end,
     }
 end
-package.preload["weread.lib.logger"] = function()
+package.preload["welite.lib.logger"] = function()
     return { info = function() end, warn = function() end, err = function() end }
 end
-package.preload["weread.lib.protocol"] = function()
+package.preload["welite.lib.protocol"] = function()
     return { is_mp_book = function(id) return tostring(id):match("^MP_WXS_") ~= nil end }
 end
-package.preload["weread.lib.plugin_util"] = function()
+package.preload["welite.lib.plugin_util"] = function()
     return {
         tr = function(text) return text end,
         T = function(text) return text end,
@@ -89,11 +89,11 @@ package.preload["weread.lib.plugin_util"] = function()
 end
 
 local shown = {}
-package.preload["weread.ui.library_view"] = function()
+package.preload["welite.ui.library_view"] = function()
     return {
         getLayout = function(cover)
             if cover then
-                return require("weread.lib.cover_layout").calculate{ width = 600, height = 800, reserved_height = 127 }
+                return require("welite.lib.cover_layout").calculate{ width = 600, height = 800, reserved_height = 127 }
             end
             return { page_size = 10 }
         end,
@@ -117,7 +117,7 @@ G_reader_settings = {
     end,
 }
 
-local Library = require("weread.ui.library")
+local Library = require("welite.ui.library")
 local shelf = {}
 for index = 1, 1000 do
     shelf[index] = { bookId = tostring(index), title = "Book " .. tostring(index) }
@@ -364,7 +364,7 @@ host.shelf_group_key = "archive:7"
 local services={}
 host.progress_sync={on_account_changed=function() services[#services+1]="progress" end}
 host.read_report={on_account_changed=function() services[#services+1]="time" end}
-host:onWeReadAccountChanged()
+host:onWeLiteAccountChanged()
 expect(services[1]=="progress" and services[2]=="time", "revoke progress before restarting reading time")
 expect(host.shelf_groups == nil and host.shelf_group_key == nil, "account switch retained old groups")
 

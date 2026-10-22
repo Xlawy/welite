@@ -4,13 +4,13 @@ describe('original WeLite pixel parity',function()
         require('commonrequire')
         package.path='plugins/welite.koplugin/spec/reference/?.lua;plugins/welite.koplugin/?.lua;'..package.path
         UI=require('ui/uimanager');Screen=require('device').screen;BB=require('ffi/blitbuffer');ffi=require('ffi')
-        Original=require('welite/shelf');Adapter=require('weread.ui.welite.shelf_adapter')
-        old_status=require('welite/display').status;new_status=require('weread.ui.welite.display').status
+        Original=require('welite/shelf');Adapter=require('welite.ui.welite.shelf_adapter')
+        old_status=require('welite/display').status;new_status=require('welite.ui.welite.display').status
         local fixed=function() return {wifi='WIFI已连接',battery='79%',capacity=79,time='13:56'} end
-        require('welite/display').status=fixed;require('weread.ui.welite.display').status=fixed
+        require('welite/display').status=fixed;require('welite.ui.welite.display').status=fixed
     end)
     teardown(function()
-        require('welite/display').status=old_status;require('weread.ui.welite.display').status=new_status
+        require('welite/display').status=old_status;require('welite.ui.welite.display').status=new_status
     end)
     it('matches every home pixel at four screen sizes, including badges, cover placeholders and pagination',function()
         local screen_bb,screen_size=Screen.bb,Screen.screen_size
@@ -54,9 +54,9 @@ describe('original WeLite pixel parity',function()
     end)
     it('matches original filter and both pull-down panel variants pixel for pixel',function()
         local original_panel=require('welite/pulldown')
-        local current_panel=require('weread.ui.welite.pulldown')
+        local current_panel=require('welite.ui.welite.pulldown')
         local original_filter=require('welite/filter')
-        local current_filter=require('weread.ui.welite.filter')
+        local current_filter=require('welite.ui.welite.filter')
         local controls={snapshot=function() return {wifi='WIFI已连接',wifi_supported=true,wifi_on=true,
             network='家庭网络 ›',time='13:56',battery='79%',capacity=79,light_supported=true,
             light_on=true,brightness=68,night=false} end}

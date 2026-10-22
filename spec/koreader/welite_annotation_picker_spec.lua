@@ -2,7 +2,7 @@ describe('WeLite annotation chapter picker layout',function()
     local Picker,Selection,UI,view
     setup(function()
         require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path
-        Picker=require('weread.ui.annotation_chapter_picker');Selection=require('weread.lib.chapter_selection')
+        Picker=require('welite.ui.annotation_chapter_picker');Selection=require('welite.lib.chapter_selection')
         UI=require('ui/uimanager')
     end)
     after_each(function() if view and not view._closed then view:onClose() end;view=nil end)

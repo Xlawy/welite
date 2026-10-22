@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Download one WeRead chapter and validate the plugin's Lua footnote converter.
 
-Credentials are read from a local KOReader ``settings/weread.lua``. The script
+Credentials are read from a local KOReader ``settings/welite-state.lua``. The script
 never prints credential values, request headers, or chapter text.
 """
 
@@ -109,7 +109,7 @@ def lua_transform(
 ) -> tuple[str, str, dict[str, int]]:
     lua_program = r'''
 package.path = "./?.lua;./?/init.lua;" .. package.path
-local Footnotes = require("weread.lib.footnotes")
+local Footnotes = require("welite.lib.footnotes")
 local function read_all(path)
     local file = assert(io.open(path, "rb"))
     local value = file:read("*a")
@@ -156,7 +156,7 @@ print(string.format("candidates=%d converted=%d image_notes=%d backlinks=%d remo
         })
         try:
             completed = subprocess.run(
-                ["luajit", "-e", lua_program],
+                [os.environ.get("LUAJIT_BIN", "luajit"), "-e", lua_program],
                 cwd=repo,
                 check=True,
                 capture_output=True,
@@ -233,7 +233,7 @@ def inspect_epub(path: Path) -> dict[str, int | bool]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--settings", type=Path, default=Path("settings/weread.lua"))
+    parser.add_argument("--settings", type=Path, default=Path("settings/welite-state.lua"))
     parser.add_argument("--book-title", default="古文观止")
     parser.add_argument("--chapter-title", default="礼记")
     parser.add_argument(

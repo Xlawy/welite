@@ -2,15 +2,15 @@
 -- direct controller refresh. Large catalogs must stay off the page-turn path.
 package.path = "./?.lua;" .. package.path
 package.preload["ui/uimanager"] = function() return {} end
-package.preload["weread.lib.content"] = function() return {} end
-package.preload["weread.lib.protocol"] = function() return {} end
-package.preload["weread.lib.plugin_util"] = function() return { tr = function(s) return s end } end
-package.preload["weread.lib.logger"] = function()
+package.preload["welite.lib.content"] = function() return {} end
+package.preload["welite.lib.protocol"] = function() return {} end
+package.preload["welite.lib.plugin_util"] = function() return { tr = function(s) return s end } end
+package.preload["welite.lib.logger"] = function()
     return { scoped = function() return {} end }
 end
-local Controller = require("weread.ui.annotation_sync_controller")
-local Lifecycle = require("weread.lib.reader_lifecycle")
-local Overlay = require("weread.ui.xpointer_overlay")
+local Controller = require("welite.ui.annotation_sync_controller")
+local Lifecycle = require("welite.lib.reader_lifecycle")
+local Overlay = require("welite.ui.xpointer_overlay")
 local page, reads, comparisons, updates = 11, 0, 0, 0
 local context = { book_id = "fixture", document_key = "fixture", binding = {}, chapters = {}, ranges = {} }
 for index = 1, 5000 do

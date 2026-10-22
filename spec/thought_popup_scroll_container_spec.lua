@@ -54,7 +54,7 @@ end
 package.preload["ui/widget/container/inputcontainer"] = function()
     return class()
 end
-package.preload["weread.ui.thought_popup.paginator"] = function()
+package.preload["welite.ui.thought_popup.paginator"] = function()
     return { computePages = function() return { 0 } end }
 end
 package.preload["util"] = function()
@@ -74,7 +74,7 @@ package.preload["ui/widget/verticalscrollbar"] = function()
     return ScrollBar
 end
 
-local ScrollContainer = require("weread.ui.thought_popup.scroll_container")
+local ScrollContainer = require("welite.ui.thought_popup.scroll_container")
 
 local failures, checks = 0, 0
 local function eq(got, want, label)

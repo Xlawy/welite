@@ -31,7 +31,7 @@ local ffiutil = require('ffi/util')
 local json = require('json')
 local http = require('socket.http')
 local ltn12 = require('ltn12')
-local settings = require('weread.lib.settings'):new()
+local settings = require('welite.lib.settings'):new()
 assert(settings.mock_endpoint and settings.data_dir:match('/weread%-mock$'))
 local function control(values)
     local chunks, body = {}, values and json.encode(values)
@@ -72,8 +72,8 @@ local function shot(name)
     UIManager:forceRePaint()
     Screen:shot(home .. '/../evidence/' .. name .. '.png')
 end
-local Content = require('weread.lib.content')
-local client = require('weread.lib.client'):new(settings)
+local Content = require('welite.lib.content')
+local client = require('welite.lib.client'):new(settings)
 local book = client:get_book_info('900001')
 Content.ensure_reader_state(client, book)
 local chapters = Content.fetch_catalog(client, book)
@@ -85,13 +85,13 @@ local function open_reader()
     reader = require('apps/reader/readerui'):new { dimen = Screen:getSize(),
         document = require('document/documentregistry'):openDocument(path) }
     UIManager:show(reader)
-    plugin = assert(reader.weread)
+    plugin = assert(reader.welite)
     pump_for(0.3)
 end
 open_reader()
 control{match='/web/book/chapterInfos',status=503,times=-1}
 local prepared_catalog
-local catalog_session=require('weread.ui.annotation_catalog').ensure(plugin,function(context) prepared_catalog=context end,true)
+local catalog_session=require('welite.ui.annotation_catalog').ensure(plugin,function(context) prepared_catalog=context end,true)
 assert(catalog_session.worker and not prepared_catalog)
 pump_until(function() return not catalog_session.worker end)
 assert(catalog_session.view._retry_button and not prepared_catalog)
@@ -100,7 +100,7 @@ catalog_session.view._retry_button.callback()
 pump_until(function() return prepared_catalog~=nil end)
 assert(#prepared_catalog.catalog==6 and catalog_session.closed)
 print('PASS: asynchronous catalog HTTP 503 retry and parent-owned SQLite publication')
-assert(require('weread.ui.welite.reader_controls').show(plugin))
+assert(require('welite.ui.welite.reader_controls').show(plugin))
 local reader_panel=assert(plugin.welite_reader_panel)
 assert(reader_panel.annotations_button,'reader must expose annotations')
 reader_panel.annotations_button.callback()
@@ -246,7 +246,7 @@ assert(not plugin._external_annotation_sync and annotation_requests() == after_b
 print(string.format('PASS: background HTTP/SQLite, page turn, %d UI ticks, maximum gap %.3fs; positions remain manual', ticks, max_gap))
 control { match = '', delay = 0, times = 0 }
 -- Turning either preference off cancels an active child and its queued successor.
-local tr = require('weread.lib.plugin_util').tr
+local tr = require('welite.lib.plugin_util').tr
 local function menu_item(items, title)
     for _, item in ipairs(items) do if item.text == tr(title) then return item end end
     error('missing menu: ' .. title)

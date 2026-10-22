@@ -3,12 +3,12 @@
 package.path = "./?.lua;./?/init.lua;" .. package.path
 
 package.preload["ui/uimanager"] = function() return {} end
-package.preload["weread.lib.logger"] = function()
+package.preload["welite.lib.logger"] = function()
     return { err = function() end }
 end
-package.preload["weread.lib.read_stats"] = function() return {} end
-package.preload["weread.ui.read_stats_view"] = function() return {} end
-package.preload["weread.lib.plugin_util"] = function()
+package.preload["welite.lib.read_stats"] = function() return {} end
+package.preload["welite.ui.read_stats_view"] = function() return {} end
+package.preload["welite.lib.plugin_util"] = function()
     return {
         tr = function(text) return text end,
         T = function(text, ...)
@@ -22,7 +22,7 @@ package.preload["weread.lib.plugin_util"] = function()
     }
 end
 
-local ReadReportUI = require("weread.ui.read_report")
+local ReadReportUI = require("welite.ui.read_report")
 local checks = 0
 local function expect(condition, message)
     checks = checks + 1
@@ -113,7 +113,7 @@ local status_text
 local report_status = { running = false, count = 0 }
 host.read_report = { status = function() return report_status end }
 host.showInfo = function(_self, text) status_text = text end
-expect(host:onShowWeReadReportStatus(), "status gesture consumes the reader event")
+expect(host:onShowWeLiteReportStatus(), "status gesture consumes the reader event")
 expect(status_text == "Report book: Auto-associate\nStatus: Stopped\nReported: 0 times, last: --",
     "without an active reader the status must not show the legacy fixed target")
 local gesture_text = status_text
@@ -125,19 +125,19 @@ report_status = {
     running = true, count = 3, target_book_title = "Auto Book",
     last_time = 12345, last_error = "offline",
 }
-host:onShowWeReadReportStatus()
+host:onShowWeLiteReportStatus()
 expect(status_text == "Report book: Auto: Auto Book\nStatus: Running\nReported: 3 times, last: "
         .. os.date("%H:%M:%S", report_status.last_time) .. "\nLast error: offline",
     "status must show the live book even when a legacy manual target exists")
 
 report_status.time_ledger={pending=42.5,uncertain=30}
-host:onShowWeReadReportStatus()
+host:onShowWeLiteReportStatus()
 expect(status_text:find("Pending reading time: 42 s",1,true), "pending duration missing")
 expect(status_text:find("Unconfirmed reading time: 30 s (not retried)",1,true), "ambiguous duration hidden")
 
 
 local reviewed=false
-package.preload['weread.ui.reading_time_review']=function() return {show=function(plugin) reviewed=plugin==host end} end
+package.preload['welite.ui.reading_time_review']=function() return {show=function(plugin) reviewed=plugin==host end} end
 report_items[4].callback()
 expect(reviewed,'review menu must reach the account time-review controller')
 print(("read_report_ui_spec: %d checks"):format(checks))

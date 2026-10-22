@@ -1,8 +1,8 @@
 -- Shared-book pipeline regressions, using the actual locator and SQLite store.
 package.path = "./?.lua;" .. package.path
 local helper = require("spec.helpers.annotation_test_store")
-local Sync = require("weread.lib.annotation_sync")
-local External = require("weread.lib.external_annotations")
+local Sync = require("welite.lib.annotation_sync")
+local External = require("welite.lib.external_annotations")
 local calls, matched = {}, {}
 local empty, fail_batch = false, false
 local client = {
@@ -86,7 +86,7 @@ assert(#calls == count and table.concat(stages, ",") == "chapter_cache_begin,cha
 -- Reprojection, including an old checkpoint carrying embedded popup items,
 -- must retain the shared source/thought rows and save positions only.
 local json = require("json")
-local Annotations = require("weread.lib.annotations")
+local Annotations = require("welite.lib.annotations")
 local build_items, builds = Annotations.buildThoughtPopupItems, 0
 Annotations.buildThoughtPopupItems = function(review)
     builds = builds + 1

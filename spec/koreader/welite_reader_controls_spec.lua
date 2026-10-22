@@ -1,14 +1,14 @@
 describe('WeLite reader panel bridge',function()
     local Bridge,UI,plugin
     setup(function() require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path
-        Bridge=require('weread.ui.welite.reader_controls');UI=require('ui/uimanager') end)
+        Bridge=require('welite.ui.welite.reader_controls');UI=require('ui/uimanager') end)
     after_each(function() if plugin then Bridge.close(plugin) end end)
     it('shows progress state and sends the panel action to real progress sync',function()
         local status={state='unverified'}
         local calls=0
         plugin={ui={document={info={number_of_pages=200}}},
             progress_sync={status=function() return status end},
-            onWeReadSyncProgress=function() calls=calls+1 end}
+            onWeLiteSyncProgress=function() calls=calls+1 end}
         assert.equals('同步进度',Bridge.syncStatus(plugin))
         Bridge.show(plugin)
         plugin.welite_reader_panel.sync_button.callback()
@@ -34,7 +34,7 @@ describe('WeLite reader panel bridge',function()
         assert.is_false(Bridge.show(plugin))
         plugin.ui.document={info={number_of_pages=200}}
         plugin.ui.rolling={current_page=12}
-        plugin.onShowWeReadQuickMenu=function() opened=true end
+        plugin.onShowWeLiteQuickMenu=function() opened=true end
         assert.is_true(zones[1].handler{direction='south'})
         local panel=plugin.welite_reader_panel;UI:forceRePaint()
         assert.is_true(Bridge.show(plugin));assert.equals(panel,plugin.welite_reader_panel)

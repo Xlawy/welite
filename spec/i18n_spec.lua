@@ -10,7 +10,7 @@ G_reader_settings = {
 }
 local gettext = { current_lang = "zh_CN" }
 package.loaded["gettext"] = gettext
-local I18n = require("weread.lib.i18n")
+local I18n = require("welite.lib.i18n")
 
 assert(I18n.tr("Bookshelf") == "书架", "automatic Chinese locale must translate plugin menus")
 assert(I18n.tr("Back") == "返回")
@@ -43,4 +43,4 @@ assert(I18n.language() == "en", "identity gettext stubs must remain supported")
 
 print("i18n_spec: automatic locale, saved overrides and English fallback passed")
 
-assert(require("_meta").version == "1.0.3", "WeLite must have an independent release version")
+assert(require("_meta").version == require("welite.identity").version, "WeLite must have an independent release version")

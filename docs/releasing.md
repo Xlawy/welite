@@ -3,13 +3,13 @@
 The release package contains only files needed by KOReader:
 
 - `_meta.lua` and `main.lua`;
-- `weread/` runtime modules;
+- `welite/` runtime modules;
 - `fonts/`;
 - `README.md`, `LICENSE`, and `NOTICE`.
 
 Development-only directories such as `.github/`, `docs/`, `scripts/`, and
 `spec/` are not shipped. The archive has a single top-level
-`weread.koplugin/` directory, so users can extract it directly into KOReader's
+`welite.koplugin/` directory, so users can extract it directly into KOReader's
 `plugins/` directory.
 
 ## Pre-release validation / 发布前验收
@@ -32,8 +32,8 @@ pushing the release commit; a version bump on `main` can trigger publication.
 bash scripts/package_release.sh
 ```
 
-The default output is `dist/weread.koplugin-vX.Y.Z.zip`, where `X.Y.Z` comes
-from `_meta.lua`. A custom output path may be passed as the first argument.
+The default output is `dist/welite.koplugin-vX.Y.Z.zip`, where `X.Y.Z` comes
+from `welite/identity.lua`. A custom output path may be passed as the first argument.
 
 ## Manual GitHub package / 手动打包
 
@@ -42,7 +42,7 @@ controls the filename:
 
 - leave it empty to use the first eight characters of the selected commit ID;
 - enter a label such as `preview-1` to create
-  `weread.koplugin-preview-1.zip`.
+  `welite.koplugin-preview-1.zip`.
 
 A manual run validates the current version, builds the zip and SHA-256
 checksum, and uploads them as two separate workflow artifacts retained for 14
@@ -52,7 +52,7 @@ days. It does not create a tag or GitHub Release.
 
 To publish a release:
 
-1. Update `_meta.lua` and `main.lua` to the same new `X.Y.Z` version.
+1. Update `welite/identity.lua` to the new `X.Y.Z` version; packaging generates a literal metadata version for older updaters.
 2. Add a non-empty `## [X.Y.Z]` section to `CHANGELOG.md`. Write only the
    curated content below that heading; the workflow adds the
    `## 新功能与改进` heading automatically.
@@ -67,7 +67,7 @@ To publish a release:
 Pushes that keep an existing version do not publish anything. Reusing an
 existing release tag fails deliberately; bump to a new version instead.
 Automatic packages use the versioned filename
-`weread.koplugin-vX.Y.Z.zip`. The zip and its `.sha256` checksum are separate
+`welite.koplugin-vX.Y.Z.zip`. The zip and its `.sha256` checksum are separate
 workflow artifacts and separate GitHub Release assets.
 
 The workflow extracts the matching version section from `CHANGELOG.md`, adds

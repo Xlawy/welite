@@ -39,8 +39,12 @@ describe('WeLite shelf-to-reader sync flow',function()
                 end
                 if payload.rt==0 then count=count+1 else seconds=seconds+payload.rt end
                 remote={progress=payload.pr,chapterUid=1,chapterIdx=1,chapterOffset=payload.co}
-                file=assert(io.open(root..'/server-report.json','w'))
-                file:write(require('json').encode({count=count,remote=remote,read_seconds=seconds}));file:close()
+                -- Publish one complete simulated service response. The parent
+                -- polls this file while the upload worker runs in a child.
+                local temporary=root..'/server-report.json.tmp'
+                file=assert(io.open(temporary,'w'))
+                assert(file:write(require('json').encode({count=count,remote=remote,read_seconds=seconds})))
+                assert(file:close());assert(os.rename(temporary,root..'/server-report.json'))
             end
             return {succ=1,synckey='fixture-ack'},200
         end
@@ -49,9 +53,9 @@ describe('WeLite shelf-to-reader sync flow',function()
         require('commonrequire');disable_plugins()
         package.path='plugins/welite.koplugin/?.lua;'..package.path
         UI=require('ui/uimanager');Storage=require('datastorage')
-        Settings=require('weread.lib.settings');Reader=require('apps/reader/readerui')
+        Settings=require('welite.lib.settings');Reader=require('apps/reader/readerui')
         Plugin=dofile('plugins/welite.koplugin/main.lua')
-        Dialog=require('weread.ui.progress_sync_dialog')
+        Dialog=require('welite.ui.progress_sync_dialog')
     end)
     before_each(function()
         online=true;reading_clock=0
@@ -65,7 +69,7 @@ describe('WeLite shelf-to-reader sync flow',function()
         settings:set('update',{auto_check=false})
         settings:set('shelf',{view_mode='cover',sort_order='default'})
         local book={book_id='fixture',title='Fixture'}
-        local Content=require('weread.lib.content')
+        local Content=require('welite.lib.content')
         local body='<h1>Fixture chapter</h1>'
         for i=1,200 do
             body=body..'<p>Paragraph '..i..': Synthetic reading position text, with enough lines to measure fractional page precision.</p>'
@@ -81,13 +85,13 @@ describe('WeLite shelf-to-reader sync flow',function()
             opened=opened+1
             reader=Reader:new{dimen=require('device').screen:getSize(),document=require('document/documentregistry'):openDocument(path)}
             reader.rolling:onGotoPercent(20)
-            target=Plugin:new{ui=reader};reader.weread=target;wire(target)
+            target=Plugin:new{ui=reader};reader.welite=target;wire(target)
             assert.is_true(target.settings:is_cookie_configured())
             target:onReaderReady()
         end}
         manager=Plugin:new{ui=host};wire(manager)
-        assert.equals(manager,host.weread,"legacy service handle survives the directory rename")
-        assert(require('weread.lib.content').save_catalog_cache(manager.client,settings,book,
+        assert.equals(manager,host.welite,"WeLite owns its service handle")
+        assert(require('welite.lib.content').save_catalog_cache(manager.client,settings,book,
             {{chapterUid=1,chapterIdx=1,wordCount=1000,title='Fixture chapter'}}))
         old_show=Dialog.show_choice
         Dialog.show_choice=function(context) dialog=old_show(context);return dialog end
@@ -114,7 +118,7 @@ describe('WeLite shelf-to-reader sync flow',function()
         local prefix=doc:getTextFromXPointers(range.start_xpointer,xp)
         local full=doc:getTextFromXPointers(range.start_xpointer,range.end_xpointer)
         doc:clearSelection()
-        local normalize=require('weread.lib.external_annotations').flatten_text
+        local normalize=require('welite.lib.external_annotations').flatten_text
         local byte=#normalize(prefix)+1
         local flat=normalize(full)
         -- The generated paragraphs have a unique number. Include preceding text
@@ -271,7 +275,7 @@ describe('WeLite shelf-to-reader sync flow',function()
     end)
     it('recovers a missing catalog asynchronously before showing the progress choice',function()
         sync_and_open();dialog.cancel_callback();UI:close(dialog);dialog=nil
-        local Content=require('weread.lib.content')
+        local Content=require('welite.lib.content')
         local books=target.settings:get('books');books.fixture.chapters=nil
         target.settings:set('books',books);target.settings:flush()
         target.library_db:putChapters('fixture',{})
@@ -289,7 +293,7 @@ describe('WeLite shelf-to-reader sync flow',function()
             if code=='local_unavailable' then failure=data.error end
             return notify(code,data)
         end
-        target:onWeReadSyncProgress()
+        target:onWeLiteSyncProgress()
         drain(function() return dialog~=nil or failure~=nil end)
         assert.is_nil(failure)
         assert.equals(1,#target.library_db:getChapters('fixture'))
@@ -343,7 +347,7 @@ describe('WeLite shelf-to-reader sync flow',function()
         assert.is_nil(dialog);assert.equals(0,reports())
         assert.is_true(target.settings:get('welite_pending_progress_sync').books.fixture)
         online=true
-        target:onWeReadSyncProgress()
+        target:onWeLiteSyncProgress()
         drain(function() return dialog~=nil end)
         dialog.ok_callback()
         drain(function() return target.progress_sync:status().verified
@@ -358,7 +362,7 @@ describe('WeLite shelf-to-reader sync flow',function()
         local old_dialog=dialog
         target.settings:set('account',{user_vid='another-account'})
         target.settings:flush()
-        target:onWeReadAccountChanged()
+        target:onWeLiteAccountChanged()
         old_dialog.other_buttons[1][1].callback()
         old_dialog.ok_callback()
         assert.equals(0,reports())
@@ -367,7 +371,7 @@ describe('WeLite shelf-to-reader sync flow',function()
         drain(function() return target.progress_sync:status().state=='unverified' end)
         assert.is_false(target.progress_sync:status().verified)
         dialog=nil
-        target:onWeReadSyncProgress()
+        target:onWeLiteSyncProgress()
         drain(function() return dialog~=nil end)
         assert.is_not.equal(old_dialog,dialog)
         dialog.other_buttons[1][1].callback()
@@ -423,7 +427,7 @@ describe('WeLite shelf-to-reader sync flow',function()
         dialog.other_buttons[1][1].callback()
         drain(function() return target.read_report.job~=nil end)
         target.settings:set('account',{user_vid='new-account'})
-        target:onWeReadAccountChanged()
+        target:onWeLiteAccountChanged()
         assert.is_nil(target.read_report.job)
         assert.is_false(target.progress_sync:status().uploading)
         assert.is_nil(target.settings:get('books').fixture.last_uploaded_position)

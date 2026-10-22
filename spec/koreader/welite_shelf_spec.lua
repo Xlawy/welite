@@ -2,7 +2,7 @@ describe("welite cover shelf",function()
     local Shelf,view,UI
     setup(function()
         require("commonrequire");package.path="plugins/welite.koplugin/?.lua;"..package.path
-        Shelf=require("weread.ui.welite.shelf");UI=require("ui/uimanager")
+        Shelf=require("welite.ui.welite.shelf");UI=require("ui/uimanager")
     end)
     after_each(function() if view then UI:close(view);view=nil end end)
     it("explains oversized covers separately from download failures",function()
@@ -122,7 +122,7 @@ describe("welite cover shelf",function()
         UI:close(view);assert.is_nil(view.clock_timer);view=nil
     end)
     it("shows today's bucket and clears yesterday's value on midnight repaint",function()
-        local R=require('weread.ui.welite.reading');local now=os.time();local day=R.dayStart(now)
+        local R=require('welite.ui.welite.reading');local now=os.time();local day=R.dayStart(now)
         view=Shelf:new{items={},overview={weekly={total_seconds=8353,updated=now,daily_times={[tostring(day)]=204}}},
             actions={refresh=function() end,more=function() end,statistics=function() end}}
         UI:show(view);assert.equals('3 分钟',view.stat_values.daily.text)

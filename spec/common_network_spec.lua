@@ -26,10 +26,10 @@ package.preload["ui/network/manager"] = function()
         isOnline = function() return false end,
     }
 end
-package.preload["weread.lib.logger"] = function()
+package.preload["welite.lib.logger"] = function()
     return { info = function() end, warn = function() end, err = function() end }
 end
-package.preload["weread.lib.plugin_util"] = function()
+package.preload["welite.lib.plugin_util"] = function()
     return {
         tr = function(text) return text end,
         T = function(text) return text end,
@@ -39,7 +39,7 @@ package.preload["weread.lib.plugin_util"] = function()
     }
 end
 
-local Common = require("weread.ui.common")
+local Common = require("welite.ui.common")
 local offline_notices = 0
 local host = setmetatable({
     showOffline = function()

@@ -100,13 +100,13 @@ package.preload["device"] = function()
         hasDPad = function() return false end,
         input = { group = { Back = "Back", PgFwd = "Next", PgBack = "Prev" } } }
 end
-package.preload["weread.ui.focus_nav"] = function()
+package.preload["welite.ui.focus_nav"] = function()
     return { initialFocus = function(self, x, y)
         assert(self.layout[y] and self.layout[y][x], "invalid focus after page rebuild")
         self.selected = { x = x, y = y }
     end }
 end
-package.preload["weread.lib.plugin_util"] = function()
+package.preload["welite.lib.plugin_util"] = function()
     return { tr = function(s) return s end, T = function(s, ...) local values = {...}
         return (s:gsub("%%(%d+)", function(index) return tostring(values[tonumber(index)]) end)) end }
 end
@@ -116,8 +116,8 @@ package.preload["ui/uimanager"] = function()
         show = function(_, widget) widget[1]:paintTo({}, 0, 0) end,
         close = function(_, widget) widget[1]:free(); widget:onCloseWidget() end }
 end
-local Selection = require("weread.lib.chapter_selection")
-local Picker = require("weread.ui.annotation_chapter_picker")
+local Selection = require("welite.lib.chapter_selection")
+local Picker = require("welite.ui.annotation_chapter_picker")
 for _, size in ipairs({ { 600, 800 }, { 1072, 1448 }, { 800, 600 } }) do
     width, height = size[1], size[2]
     local chapters = {}

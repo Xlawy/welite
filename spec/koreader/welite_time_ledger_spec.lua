@@ -15,7 +15,7 @@ describe('durable elapsed reading time',function()
     setup(function()
         require('commonrequire');disable_plugins()
         package.path='plugins/welite.koplugin/?.lua;'..package.path
-        Ledger=require('weread.lib.reading_time_ledger');Report=require('weread.lib.read_report');UI=require('ui/uimanager')
+        Ledger=require('welite.lib.reading_time_ledger');Report=require('welite.lib.read_report');UI=require('ui/uimanager')
     end)
     before_each(function()
         root=os.tmpname();os.remove(root);require('libs/libkoreader-lfs').mkdir(root)
@@ -142,7 +142,7 @@ describe('durable elapsed reading time',function()
             requireLogin=function() return true end,applyShelfSnapshot=function() end,
             showShelfView=function() error('must not reopen closed shelf') end,
             showInfo=function(_,message) error(message) end}
-        assert.is_true(require('weread.ui.welite.sync').refresh(plugin,view,{}))
+        assert.is_true(require('welite.ui.welite.sync').refresh(plugin,view,{}))
         view.welite_closed=true
         assert.equals(37,ledger:status('one','book').inflight)
         local socket=require('socket');local deadline=socket.gettime()+10
@@ -166,7 +166,7 @@ describe('durable elapsed reading time',function()
             return {book={chapterUid=1,chapterOffset=800,progress=80}}
         end
         report.client.report_read=function() return {errCode=-1},200 end
-        local adapter=require('weread.lib.reading_time_sync')
+        local adapter=require('welite.lib.reading_time_sync')
         local task=adapter.prepare(report,'one')
         local receipts=adapter.run(task,{checkCancelled=function() end},function(value) adapter.apply(task,value,false) end)
         adapter.apply(task,receipts,false)
@@ -180,7 +180,7 @@ describe('durable elapsed reading time',function()
         clock=40;report:stop('closed')
         local batch=assert(ledger:begin_pending('one','book',30))
         assert.is_table(batch)
-        local adapter=require('weread.lib.reading_time_sync')
+        local adapter=require('welite.lib.reading_time_sync')
         assert.equals(0,ledger:recover('one'),'live request is still owned')
         batch=nil;assert.is_nil(batch);collectgarbage('collect')
         local fresh=Ledger.open(settings,function() return clock end)
@@ -204,19 +204,19 @@ describe('durable elapsed reading time',function()
         local shown={};local show=UI.show
         UI.show=function(self,widget,...) shown[#shown+1]=widget;return show(self,widget,...) end
         local ok,err=pcall(function()
-            local view=require('weread.ui.reading_time_review').show(plugin)
+            local view=require('welite.ui.reading_time_review').show(plugin)
             assert.equals(1,#view._item_buttons)
             UI:forceRePaint()
             local screenshot=os.getenv('WELITE_SCREENSHOT')
             if screenshot then require('device').screen.bb:writePNG(screenshot:gsub('plugin%-smoke','reading-time-review-zh')) end
             view._item_buttons[1].callback()
             local choice=shown[#shown]
-            require('weread.ui.library').closeWeReadUI(plugin)
+            require('welite.ui.library').closeWeReadUI(plugin)
             assert.is_nil(plugin._time_review_session)
             assert.is_true(view.closed)
             choice.ok_callback()
             assert.equals(19,ledger:status('one','book').uncertain)
-            view=require('weread.ui.reading_time_review').show(plugin)
+            view=require('welite.ui.reading_time_review').show(plugin)
             view._item_buttons[1].callback();choice=shown[#shown]
             UI:close(choice);choice.other_buttons[1][1].callback()
             local confirm=shown[#shown]

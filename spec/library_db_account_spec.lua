@@ -6,7 +6,7 @@ local function expect(condition, message)
     if not condition then error(message or ("check " .. checks .. " failed")) end
 end
 
-local LibraryDB = require("weread.lib.library_db")
+local LibraryDB = require("welite.lib.library_db")
 local current_account = { user_vid = "10001", login_method = "qr" }
 local settings = {
     data_dir = "/tmp/weread-account-test",

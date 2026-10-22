@@ -3,8 +3,8 @@ describe('progress conflict dialog uses explicit decisions',function()
     setup(function()
         require('commonrequire')
         package.path='plugins/welite.koplugin/?.lua;'..package.path
-        Dialog=require('weread.ui.progress_sync_dialog')
-        Sync=require('weread.lib.progress_sync')
+        Dialog=require('welite.ui.progress_sync_dialog')
+        Sync=require('welite.lib.progress_sync')
         UI=require('ui/uimanager')
         disable_plugins()
         reader=require('apps/reader/readerui'):new{

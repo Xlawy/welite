@@ -44,12 +44,12 @@ end
 package.preload["luasettings"] = function()
     return {
         open = function(_self, path)
-            expect(path == "/settings/weread.lua", "wrong settings file path")
+            expect(path == "/settings/welite-state.lua", "wrong settings file path")
             return store
         end,
     }
 end
-package.preload["weread.lib.mock_environment"] = function()
+package.preload["welite.lib.mock_environment"] = function()
     return { active = function() return { enabled = false } end }
 end
 local created_dirs = {}
@@ -65,7 +65,7 @@ end
 
 local saved_books = {}
 local minimal_index_checked = false
-package.preload["weread.lib.book_store"] = function()
+package.preload["welite.lib.book_store"] = function()
     return {
         load = function(_settings, book_id, index)
             return {
@@ -85,7 +85,7 @@ package.preload["weread.lib.book_store"] = function()
     }
 end
 
-local Settings = require("weread.lib.settings")
+local Settings = require("welite.lib.settings")
 local settings = Settings:new()
 
 expect(settings.data_dir == "/data/weread", "data directory was wrong")

@@ -2,9 +2,9 @@
 
 package.path = "./?.lua;./?/init.lua;" .. package.path
 
-package.preload["weread.lib.content"] = function() return {} end
-package.preload["weread.lib.protocol"] = function() return {} end
-package.preload["weread.lib.logger"] = function()
+package.preload["welite.lib.content"] = function() return {} end
+package.preload["welite.lib.protocol"] = function() return {} end
+package.preload["welite.lib.logger"] = function()
     return {
         scoped = function()
             local noop = function() end
@@ -13,7 +13,7 @@ package.preload["weread.lib.logger"] = function()
     }
 end
 
-local ReadReport = require("weread.lib.read_report")
+local ReadReport = require("welite.lib.read_report")
 
 local checks = 0
 local function expect(condition, message)

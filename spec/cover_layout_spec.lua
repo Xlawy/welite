@@ -1,6 +1,6 @@
 package.path = "./?.lua;./?/init.lua;" .. package.path
 
-local CoverLayout = require("weread.lib.cover_layout")
+local CoverLayout = require("welite.lib.cover_layout")
 
 local checks = 0
 local function expect(condition, message)

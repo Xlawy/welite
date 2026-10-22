@@ -1,13 +1,13 @@
 package.path='./?.lua;'..package.path
 local job,requests,fp=nil,{},'one'
-package.preload['weread.lib.worker_settings']=function() return {
+package.preload['welite.lib.worker_settings']=function() return {
  fingerprint=function() return fp end,capture=function() return function() end end,merge=function() end} end
-package.preload['weread.lib.background_worker']=function() return {new=function() return {
+package.preload['welite.lib.background_worker']=function() return {new=function() return {
  start=function(_,value) job=value;return true end} end} end
 package.preload['ui/uimanager']=function() return {close=function(_,v) v.welite_closed=true end} end
 local position_syncs=0
-package.preload['weread.ui.welite.reading_sync']=function() return {queue=function(_,ids) assert(ids['1'] or next(ids)==nil);position_syncs=position_syncs+1 end} end
-local Sync=require('weread.ui.welite.sync')
+package.preload['welite.ui.welite.reading_sync']=function() return {queue=function(_,ids) assert(ids['1'] or next(ids)==nil);position_syncs=position_syncs+1 end} end
+local Sync=require('welite.ui.welite.sync')
 local function fixture(fail)
  local view={keyword='',setRefreshing=function(self,v) self.refreshing=v end,
  setSyncStatus=function(self,v) self.status=v end,redraw=function() end}
@@ -71,7 +71,7 @@ assert(#result.data.shelf.books==120 and result.data.progress_books['120'] and n
 print('welite_sync_spec: upstream calls, forced progress refresh, partial failure, duplicate suppression and stale account passed')
 -- Home orchestration uses the real ledger adapter, even when launch fails
 -- synchronously or a credential change invalidates display updates.
-local Ledger=require('weread.lib.reading_time_ledger')
+local Ledger=require('welite.lib.reading_time_ledger')
 local function with_time()
  local plugin,view=fixture()
  local values,clock={},0
@@ -95,7 +95,7 @@ assert(ledger:status('one','1').uncertain==17 and not p.books)
 p,v,ledger=with_time();Sync.refresh(p,v,{});fp='two';complete()
 assert(ledger:status('one','1').acknowledged==17 and not p.books,'old-account receipt settles only its own ledger')
 fp='one'
-local worker=require('weread.lib.background_worker');local original_new=worker.new
+local worker=require('welite.lib.background_worker');local original_new=worker.new
 worker.new=function() return {start=function(_,options) options.on_done{ok=false,error='low_memory'};return false end} end
 p,v,ledger=with_time();assert(not Sync.refresh(p,v,{}))
 assert(ledger:status('one','1').pending==17 and ledger:status('one','1').uncertain==0)

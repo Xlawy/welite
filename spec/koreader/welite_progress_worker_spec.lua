@@ -8,7 +8,7 @@ describe('background progress pull',function()
     setup(function()
         require('commonrequire');disable_plugins()
         package.path='plugins/welite.koplugin/?.lua;'..package.path
-        UI=require('ui/uimanager');Worker=require('weread.lib.progress_pull_worker')
+        UI=require('ui/uimanager');Worker=require('welite.lib.progress_pull_worker')
     end)
     before_each(function()
         root=os.tmpname();os.remove(root);require('libs/libkoreader-lfs').mkdir(root)
@@ -66,7 +66,7 @@ describe('background progress pull',function()
         assert.is_nil(db)
         pump(function() return completed end)
         assert.is_nil(err);assert.equals('One',chapters[1].title)
-        local saved=require('weread.lib.content').load_catalog_cache(plugin.client,plugin.settings,values.books.book)
+        local saved=require('welite.lib.content').load_catalog_cache(plugin.client,plugin.settings,values.books.book)
         assert.equals(1,saved[1].chapterUid)
         plugin.client.json_encode=function() error('synthetic catalog persistence failure') end
         completed=false
@@ -76,9 +76,9 @@ describe('background progress pull',function()
     end)
 
     it('upgrades legacy TXT source in the parent and preserves original UTF-16 coordinates',function()
-        local Store=require('weread.lib.annotation_store')
-        local Content=require('weread.lib.content')
-        local Source=require('weread.lib.annotation_source')
+        local Store=require('welite.lib.annotation_store')
+        local Content=require('welite.lib.content')
+        local Source=require('welite.lib.annotation_source')
         local book={book_id='book',_content_format='txt'}
         local chapter={chapterUid=1}
         Store:new(plugin.settings):put('book','original','1',{{0,3,'old',true}},'1')
@@ -129,7 +129,7 @@ describe('background progress pull',function()
     end)
 
     it('reads source cache through a read-only connection while a writer holds a transaction',function()
-        local Store=require('weread.lib.annotation_store')
+        local Store=require('welite.lib.annotation_store')
         local store=Store:new(plugin.settings)
         local original={{0,3,'abc',true,0,3}}
         store:put('book','original','1',original,'1')

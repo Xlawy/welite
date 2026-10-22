@@ -1,6 +1,6 @@
 package.path='./?.lua;'..package.path
 local fingerprint='one'
-package.preload['weread.lib.worker_settings']=function() return {
+package.preload['welite.lib.worker_settings']=function() return {
  fingerprint=function() return fingerprint end,capture=function() return function() return {} end end,
  merge=function() end} end
 package.preload['apps/reader/readerui']=function() return {} end
@@ -10,9 +10,9 @@ package.preload['ui/uimanager']=function() return {
  scheduleIn=function(_,delay,fn) assert(delay>0);queue[#queue+1]=fn end,
  unschedule=function(_,fn) for i=#queue,1,-1 do if queue[i]==fn then table.remove(queue,i) end end end,
 } end
-package.preload['weread.lib.background_worker']=function() return {new=function() return {
+package.preload['welite.lib.background_worker']=function() return {new=function() return {
  start=function(_,value) job=value;return true end} end} end
-local Sync=require('weread.lib.closed_progress_sync')
+local Sync=require('welite.lib.closed_progress_sync')
 local function position(offset) return {account_id='one',book_id='b',percent=offset/10,
  chapter_uid=1,chapter_idx=1,chapter_offset=offset,position_basis='source_utf16'} end
 local sent,locks,unlocks=0,0,0

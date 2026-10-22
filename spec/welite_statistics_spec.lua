@@ -1,9 +1,9 @@
 package.path='./?.lua;'..package.path
 local task, launches= nil,0
 local worker={busy=function() return false end,start=function(_,options) task=options;launches=launches+1;return true end}
-package.preload['weread.lib.background_worker']=function() return {new=function() return worker end} end
+package.preload['welite.lib.background_worker']=function() return {new=function() return worker end} end
 local fingerprint='a'
-package.preload['weread.lib.worker_settings']=function() return {
+package.preload['welite.lib.worker_settings']=function() return {
     fingerprint=function() return fingerprint end,capture=function() return function() end end,merge=function() end,
 } end
 local account='one'
@@ -14,7 +14,7 @@ local plugin={settings={data_dir='/tmp',get=function() return {user_vid=account}
     showInfo=function(self,error) self.error=error end,
     showShelfView=function(self) self.rebuilt=true end}
 local view={mode='books',page=2,redraw=function() plugin.rebuilt=true end};plugin.shelf_view=view
-local Stats=require('weread.ui.welite.statistics')
+local Stats=require('welite.ui.welite.statistics')
 assert(Stats.refresh(plugin,view));assert(calls==0,'UI callback must not make requests')
 local result=task.task{checkCancelled=function() end}
 assert(calls==2,'exactly monthly and weekly; no progress/shelf requests')

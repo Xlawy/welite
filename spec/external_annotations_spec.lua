@@ -1,6 +1,6 @@
 package.path = "./?.lua;" .. package.path
 
-package.preload["weread.lib.annotations"] = function()
+package.preload["welite.lib.annotations"] = function()
     return {
         buildThoughtPopupItems = function(review)
             return { { content = review.pageReviews[1].review.content } }
@@ -8,7 +8,7 @@ package.preload["weread.lib.annotations"] = function()
     }
 end
 
-local External = require("weread.lib.external_annotations")
+local External = require("welite.lib.external_annotations")
 local checks = 0
 local function expect(value, message)
     checks = checks + 1

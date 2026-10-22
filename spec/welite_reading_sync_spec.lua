@@ -9,9 +9,9 @@ local settings={get=function(_,k,d) return values[k] or d end,
 local state={state='waiting'}
 local id='a'
 local plugin={settings=settings,ui={document={file='/a.epub'}},detectWeReadBook=function() return id end,
- progress_sync={status=function() return state end},onWeReadSyncProgress=function() calls=calls+1;return true end}
+ progress_sync={status=function() return state end},onWeLiteSyncProgress=function() calls=calls+1;return true end}
 Reader.instance=plugin.ui
-local Bridge=require('weread.ui.welite.reading_sync')
+local Bridge=require('welite.ui.welite.reading_sync')
 local function step() local fn=table.remove(queue,1);assert(fn);fn() end
 Bridge.queue(plugin,{a=true,b=true})
 assert(calls==0 and #queue==0,'refresh must not open reader, compare or show dialogs')

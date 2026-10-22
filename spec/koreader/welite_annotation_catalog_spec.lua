@@ -7,7 +7,7 @@ describe('WeLite annotation catalog preparation',function()
     end
     setup(function()
         require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path
-        Catalog=require('weread.ui.annotation_catalog');UI=require('ui/uimanager')
+        Catalog=require('welite.ui.annotation_catalog');UI=require('ui/uimanager')
     end)
     before_each(function()
         root=os.tmpname();os.remove(root);require('libs/libkoreader-lfs').mkdir(root)
@@ -83,7 +83,7 @@ describe('WeLite annotation catalog preparation',function()
     end)
     it('cancels catalog work through the existing annotation lifecycle cleanup',function()
         load();local worker=session.worker
-        require('weread.ui.annotation_sync_controller')._cancelUnifiedAnnotationSync(plugin)
+        require('welite.ui.annotation_sync_controller')._cancelUnifiedAnnotationSync(plugin)
         assert.is_true(session.closed);assert.is_nil(plugin._annotation_catalog_session)
         drain(function() return not worker.job end)
         assert.is_nil(ready);assert.is_nil(stored.catalog)

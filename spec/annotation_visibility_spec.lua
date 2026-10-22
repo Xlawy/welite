@@ -2,33 +2,33 @@
 
 package.path = "./?.lua;" .. package.path
 
-package.preload["weread.lib.annotations"] = function() return {} end
-package.preload["weread.lib.content"] = function() return {} end
+package.preload["welite.lib.annotations"] = function() return {} end
+package.preload["welite.lib.content"] = function() return {} end
 package.preload["ui/event"] = function()
     return { new = function(_self, name) return { name = name } end }
 end
-package.preload["weread.lib.logger"] = function()
+package.preload["welite.lib.logger"] = function()
     return { warn = function() end }
 end
-package.preload["weread.lib.thought_db"] = function() return {} end
+package.preload["welite.lib.thought_db"] = function() return {} end
 
 local popup_close_count = 0
-package.preload["weread.ui.thought_popup"] = function()
+package.preload["welite.ui.thought_popup"] = function()
     return { closeVisible = function() popup_close_count = popup_close_count + 1 end }
 end
-package.preload["weread.ui.thought_popup.popup_config"] = function() return {} end
+package.preload["welite.ui.thought_popup.popup_config"] = function() return {} end
 package.preload["ui/time"] = function() return {} end
 package.preload["ui/uimanager"] = function()
     return { setDirty = function() end }
 end
-package.preload["weread.lib.plugin_util"] = function()
+package.preload["welite.lib.plugin_util"] = function()
     return {
         tr = function(text) return text end,
         thought_perf = function() end,
     }
 end
 
-local Controller = require("weread.ui.annotations_controller")
+local Controller = require("welite.ui.annotations_controller")
 
 local checks = 0
 local function expect(value, message)

@@ -3,12 +3,12 @@ describe('WeLite community shelf integration',function()
     setup(function()
         require('commonrequire')
         package.path='plugins/welite.koplugin/?.lua;'..package.path
-        View=require('weread.ui.library_view');UI=require('ui/uimanager');Device=require('device')
+        View=require('welite.ui.library_view');UI=require('ui/uimanager');Device=require('device')
     end)
     after_each(function() if overlay then UI:close(overlay);overlay=nil end;if view then UI:close(view);view=nil end end)
     it('releases the home and its overlays through KOReader native Exit',function()
         local Container=require('ui/widget/container/widgetcontainer')
-        local Library=require('weread.ui.library')
+        local Library=require('welite.ui.library')
         local FileManager=require('apps/filemanager/filemanager')
         local Menu=require('apps/filemanager/filemanagermenu')
         local Event=require('ui/event')
@@ -93,7 +93,7 @@ describe('WeLite community shelf integration',function()
         assert.is_nil(view.clock_label)
     end)
     it('opens the full community menu with nested functions intact',function()
-        local Home=require('weread.ui.welite.home')
+        local Home=require('welite.ui.welite.home')
         local menu=Home.mainMenu{getMainMenuItems=function() return {{text='下载',callback=function() end},
             {text='设置',sub_item_table_func=function() return {{text='账号'}} end}} end}
         UI:forceRePaint()
@@ -130,7 +130,7 @@ describe('WeLite community shelf integration',function()
         local task
         local worker={busy=function() return false end,start=function(_,options) task=options;return true end}
         local now=os.time()
-        local Reading=require('weread.ui.welite.reading')
+        local Reading=require('welite.ui.welite.reading')
         local plugin={shelf_view=view,welite_stats_worker=worker,
             shelf_regular={{bookId="fixture",readUpdateTime=now}},
             settings={data_dir='/tmp',is_api_configured=function() return true end,
@@ -139,16 +139,16 @@ describe('WeLite community shelf integration',function()
             client={get_read_stats=function() return {totalReadTime=3600,
                 readTimes={[tostring(Reading.dayStart(now))]=600}} end,
                 get_progress=function() return {book={progress=42}} end}}
-        local Stats=require('weread.ui.welite.statistics')
+        local Stats=require('welite.ui.welite.statistics')
         assert.is_true(Stats.ensure(plugin,view))
         task.on_done{ok=true,value=task.task{checkCancelled=function() end}}
         UI:forceRePaint()
         assert.equals(3600,view.overview.monthly.total_seconds)
         assert.equals(600,Reading.today(view.overview).total_seconds)
         assert.is_true(view.stat_values.monthly.text~='—')
-        plugin.welite_progress={fingerprint=require('weread.lib.worker_settings').fingerprint(plugin.settings),
+        plugin.welite_progress={fingerprint=require('welite.lib.worker_settings').fingerprint(plugin.settings),
             account='fixture',values={},order={},worker=worker}
-        require('weread.ui.welite.progress').ensure(plugin,view)
+        require('welite.ui.welite.progress').ensure(plugin,view)
         task.on_done{ok=true,value=task.task{checkCancelled=function() end}}
         UI:forceRePaint()
         local function contains(widget,text)

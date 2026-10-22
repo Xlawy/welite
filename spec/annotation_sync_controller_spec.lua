@@ -7,12 +7,12 @@ package.preload["ui/uimanager"] = function()
         close = function() end, setDirty = function() end, show = function(_self, widget) shown[#shown + 1] = widget end,
     }
 end
-package.preload["weread.lib.standby_guard"] = function()
+package.preload["welite.lib.standby_guard"] = function()
     return { acquire = function() prevented = prevented + 1; return {} end,
         release = function() allowed = allowed + 1 end }
 end
 package.preload["ui/widget/confirmbox"] = function() return { new = function(_self, args) return args end } end
-package.preload["weread.ui.download_dialog"] = function()
+package.preload["welite.ui.download_dialog"] = function()
     return { new = function(_self, args)
         args.show = function() end; args.close = function() end
         args.setTitle = function(dialog, title)
@@ -29,13 +29,13 @@ package.preload["weread.ui.download_dialog"] = function()
         return args
     end }
 end
-package.preload["weread.lib.content"] = function() return {} end
-package.preload["weread.lib.plugin_util"] = function()
+package.preload["welite.lib.content"] = function() return {} end
+package.preload["welite.lib.plugin_util"] = function()
     return { reader_open_perf = function() return 0 end,
         tr = function(s) return s end, T = function(s, ...) local v = {...}
         return (s:gsub("%%(%d+)", function(i) return tostring(v[tonumber(i)]) end)) end }
 end
-local Controller = require("weread.ui.annotation_sync_controller")
+local Controller = require("welite.ui.annotation_sync_controller")
 local cache, calls, applied = { show_annotations = true }, 0, 0
 local host = {
     _reader_session_gen = 1,
@@ -97,7 +97,7 @@ local gesture_calls, gesture_options = 0
 host.startUnifiedAnnotationSync = function(_self, options)
     gesture_calls, gesture_options = gesture_calls + 1, options
 end
-assert(host:onWeReadContinueAnnotationMatching() == true
+assert(host:onWeLiteContinueAnnotationMatching() == true
         and gesture_calls == 1 and gesture_options.offline == false,
     "continue-matching gesture did not reuse the online menu action")
 host.startUnifiedAnnotationSync = start_sync
@@ -169,7 +169,7 @@ assert(calls == 2)
 -- Multi-select keeps source catalog order, including noncontiguous choices.
 context.chapters = { { chapterUid = "1" }, { chapterUid = "2" }, { chapterUid = "3" } }
 local picker_options, chosen
-package.preload["weread.ui.annotation_chapter_picker"] = function()
+package.preload["welite.ui.annotation_chapter_picker"] = function()
     return { show = function(options) picker_options = options; return options end }
 end
 host.startUnifiedAnnotationSync = function(_self, options)
@@ -424,7 +424,7 @@ do
     local manager = require("ui/uimanager")
     local close = manager.close
     manager.close = function(_self, widget) closed_menu = widget end
-    local picker = require("weread.ui.annotation_chapter_picker")
+    local picker = require("welite.ui.annotation_chapter_picker")
     local show_picker = picker.show
     picker.show = function(options)
         if not options.choices then return show_picker(options) end
@@ -460,8 +460,8 @@ do
     local key = store:projectionKey(doc_key, "a")
     store:put("manual", "source_status", "a", { revision = "7", total = 0 }, "a")
     store:put("manual", "status", key, { revision = "7", stats = { total = 0, located = 0 },
-        matcher_version = require("weread.lib.external_annotations").MATCHER_VERSION,
-        range_key = require("weread.lib.annotation_chapters").rangeKey(saved.ranges.a) }, "a")
+        matcher_version = require("welite.lib.external_annotations").MATCHER_VERSION,
+        range_key = require("welite.lib.annotation_chapters").rangeKey(saved.ranges.a) }, "a")
     mapping_host._annotation_context = nil
     saved = mapping_host:_prepareAnnotationContext(false)
     local states = mapping_host:_annotationSelectionModel(saved).by_uid
@@ -532,7 +532,7 @@ do
     }
     package.loaded["ffi/util"] = { runInSubProcess = function() end }
     package.loaded["ui/trapper"] = trapper
-    local WorkerSettings = require("weread.lib.worker_settings")
+    local WorkerSettings = require("welite.lib.worker_settings")
     local capture = WorkerSettings.capture
     local returned_auth
     -- The fake child runs in-process; real capture changes are fork-isolated.
@@ -605,10 +605,10 @@ do
     drain()
     assert(killed == 3 and not store:get("cancel", "original", "cancel-source"))
     assert(store:get("cancel", "download", "cancel-source").next_batch == 3)
-    require("weread.lib.content").fetch_chapter_xhtml = function(_client, _settings, book)
+    require("welite.lib.content").fetch_chapter_xhtml = function(_client, _settings, book)
         book._content_format = "txt"
         store:put("cancel", "original", "cancel-source",
-            require("weread.lib.annotation_source").index("<p>a b</p>"), "cancel-source")
+            require("welite.lib.annotation_source").index("<p>a b</p>"), "cancel-source")
         return "unused XHTML"
     end
     start("cancel-source")

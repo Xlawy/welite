@@ -2,9 +2,9 @@ package.path='./?.lua;'..package.path
 local job,launches,busy=nil,0,false
 local worker={busy=function() return busy end,cancel=function() busy=false end,
     start=function(_,options) job=options;launches=launches+1;busy=true;return true end}
-package.preload['weread.lib.background_worker']=function() return {new=function() return worker end} end
+package.preload['welite.lib.background_worker']=function() return {new=function() return worker end} end
 local fingerprint='one'
-package.preload['weread.lib.worker_settings']=function() return {
+package.preload['welite.lib.worker_settings']=function() return {
     fingerprint=function() return fingerprint end,capture=function() return function() end end,merge=function() end,
 } end
 local calls,paint=0,0
@@ -16,7 +16,7 @@ local function view(page)
     for i=1,18 do v.items[i]={kind='book',id=tostring(i)} end
     return v
 end
-local P=require('weread.ui.welite.progress')
+local P=require('welite.ui.welite.progress')
 local current=view(1);plugin.shelf_view=current
 assert(P.ensure(plugin,current));assert(calls==0,'no requests in UI callback')
 local result=job.task{checkCancelled=function() end}

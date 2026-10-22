@@ -2,7 +2,7 @@ package.path = "./?.lua;" .. package.path
 package.preload["util"] = function()
     return { htmlEntitiesToUtf8 = function(text) return text:gsub("&amp;", "&") end }
 end
-local Source = require("weread.lib.annotation_source")
+local Source = require("welite.lib.annotation_source")
 local spans = Source.index("\239\187\191<p>甲乙<b>丙</b>&amp;丁</p>")
 assert(Source.quote(spans, "3-5") == "甲乙", "rune offsets must not become UTF-8 byte offsets")
 assert(Source.quote(spans, "4-9") == "乙丙", "quote failed across tags")

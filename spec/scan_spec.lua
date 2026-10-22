@@ -1,9 +1,9 @@
--- Unit tests for weread/lib/scan.lua (local-cache scanner).
+-- Unit tests for welite/lib/scan.lua (local-cache scanner).
 -- Run from the repo root with a plain Lua interpreter:
 --   lua spec/scan_spec.lua
 
 package.path = "./?.lua;" .. package.path
-local Scan = require("weread.lib.scan")
+local Scan = require("welite.lib.scan")
 
 local NOW = 1700000000
 

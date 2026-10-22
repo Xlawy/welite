@@ -2,7 +2,7 @@ describe('WeLite download dialog refresh',function()
     local UI,Dialog,background,dialog,force,dirty
     setup(function()
         require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path
-        UI=require('ui/uimanager');Dialog=require('weread.ui.download_dialog')
+        UI=require('ui/uimanager');Dialog=require('welite.ui.download_dialog')
     end)
     after_each(function()
         if force then UI.forceRePaint=force;force=nil end
@@ -13,10 +13,10 @@ describe('WeLite download dialog refresh',function()
     for _,kind in ipairs({'details','shelf'}) do
         it('coalesces stages and refreshes only the popup over '..kind,function()
             if kind=='details' then
-                background=require('weread.ui.book_detail_view').show{
+                background=require('welite.ui.book_detail_view').show{
                     title='测试书籍',author_line='作者',metadata={},actions={},bottom_actions={}}
             else
-                background=require('weread.ui.welite.shelf_adapter').show({books={},mode='books'},{})
+                background=require('welite.ui.welite.shelf_adapter').show({books={},mode='books'},{})
             end
             dialog=Dialog:new{title='下载正文',progress_max=6}
             dialog:show();UI:forceRePaint()
