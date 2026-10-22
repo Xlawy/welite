@@ -13,8 +13,8 @@ Updater.AUTO_CHECK_INTERVAL = 60 * 60
 Updater.REMINDER_INTERVAL = 24 * 60 * 60
 Updater.MAX_NOTES_BYTES = 64 * 1024
 Updater.MAX_PACKAGE_BYTES = 10 * 1024 * 1024
-Updater.API_URL = "https://api.github.com/repos/Xlawy/weread-based-welite/releases/latest"
-Updater.RELEASE_PREFIX = "https://github.com/Xlawy/weread-based-welite/releases/download/"
+Updater.API_URL = "https://api.github.com/repos/Xlawy/welite/releases/latest"
+Updater.RELEASE_PREFIX = "https://github.com/Xlawy/welite/releases/download/"
 Updater.GITHUB_MIRRORS = {
     "https://gh-proxy.com/",
     "https://ghfast.top/",
@@ -94,7 +94,7 @@ local function unpack_release(archive, stage)
             and path ~= ""
             and path:sub(1, 1) ~= "/"
             and path:find("\\", 1, true) == nil
-            and path:match("^weread%.koplugin/") ~= nil
+            and path:match("^welite%.koplugin/") ~= nil
             and path:match("^%.%./") == nil
             and path:match("/%.%./") == nil
             and path:match("/%.%.$") == nil
@@ -168,7 +168,7 @@ function Updater.parse_release(data)
         and data.tag_name:match("^v(%d+%.%d+%.%d+)$") or nil
     if not version then return nil, "invalid release tag" end
 
-    local archive_name = "weread.koplugin-v" .. version .. ".zip"
+    local archive_name = "welite.koplugin-v" .. version .. ".zip"
     local checksum_name = archive_name .. ".sha256"
     local archive_url, checksum_url, archive_size
     for _, asset in ipairs(data.assets or {}) do
@@ -435,7 +435,7 @@ function Updater:install_release(release, on_progress)
     remove_file(archive)
     remove_file(checksum)
     if not unpacked then remove_tree(stage); return nil, unpack_err or "archive extraction failed" end
-    local staged_plugin = stage .. "/weread.koplugin"
+    local staged_plugin = stage .. "/welite.koplugin"
     local meta = read_file(staged_plugin .. "/_meta.lua", 65536)
     local main = read_file(staged_plugin .. "/main.lua", 1024 * 1024)
     local staged_version = meta and meta:match('version%s*=%s*"([^"]+)"') or nil

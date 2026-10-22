@@ -55,7 +55,7 @@ class EmulatorTests(unittest.TestCase):
     def test_launch_passes_geometry_profile_and_live_plugin_then_cleans_link(self):
         script = self.source / 'koreader.sh'
         script.write_text('#!/usr/bin/env python3\nimport os,json,pathlib,sys\n'
-                          'p=pathlib.Path("plugins/weread.koplugin")\n'
+                          'p=pathlib.Path("plugins/welite.koplugin")\n'
                           'assert p.is_symlink()\n'
                           'pathlib.Path(os.environ["KO_HOME"], "probe.json").write_text(json.dumps({'
                           '"plugin":str(p.resolve()), "width":os.environ["EMULATE_READER_W"],'
@@ -69,7 +69,7 @@ class EmulatorTests(unittest.TestCase):
                                  'dpi': '300', 'language': 'zh_CN', 'args': ['-d']})
         emulator.launch(self.root, environ=dict(self.environment, LANGUAGE='en_US'))
         self.assertEqual(json.loads((self.root / '.dev/profile/probe.json').read_text())['language'], 'en_US')
-        plugin = runtime / 'plugins/weread.koplugin'
+        plugin = runtime / 'plugins/welite.koplugin'
         self.assertFalse(plugin.is_symlink())
         (runtime / 'koreader.sh').write_text('#!/bin/sh\nexit 7\n')
         with self.assertRaises(subprocess.CalledProcessError):

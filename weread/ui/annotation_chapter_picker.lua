@@ -13,7 +13,6 @@ local HorizontalGroup = require("ui/widget/horizontalgroup")
 local HorizontalSpan = require("ui/widget/horizontalspan")
 local LineWidget = require("ui/widget/linewidget")
 local TextWidget = require("ui/widget/textwidget")
-local TitleBar = require("ui/widget/titlebar")
 local UIManager = require("ui/uimanager")
 local VerticalGroup = require("ui/widget/verticalgroup")
 local VerticalSpan = require("ui/widget/verticalspan")
@@ -22,7 +21,16 @@ local PluginUtil = require("weread.lib.plugin_util")
 local _ = PluginUtil.tr
 local T = PluginUtil.T
 local Screen = Device.screen
-local Picker = FocusManager:extend{ page = 1 }
+local Picker = FocusManager:extend{ page = 1, modal = true }
+
+function Picker:px(value)
+    return math.floor(value * self.scale + 0.5)
+end
+
+function Picker:paintTo(bb, x, y)
+    bb:paintRect(x, y, self.dimen.w, self.dimen.h, BB.Color8(0xCC))
+    FocusManager.paintTo(self, bb, x, y)
+end
 
 function Picker:button(text, width, callback, options)
     local args = { text = text, width = width,
@@ -45,7 +53,7 @@ end
 
 function Picker:actionBar()
     local border = self.choices and 0 or self.line_height
-    local padding = Screen:scaleBySize(10)
+    local padding = self:px(10)
     local label = self.choices and _("Remove this chapter match")
         or T(_("Get thoughts (%1 chapters)"), self.model.count)
     self.action_button = self:button(label, self.width - 2 * padding, function()
@@ -59,8 +67,8 @@ function Picker:actionBar()
         end
     end, {
         enabled = self.choices and self.on_remove ~= nil or not self.choices and self.model.count > 0,
-        height = Screen:scaleBySize(self.choices and 40 or 64) - 2 * border,
-        bordersize = border, text_font_size = self.choices and 16 or 22,
+        height = self:px(self.choices and 40 or 64) - 2 * border,
+        bordersize = border, radius = self:px(8), text_font_size = self.choices and 16 or 22,
         text_font_bold = not self.choices,
     })
     return FrameContainer:new{
@@ -69,34 +77,47 @@ function Picker:actionBar()
 end
 
 function Picker:init()
-    self.width, self.height = Screen:getWidth(), Screen:getHeight()
-    self.row_height, self.line_height = Screen:scaleBySize(88), math.max(1, Screen:scaleBySize(1))
-    self.page_bar_height = Screen:scaleBySize(54)
-    self.dimen = Geom:new{ x = 0, y = 0, w = self.width, h = self.height }
-    self.covers_fullscreen = true
-    self.title_bar = TitleBar:new{
-        width = self.width, title = self.choices and _("Choose WeRead chapter") or _("Choose chapters to match"),
-        subtitle = self.book_title, title_face = Font:getFace("tfont", 24),
-        with_bottom_line = true, show_parent = self,
-        close_callback = function() self:onClose() end,
-    }
+    local viewport_w, viewport_h = Screen:getWidth(), Screen:getHeight()
+    self.scale = math.min(viewport_w, viewport_h) / 600
+    self.padding, self.border = self:px(24), math.max(1, self:px(2))
+    self.width = viewport_w - 4 * self.padding - 2 * self.border
+    self.height = math.floor(viewport_h * 0.82) - 2 * self.padding - 2 * self.border
+    self.row_height, self.line_height = self:px(88), math.max(1, self:px(1))
+    self.page_bar_height = self:px(44)
+    self.dimen = Geom:new{ x = 0, y = 0, w = viewport_w, h = viewport_h }
+    self.covers_fullscreen = false
+    self._close_button = self:button(_("Back"), self:px(80), function() self:onClose() end,
+        {height=self:px(42), bordersize=1, radius=self:px(8), text_font_size=16})
+    self.title_bar = VerticalGroup:new{align="left",
+        HorizontalGroup:new{
+            LeftContainer:new{dimen=Geom:new{w=self.width-self:px(80), h=self:px(44)},
+                HorizontalGroup:new{TextWidget:new{text="WeLite",face=Font:getFace("cfont",21),bold=true,max_width=self:px(100)},
+                    HorizontalSpan:new{width=self:px(16)},
+                    TextWidget:new{text=self.choices and _("Choose WeRead chapter") or _("Choose chapters to match"),
+                        face=Font:getFace("cfont",16),max_width=self.width-self:px(196)}}}, self._close_button},
+        VerticalSpan:new{width=self:px(10)},self:line()}
     local hint = self.choices and VerticalGroup:new{ align = "left",
         TextWidget:new{ text = _("Choose a match for local chapter"), face = Font:getFace("cfont", 14),
-            fgcolor = BB.COLOR_DARK_GRAY, max_width = self.width - Screen:scaleBySize(20) },
-        VerticalSpan:new{ width = Screen:scaleBySize(5) },
+            fgcolor = BB.COLOR_DARK_GRAY, max_width = self.width - self:px(20) },
+        VerticalSpan:new{ width = self:px(5) },
         TextWidget:new{ text = self.local_title, face = Font:getFace("cfont", 20), bold = true,
-            max_width = self.width - Screen:scaleBySize(20) },
+            max_width = self.width - self:px(20) },
     } or TextWidget:new{ text = _("Select chapters. Fetching again replaces their saved thoughts."),
         face = Font:getFace("cfont", 14), fgcolor = BB.COLOR_DARK_GRAY,
-        max_width = self.width - Screen:scaleBySize(20) }
+        max_width = self.width - self:px(20) }
+    if self.book_title and self.book_title ~= "" then
+        hint = VerticalGroup:new{align="left",
+            TextWidget:new{text=self.book_title,face=Font:getFace("cfont",14),bold=true,
+                max_width=self.width-self:px(20)},VerticalSpan:new{width=self:px(5)},hint}
+    end
     self.hint = FrameContainer:new{
-        padding = Screen:scaleBySize(10), margin = 0, bordersize = 0,
+        padding = self:px(10), margin = 0, bordersize = 0,
         background = self.choices and BB.COLOR_GRAY_E or BB.COLOR_WHITE,
         LeftContainer:new{ dimen = Geom:new{
-            w = self.width - Screen:scaleBySize(20), h = hint:getSize().h }, hint },
+            w = self.width - self:px(20), h = hint:getSize().h }, hint },
     }
     self.actions = self:actionBar()
-    local available = self.height - self.title_bar:getHeight() - self.hint:getSize().h
+    local available = self.height - self.title_bar:getSize().h - self.hint:getSize().h
         - self.page_bar_height - self.line_height - self.actions:getSize().h
     self.per_page = math.max(1, math.floor(available / (self.row_height + self.line_height)))
     self.list_height = available
@@ -110,6 +131,7 @@ function Picker:init()
         self.key_events.NextPage = { { Device.input.group.PgFwd } }
         self.key_events.PrevPage = { { Device.input.group.PgBack } }
     end
+    self.ges_events.Outside = { GestureRange:new{ ges = "tap", range = self.dimen } }
     self.ges_events.Swipe = { GestureRange:new{ ges = "swipe", range = self.dimen } }
     self:rebuild()
 end
@@ -130,7 +152,7 @@ function Picker:edit(node)
 end
 
 function Picker:choiceRow(item)
-    local side, status_width = Screen:scaleBySize(14), Screen:scaleBySize(108)
+    local side, status_width = self:px(14), self:px(108)
     local text_width = self.width - 2 * side - status_width
     local half = math.floor(self.row_height / 2)
     local row = self:button("", self.width, item.callback, { enabled = item.select_enabled })
@@ -156,9 +178,9 @@ function Picker:choiceRow(item)
 end
 
 function Picker:chapterRow(node)
-    local side, status_width = Screen:scaleBySize(44), Screen:scaleBySize(92)
+    local side, status_width = self:px(44), self:px(92)
     local half = math.floor(self.row_height / 2)
-    local indent = math.min(node.depth, 5) * Screen:scaleBySize(14)
+    local indent = math.min(node.depth, 5) * self:px(14)
     local toggle = function() self.model:toggle(node); self:rebuild(node, 2) end
     local content_width = self.width - side - indent - status_width
     local title = self:button(node.title, content_width, toggle, {
@@ -176,7 +198,7 @@ function Picker:chapterRow(node)
         or node.state == "ready_to_match" and _("Ready to match")
         or matched and "✓ " .. _("Matched") or _("Unlinked")
     local border = node.chapter and not matched and self.line_height or 0
-    local padding = Screen:scaleBySize(3)
+    local padding = self:px(3)
     local label = CenterContainer:new{ dimen = Geom:new{ w = status_width, h = half },
         FrameContainer:new{ bordersize = border, color = BB.COLOR_GRAY, margin = 0, padding = padding,
             background = matched and BB.COLOR_BLACK or BB.COLOR_WHITE,
@@ -228,10 +250,12 @@ function Picker:rebuild(focus_node, focus_column)
     self.layout = focus_rows
     self.body = VerticalGroup:new{ align = "left", list, self.actions, self:line(),
         HorizontalGroup:new{ previous, counter, next_page } }
-    self[1] = FrameContainer:new{
-        background = BB.COLOR_WHITE, bordersize = 0, padding = 0, margin = 0,
+    self.panel_frame = FrameContainer:new{
+        background = BB.COLOR_WHITE, bordersize = self.border, padding = self.padding, margin = 0,
+        radius = self:px(8),
         VerticalGroup:new{ align = "left", self.title_bar, self.hint, self.body },
     }
+    self[1] = CenterContainer:new{dimen=self.dimen,self.panel_frame}
     local column = focus_column or (self.choices and 1 or 2)
     FocusNav.initialFocus(self, math.min(column, #focus_rows[focus_y]), focus_y)
     UIManager:setDirty(self, "ui")
@@ -250,6 +274,13 @@ end
 function Picker:onSwipe(_, ges)
     if ges.direction == "west" then return self:onNextPage() end
     if ges.direction == "east" then return self:onPrevPage() end
+    return true
+end
+
+function Picker:onOutside(_, gesture)
+    local size = self.panel_frame:getSize()
+    local bounds = Geom:new{x=(self.dimen.w-size.w)/2,y=(self.dimen.h-size.h)/2,w=size.w,h=size.h}
+    if not bounds:contains(gesture.pos) then self:onClose() end
     return true
 end
 

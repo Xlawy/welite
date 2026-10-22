@@ -374,6 +374,12 @@ test("thoughts have one compact separator and a usable anonymous author", functi
     eq(blocks[4].text, "匿名", "blank author fallback")
 end)
 
+test("content builder preserves full multiline quotes when requested by the centered popup", function()
+    local quote = string.rep("合成原文", 100) .. "\n第二段原文"
+    local blocks = ContentBuilder.build({{abstract=quote, content="想法"}}, {full_quote=true})
+    eq(blocks[1].text, "「" .. quote .. "」", "complete quote retained")
+end)
+
 test("content builder truncates multi-paragraph and long quotes", function()
     local long = string.rep("a", 60)
     local blocks = ContentBuilder.build({

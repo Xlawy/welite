@@ -658,19 +658,25 @@ function Client:get_progress(book_id)
 end
 
 function Client:get_web_progress(book_id)
-    local url = "https://weread.qq.com/web/book/getProgress?bookId="
-        .. WeRead.urlencode(book_id)
-        .. "&_=" .. tostring(os.time() * 1000)
-    local text, code, headers = self:get_text(url, {
-        accept = "application/json, text/plain, */*",
-        referer = WeRead.reader_url(book_id),
-    })
-    return self:decode_http_json(text, {
-        method = "GET",
-        url = url,
-        code = code,
-        headers = headers,
-    })
+    for attempt=1,2 do
+        local url = "https://weread.qq.com/web/book/getProgress?bookId="
+            .. WeRead.urlencode(book_id)
+            .. "&_=" .. tostring(os.time() * 1000)
+        local text, code, headers = self:get_text(url, {
+            accept = "application/json, text/plain, */*",
+            referer = WeRead.reader_url(book_id),
+        })
+        local result = self:decode_http_json(text, {
+            method = "GET", url = url, code = code, headers = headers,
+        })
+        local err = type(result)=="table" and tonumber(result.errCode)
+        if not err or err==0 then return result end
+        if attempt==1 and (err==-2012 or err==-2041) then
+            self:renew_cookie()
+        else
+            error("web progress request failed: errCode="..tostring(err))
+        end
+    end
 end
 
 -- Reading statistics detail.
@@ -685,11 +691,11 @@ function Client:get_read_stats(mode, base_time)
     return self:gateway("/readdata/detail", params)
 end
 
-function Client:get_mp_articles(book_id, max_idx, count, wr_ticket)
+function Client:get_mp_articles(book_id, offset, count, wr_ticket)
     local url = string.format(
-        "https://weread.qq.com/web/mp/articles?bookId=%s&maxIdx=%d&count=%d",
+        "https://weread.qq.com/web/mp/articles?bookId=%s&offset=%d&count=%d",
         WeRead.urlencode(book_id),
-        max_idx or 0,
+        offset or 0,
         count or 100
     )
 

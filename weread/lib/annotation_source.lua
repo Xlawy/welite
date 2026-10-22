@@ -1,4 +1,5 @@
--- Preserve original HTML rune offsets without preserving tags, images or CSS.
+-- Preserve annotation rune and web-reader UTF-16 source offsets in one pass.
+-- Fields 1-4 retain the existing annotation format; 5-6 address the web source.
 -- WeRead heat-map ranges address the source HTML, not the rendered EPUB text.
 local Source = {}
 local function length(byte)
@@ -7,20 +8,26 @@ local function length(byte)
 end
 
 function Source.plain(text)
+    local bom = text:sub(1, 3) == "\239\187\191" and 1 or 0
     text = text:gsub("^\239\187\191", "")
-    local i, count = 1, 0
-    while i <= #text do i, count = i + length(text:byte(i)), count + 1 end
-    return { { 0, count, text, true } }
+    local i, count, units = 1, 0, bom
+    while i <= #text do
+        local size = length(text:byte(i))
+        i, count, units = i + size, count + 1, units + (size == 4 and 2 or 1)
+    end
+    return { { 0, count, text, true, bom, units } }
 end
 
 function Source.index(html)
+    local units = html:sub(1, 3) == "\239\187\191" and 1 or 0
+    local start_units
     html = html:gsub("^\239\187\191", "")
     local spans, offset, i, start, pieces = {}, 0, 1, nil, {}
     local in_tag, quote, suppressed = false, nil, nil
     local tag = {}
     local function flush()
-        if start then spans[#spans + 1] = { start, offset, table.concat(pieces) } end
-        start, pieces = nil, {}
+        if start then spans[#spans + 1] = { start, offset, table.concat(pieces), false, start_units, units } end
+        start, start_units, pieces = nil, nil, {}
     end
     while i <= #html do
         local size = length(html:byte(i))
@@ -41,26 +48,39 @@ function Source.index(html)
             flush()
             in_tag, tag = true, {}
         elseif not suppressed then
+            start_units = start_units or units
             start = start or offset
             pieces[#pieces + 1] = char
         end
-        i, offset = i + size, offset + 1
+        i, offset, units = i + size, offset + 1, units + (size == 4 and 2 or 1)
     end
     flush()
     return spans
 end
 
-function Source.quote(spans, range)
+function Source.quote(spans, range, unit)
+    if unit ~= nil and unit ~= "rune" and unit ~= "utf16" then return "", "unsupported_unit" end
+    local utf16 = unit == "utf16"
     local first, last = tostring(range):match("^(%d+)%-(%d+)$")
     first, last = tonumber(first), tonumber(last)
     if not first or not last or first >= last then return "" end
     local pieces = {}
     for _, span in ipairs(spans or {}) do
-        if span[1] < last and span[2] > first then
-            local offset, i, start_byte = span[1], 1, nil
+        local from, to = span[1], span[2]
+        if utf16 then
+            from, to = span[5], span[6]
+            if not from or not to then return "", "missing_utf16_index" end
+        end
+        if from < last and to > first then
+            local offset, i, start_byte = from, 1, nil
             while i <= #span[3] and offset < last do
                 if offset >= first and not start_byte then start_byte = i end
-                i, offset = i + length(span[3]:byte(i)), offset + 1
+                local size = length(span[3]:byte(i))
+                local step = utf16 and size == 4 and 2 or 1
+                if offset < first and offset + step > first or offset + step > last then
+                    return "", "partial_character"
+                end
+                i, offset = i + size, offset + step
             end
             if start_byte then
                 local text = span[3]:sub(start_byte, i - 1)

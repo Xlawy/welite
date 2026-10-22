@@ -102,6 +102,7 @@ class MockServer(ThreadingHTTPServer):
         self.log_path = log_path
         self.events = deque(maxlen=500)
         self.progress = {}
+        self.delayed_requests = 0
         self.control = dict(delay=0, match="", status=503, times=0,
                             empty_shelf=False, empty_annotations=False)
 
@@ -126,6 +127,9 @@ class MockServer(ThreadingHTTPServer):
             if fail and control["times"] > 0:
                 self.control["times"] -= 1
         if matches:
+            if control["delay"] > 0:
+                with self.lock:
+                    self.delayed_requests += 1
             time.sleep(control["delay"])
         if fail:
             return control["status"], dict(errcode=-1, errmsg="Injected mock failure")
@@ -144,12 +148,18 @@ class MockServer(ThreadingHTTPServer):
                 return 200, next(b for b in BOOKS if b["bookId"] == book_id)
             if api == "/store/search":
                 keyword = data.get("keyword", "")
-                return 200, dict(results=[dict(books=[dict(bookInfo=b) for b in BOOKS
-                                                      if keyword in b["title"] or keyword in b["author"]])])
+                if not isinstance(keyword, str) or data.get("count") != 10:
+                    raise ValueError("unexpected search query or count")
+                matches = [dict(bookInfo=b) for b in BOOKS if keyword in b["title"] or keyword in b["author"]]
+                return 200, dict(results=[dict(books=matches[:10])])
             if api == "/book/getprogress":
                 return 200, self.get_progress(book_id)
             if api == "/review/list":
-                return 200, dict(reviewsCnt=1, reviewsHasMore=0, reviews=[dict(review=review())])
+                if data.get("reviewListType") not in (1, 3) or data.get("count") != 20:
+                    raise ValueError("unexpected review mode or count")
+                item = review()
+                item["content"] = ("最新书评：" if data["reviewListType"] == 3 else "推荐书评：") + item["content"]
+                return 200, dict(reviewsCnt=1, reviewsHasMore=0, reviews=[dict(review=item)])
             if api in {"/book/underlines", "/book/readreviews"}:
                 uid = int(data["chapterUid"])
                 if not 1 <= uid <= len(CHAPTERS):
@@ -182,6 +192,20 @@ class MockServer(ThreadingHTTPServer):
                 return 200, shards("p { line-height: 1.5; } img { max-width: 100%; }", 1)[0]
             if part in {"e_0", "e_1", "e_3"}:
                 return 200, shards(chapter_html(uid))[["e_0", "e_1", "e_3"].index(part)]
+        if path == "/web/mp/articles" and method == "GET":
+            if query.get("bookId") != ["MP_WXS_fixture"] or query.get("count") != ["100"]:
+                raise ValueError("unexpected MP account or count")
+            if "maxIdx" in query or query.get("offset") not in (["0"], ["1"]):
+                raise ValueError("MP pagination requires a review-group offset")
+            if query.get("offset") == ["1"]:
+                return 200, dict(reviews=[])
+            return 200, dict(reviews=[dict(subReviews=[dict(review=dict(
+                reviewId="mock-mp-article", createTime=1700000000,
+                mpInfo=dict(title="公众号合成文章")))])])
+        if path == "/web/mp/content" and method == "GET":
+            if query.get("reviewId") != ["mock-mp-article"]:
+                raise ValueError("unexpected MP article")
+            return 200, '<html><div id="js_content"><p>这是一篇用于验证公众号阅读的合成文章。</p></div><script></script></html>'
         if path == "/web/review/single" and method == "GET":
             return 200, dict(review=review(), comments=[
                 dict(commentId=f"mock-comment-{i}", content=f"合成回复 {i}", author={"nick": "测试读者"}, createTime=1700000000)
@@ -231,7 +255,8 @@ class Handler(BaseHTTPRequestHandler):
                 status, result = 200, dict(service="weread-mock", fixture_version=1)
             elif path.path == "/__state" and self.command == "GET":
                 with self.server.lock:
-                    status, result = 200, dict(control=self.server.control.copy(), requests=list(self.server.events), progress=self.server.progress.copy())
+                    status, result = 200, dict(control=self.server.control.copy(), requests=list(self.server.events), progress=self.server.progress.copy(),
+                                               delayed_requests=self.server.delayed_requests)
             elif path.path == "/__control" and self.command == "POST":
                 self.set_control(data)
                 status, result = 200, dict(ok=True)
@@ -290,8 +315,8 @@ def prepare(run_dir, runtime, port):
     """Fresh directory only: never read or overwrite the user's KOReader profile."""
     if not (runtime / "luajit").is_file() or not (runtime / "reader.lua").is_file():
         raise ValueError("--koreader must point to the built runtime containing luajit and reader.lua")
-    if (runtime / "plugins/weread.koplugin").exists() or (runtime / "plugins/weread.koplugin").is_symlink():
-        raise ValueError("remove the duplicate runtime/plugins/weread.koplugin installation first")
+    if (runtime / "plugins/welite.koplugin").exists() or (runtime / "plugins/welite.koplugin").is_symlink():
+        raise ValueError("remove the duplicate runtime/plugins/welite.koplugin installation first")
     run_dir.mkdir(parents=True, exist_ok=False)
     profile = run_dir / "profile"
     for name in ("settings", "plugins"):
@@ -336,9 +361,12 @@ def main():
     parser.add_argument("--koreader", type=Path, help="built KOReader runtime directory (not source root)")
     parser.add_argument("--log", type=Path, help="JSONL request log, without headers or private data")
     parser.add_argument("--smoke", action="store_true", help="run real KOReader offscreen smoke, save evidence, then exit")
+    parser.add_argument("--suite", choices=("smoke", "annotations", "reviews", "search", "prefetch", "mp"), default="smoke", help="offscreen suite to run with --smoke")
     args = parser.parse_args()
     if bool(args.run_dir) != bool(args.koreader):
         parser.error("--run-dir and --koreader must be provided together")
+    if args.suite != "smoke" and not args.smoke:
+        parser.error("--suite requires --smoke")
     if args.smoke and not args.run_dir:
         parser.error("--smoke requires a fresh --run-dir and --koreader")
     if args.run_dir and args.bind not in ("127.0.0.1", "0.0.0.0"):
@@ -355,12 +383,14 @@ def main():
         thread.start()
         env = os.environ | dict(KO_HOME=str(args.run_dir / "profile"),
                                 EMULATE_READER="1", EMULATE_READER_W="600", EMULATE_READER_H="800", EMULATE_READER_DPI="167")
-        log = args.run_dir / "evidence/smoke.log"
+        log = args.run_dir / ("evidence/" + args.suite + ".log")
+        script = {"smoke": "weread_mock_smoke.lua", "annotations": "weread_annotations_mock.lua",
+                  "reviews": "weread_reviews_mock.lua", "search": "weread_search_mock.lua", "prefetch": "weread_prefetch_mock.lua", "mp": "weread_mp_mock.lua"}[args.suite]
         try:
             with log.open("w") as out:
-                result = subprocess.run(["./luajit", str(REPO / "spec/koreader/weread_mock_smoke.lua")],
-                                        cwd=args.koreader, env=env, stdout=out, stderr=subprocess.STDOUT, timeout=90)
-            if result.returncode == 0:
+                result = subprocess.run(["./luajit", str(REPO / "spec/koreader" / script)],
+                                        cwd=args.koreader, env=env, stdout=out, stderr=subprocess.STDOUT, timeout=180 if args.suite == "annotations" else 90)
+            if result.returncode == 0 and args.suite == "smoke":
                 full_books = list((args.run_dir / "profile/weread-mock/cache").rglob("* - full.epub"))
                 assert len(full_books) == 1, "expected one completed full EPUB"
                 with zipfile.ZipFile(full_books[0]) as epub:

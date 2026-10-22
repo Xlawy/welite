@@ -29,8 +29,8 @@ local defaults = {
     books = {},
     downloads = {},
     sync = {
-        pull_on_open = false,
-        upload_on_close = false,
+        pull_on_open = true,
+        upload_on_close = true,
         ask_on_conflict = true,
         upload_interval_minutes = 0,
     },
@@ -140,9 +140,11 @@ function Settings:new()
     local name = mock_endpoint and "weread-mock" or "weread"
     local data_dir = DataStorage:getFullDataDir() .. "/" .. name
     ensure_dir(data_dir)
+    local download_data_dir = mock_endpoint and data_dir or (DataStorage:getFullDataDir() .. "/welite")
+    ensure_dir(download_data_dir)
     local obj = {
         data_dir = data_dir,
-        default_cache_dir = data_dir .. "/cache",
+        default_cache_dir = download_data_dir .. "/cache",
         settings_file = DataStorage:getSettingsDir() .. "/" .. name .. ".lua",
         mock_endpoint = mock_endpoint,
         collection_name = name,
@@ -162,6 +164,37 @@ function Settings:new()
         -- A test must not move downloaded files into a production cache.
         obj.store:saveSetting("download_dir", "")
         obj.store:flush()
+    end
+    -- Retire old downloads without opening, copying or deleting their files.
+    -- BookStore otherwise follows persisted cache_dir paths back into the old cache.
+    local cache_layout_changed = false
+    if not mock_endpoint and obj.store:readSetting("welite_cache_layout", 0) < 1 then
+        local old_root = data_dir .. "/cache"
+        local function old_path(path)
+            return type(path) == "string" and (path == old_root or path:sub(1,#old_root+1) == old_root .. "/")
+        end
+        if old_path(obj.store:readSetting("download_dir", "")) then
+            obj.store:saveSetting("download_dir", "")
+        end
+        local indexes = obj.store:readSetting("books", {})
+        local pending = obj.store:readSetting("welite_pending_progress_sync", {})
+        for id, index in pairs(indexes) do
+            local retired = type(index) == "table" and (old_path(index.cache_dir)
+                or old_path(index.cached_file) or old_path(index.cached_full_book))
+            if not retired and type(index) == "table" then
+                for _,path in pairs(index.cached_chapters or {}) do
+                    if old_path(path) then retired = true; break end
+                end
+            end
+            if retired then
+                indexes[id] = nil
+                if pending.books then pending.books[tostring(id)] = nil end
+            end
+        end
+        obj.store:saveSetting("books", indexes)
+        obj.store:saveSetting("welite_pending_progress_sync", pending)
+        obj.store:saveSetting("welite_cache_layout", 1)
+        cache_layout_changed = true
     end
     -- cache_dir is the download root; defaults to <data_dir>/cache unless overridden.
     local download_dir = obj.store:readSetting("download_dir", "")
@@ -219,7 +252,15 @@ function Settings:new()
         obj.store:saveSetting("cache", cache)
         obj.store:flush()
     end
-    local legacy_changed = false
+    local sync = obj.store:readSetting("sync", {})
+    local sync_changed = false
+    for key, value in pairs(defaults.sync) do
+        if sync[key] == nil then sync[key] = value; sync_changed = true end
+    end
+    if sync_changed then
+        obj.store:saveSetting("sync", sync)
+    end
+    local legacy_changed = sync_changed or cache_layout_changed
     for _, key in ipairs({
         "config_auth_fingerprint",
         "config_preferences_fingerprint",

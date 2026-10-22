@@ -1,5 +1,39 @@
 {
   "modules": {
+    "weread/ui/thought_popup/content_builder.lua": [
+      "spec/thought_popup_spec.lua"
+    ],
+    "weread/ui/thought_popup/pages.lua": [
+      "spec/thought_popup_pages_spec.lua",
+      "spec/koreader/welite_thought_popup_spec.lua"
+    ],
+    "weread/ui/thought_popup/center_widget.lua": [
+      "spec/thought_popup_center_widget_spec.lua",
+      "spec/koreader/welite_thought_popup_spec.lua"
+    ],
+    "weread/ui/annotation_chapter_picker.lua": [
+      "spec/annotation_chapter_picker_spec.lua",
+      "spec/koreader/welite_annotation_picker_spec.lua"
+    ],
+    "weread/ui/annotation_catalog.lua": [
+      "spec/koreader/welite_annotation_catalog_spec.lua"
+    ],
+    "weread/ui/annotation_sync_controller.lua": [
+      "spec/annotation_sync_controller_spec.lua",
+      "spec/koreader/welite_annotation_catalog_spec.lua"
+    ],
+    "weread/ui/welite/annotations.lua": [
+      "spec/koreader/welite_annotations_panel_spec.lua"
+    ],
+    "weread/lib/content.lua": [
+      "spec/mp_article_images_spec.lua",
+      "spec/content_annotations_spec.lua",
+      "spec/content_css_sanitize_spec.lua",
+      "spec/download_resume_content_spec.lua",
+      "spec/koreader/welite_mp_spec.lua",
+      "spec/koreader/welite_progress_worker_spec.lua",
+      "spec/koreader/weread_mock_smoke.lua"
+    ],
     "weread/ui/welite/reading.lua": [
       "spec/koreader/welite_reading_spec.lua"
     ],
@@ -19,6 +53,7 @@
       "spec/koreader/welite_controls_spec.lua"
     ],
     "weread/ui/welite/pulldown.lua": [
+      "spec/koreader/welite_annotations_panel_spec.lua",
       "spec/koreader/welite_pulldown_spec.lua"
     ],
     "weread/ui/welite/lightslider.lua": [
@@ -34,7 +69,8 @@
       "spec/koreader/welite_worker_spec.lua"
     ],
     "weread/ui/welite/home.lua": [
-      "spec/koreader/welite_home_spec.lua"
+      "spec/koreader/welite_home_spec.lua",
+      "spec/koreader/welite_prefetch_settings_spec.lua"
     ],
     "weread/ui/welite/statistics.lua": [
       "spec/welite_statistics_spec.lua",
@@ -43,7 +79,9 @@
     "weread/ui/library.lua": [
       "spec/bookshelf_pagination_spec.lua",
       "spec/library_ui_cleanup_spec.lua",
-      "spec/koreader/welite_home_spec.lua"
+      "spec/koreader/welite_home_spec.lua",
+      "spec/library_cache_flow_spec.lua",
+      "spec/koreader/welite_chapter_catalog_spec.lua"
     ],
     "weread/ui/library_view.lua": [
       "spec/bookshelf_pagination_spec.lua",
@@ -58,6 +96,7 @@
       "tests/test_welite_runner.py"
     ],
     "weread/ui/welite/reader_controls.lua": [
+      "spec/koreader/welite_annotations_panel_spec.lua",
       "spec/koreader/welite_reader_controls_spec.lua"
     ],
     "weread/lib/reader_lifecycle.lua": [
@@ -67,7 +106,8 @@
     ],
     "weread/ui/menu.lua": [
       "spec/menu_prefetch_spec.lua",
-      "spec/koreader/welite_reader_controls_spec.lua"
+      "spec/koreader/welite_reader_controls_spec.lua",
+      "spec/koreader/welite_settingsui_spec.lua"
     ],
     "weread/lib/updater.lua": [
       "spec/updater_spec.lua"
@@ -91,10 +131,12 @@
     ],
     "main.lua": [
       "spec/plugin_load_spec.lua",
+      "spec/koreader/welite_sync_flow_spec.lua",
       "spec/koreader/weread_plugin_spec.lua"
     ],
     "weread/ui/welite/settingsui.lua": [
-      "spec/koreader/welite_settingsui_spec.lua"
+      "spec/koreader/welite_settingsui_spec.lua",
+      "spec/koreader/welite_prefetch_settings_spec.lua"
     ],
     "weread/ui/welite/startup.lua": [
       "spec/koreader/welite_startup_spec.lua"
@@ -116,7 +158,119 @@
       "spec/koreader/welite_home_spec.lua"
     ],
     "weread/ui/book_detail_view.lua": [
-      "spec/koreader/welite_book_detail_spec.lua"
+      "spec/koreader/welite_book_detail_spec.lua",
+      "spec/koreader/welite_book_info_spec.lua"
+    ],
+    "weread/ui/welite/sync.lua": [
+      "spec/welite_sync_spec.lua",
+      "spec/koreader/welite_sync_flow_spec.lua"
+    ],
+    "weread/ui/welite/reading_sync.lua": [
+      "spec/welite_reading_sync_spec.lua",
+      "spec/koreader/welite_sync_flow_spec.lua"
+    ],
+    "weread/ui/progress_sync_dialog.lua": [
+      "spec/koreader/welite_progress_dialog_spec.lua"
+    ],
+    "weread/lib/progress_sync.lua": [
+      "spec/progress_sync_spec.lua",
+      "spec/koreader/welite_progress_dialog_spec.lua",
+      "spec/koreader/welite_sync_flow_spec.lua"
+    ],
+    "weread/lib/rendered_position.lua": [
+      "spec/rendered_position_spec.lua",
+      "spec/koreader/welite_rendered_position_spec.lua"
+    ],
+    "weread/ui/welite/panel.lua": [
+      "spec/koreader/welite_book_detail_spec.lua",
+      "spec/koreader/welite_reviews_spec.lua"
+    ],
+    "weread/ui/book_reviews_view.lua": [
+      "spec/koreader/welite_reviews_spec.lua"
+    ],
+    "weread/ui/book_reviews_controller.lua": [
+      "spec/koreader/welite_reviews_spec.lua"
+    ],
+    "weread/lib/book_search.lua": [
+      "spec/book_search_spec.lua"
+    ],
+    "weread/ui/welite/record_list.lua": [
+      "spec/koreader/welite_mp_spec.lua",
+      "spec/koreader/welite_search_spec.lua"
+    ],
+    "weread/ui/mp_controller.lua": [
+      "spec/koreader/welite_mp_spec.lua"
+    ],
+    "weread/ui/book_search_view.lua": [
+      "spec/koreader/welite_search_spec.lua"
+    ],
+    "weread/ui/book_search_controller.lua": [
+      "spec/koreader/welite_search_spec.lua"
+    ],
+    "weread/lib/prefetch_preferences.lua": [
+      "spec/prefetch_preferences_spec.lua",
+      "spec/menu_prefetch_spec.lua"
+    ],
+    "weread/ui/welite/prefetch_settings.lua": [
+      "spec/koreader/welite_prefetch_settings_spec.lua"
+    ],
+    "weread/lib/read_report.lua": [
+      "spec/read_report_progress_spec.lua",
+      "spec/read_report_reschedule_spec.lua",
+      "spec/koreader/welite_sync_flow_spec.lua",
+      "spec/koreader/welite_time_ledger_spec.lua"
+    ],
+    "weread/ui/book_info_controller.lua": [
+      "spec/koreader/welite_book_info_spec.lua"
+    ],
+    "weread/lib/client.lua": [
+      "spec/client_mp_pagination_spec.lua",
+      "spec/client_web_progress_spec.lua"
+    ],
+    "weread/lib/progress_pull_worker.lua": [
+      "spec/koreader/welite_progress_worker_spec.lua",
+      "spec/koreader/welite_sync_flow_spec.lua"
+    ],
+    "weread/ui/chapter_catalog_controller.lua": [
+      "spec/koreader/welite_chapter_catalog_spec.lua"
+    ],
+    "weread/lib/source_position.lua": [
+      "spec/source_position_spec.lua",
+      "spec/koreader/welite_source_position_spec.lua"
+    ],
+    "weread/lib/progress_source_locator.lua": [
+      "spec/koreader/welite_source_position_spec.lua",
+      "spec/koreader/welite_sync_flow_spec.lua"
+    ],
+    "weread/lib/reading_time_ledger.lua": [
+      "spec/reading_time_ledger_spec.lua",
+      "spec/koreader/welite_time_ledger_spec.lua"
+    ],
+    "weread/lib/reading_time_sync.lua": [
+      "spec/reading_time_sync_spec.lua",
+      "spec/koreader/welite_time_ledger_spec.lua"
+    ],
+    "weread/lib/annotation_store.lua": [
+      "spec/annotation_store_spec.lua",
+      "spec/koreader/welite_progress_worker_spec.lua"
+    ],
+    "weread/ui/reading_time_review.lua": [
+      "spec/reading_time_review_spec.lua",
+      "spec/koreader/welite_time_ledger_spec.lua"
+    ],
+    "weread/lib/downloader.lua": [
+      "spec/koreader/weread_mock_smoke.lua"
+    ],
+    "weread/lib/closed_progress_sync.lua": [
+      "spec/closed_progress_sync_spec.lua",
+      "spec/koreader/welite_sync_flow_spec.lua"
+    ],
+    "weread/lib/progress_scope.lua": [
+      "spec/progress_scope_spec.lua",
+      "spec/welite_sync_spec.lua"
+    ],
+    "scripts/package_release.sh": [
+      "tests/test_package_release.py"
     ]
   },
   "exemptions": {

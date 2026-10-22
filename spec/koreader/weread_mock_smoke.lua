@@ -7,10 +7,10 @@ require("commonrequire")
 disable_plugins()
 G_reader_settings:saveSetting("language", "zh_CN")
 G_reader_settings:saveSetting("extra_plugin_paths", { home .. "/plugins" })
-load_plugin("weread.koplugin")
+load_plugin("welite.koplugin")
 -- PluginLoader restores package.path after loading; later lazy requires in
 -- this standalone test need the same installed candidate directory.
-package.path = home .. "/plugins/weread.koplugin/?.lua;" .. package.path
+package.path = home .. "/plugins/welite.koplugin/?.lua;" .. package.path
 
 local Settings = require("weread.lib.settings")
 local Client = require("weread.lib.client")
@@ -57,25 +57,86 @@ reader.rolling:onGotoPage(2)
 fastforward_ui_events()
 assert(reader:getCurrentPage() == 2, "real page turn")
 Screen:shot(home .. "/../evidence/mock-page-2.png")
--- Exercise the real event loop, subprocesses, resume workspace, and packaging.
-local completed, full_path, download_error
-local function deadline()
-    download_error = "full download exceeded 45 seconds"
-    UIManager:quit()
+-- Exercise cancellation through the actual dialog, then resume the same workspace.
+local socket, util = require("socket"), require("ffi/util")
+local json, ltn12 = require("json"), require("ltn12")
+local function control(values)
+    local body, chunks = values and json.encode(values), {}
+    local proxy = http.PROXY
+    http.PROXY = nil
+    local _, status = http.request{
+        url = settings.mock_endpoint .. (values and "/__control" or "/__state"),
+        method = values and "POST" or "GET",
+        headers = { ["Content-Type"] = "application/json", ["Content-Length"] = body and #body or 0 },
+        source = body and ltn12.source.string(body), sink = ltn12.sink.table(chunks),
+    }
+    http.PROXY = proxy
+    assert(status == 200, "mock control failed")
+    return json.decode(table.concat(chunks))
 end
-UIManager:scheduleIn(45, deadline)
-reader.weread.downloader:start(book, chapters, "full", {
-    offer_read = false,
-    silent_completion = true,
-    on_complete = function(success, value)
-        completed = success
-        if success then full_path = value else download_error = tostring(value) end
-        UIManager:unschedule(deadline)
-        UIManager:quit()
+UIManager:setRunForeverMode()
+UIManager:setInputTimeout(0)
+local function pump(predicate)
+    local deadline = socket.gettime() + 45
+    repeat
+        UIManager:handleInput()
+        if predicate() then return end
+        util.usleep(10000)
+    until socket.gettime() > deadline
+    error("download UI did not finish before deadline")
+end
+control{match="/web/book/chapter/e_0", delay=0.3, times=0}
+local downloader = reader.weread.downloader
+local cancelled, cancel_reason
+assert(downloader:start(book, chapters, "full", {
+    offer_read=false, silent_completion=true,
+    on_complete=function(success, reason) cancelled=not success;cancel_reason=reason end,
+}))
+pump(function()
+    local job = downloader._active_job
+    return job and job.completed_count >= 1 and job.completed_count < #chapters and job.progress_dialog
+end)
+local interrupted = downloader._active_job
+local saved_count = interrupted.completed_count
+local started = socket.gettime()
+interrupted.progress_dialog.buttons[1][1].callback()
+assert(socket.gettime()-started < 1, "cancel button blocked the UI")
+pump(function() return cancelled ~= nil and not downloader._active_job end)
+assert(cancelled and cancel_reason == "cancelled", "cancel must not report success")
+local preserved = 0
+for index, chapter in ipairs(chapters) do
+    if Content.full_download_chapter_exists(interrupted.workspace, chapter, index) then
+        preserved = preserved + 1
+    end
+end
+assert(preserved >= saved_count and preserved < #chapters, "completed chapters must survive cancellation")
+assert(reader.document.file == path, "cancel must not switch the reader")
+control{match="", delay=0, times=0}
+local first_chapter_key
+local function first_chapter_requests()
+    local count = 0
+    for _, request in ipairs(control().requests) do
+        if request.path == "/web/book/chapter/e_0" then
+            first_chapter_key = first_chapter_key or request.encoded_chapter
+            if request.encoded_chapter == first_chapter_key then count = count + 1 end
+        end
+    end
+    return count
+end
+local first_chapter_before = first_chapter_requests()
+assert(first_chapter_key and first_chapter_before > 0)
+local completed, full_path, download_error
+assert(downloader:start(book, chapters, "full", {
+    offer_read=false, silent_completion=true,
+    on_complete=function(success, value)
+        completed=success
+        if success then full_path=value else download_error=tostring(value) end
     end,
-})
-UIManager:run()
-assert(completed and full_path, download_error or "Downloader did not complete")
+}))
+pump(function() return completed ~= nil and not downloader._active_job end)
+assert(completed and full_path, download_error or "resumed download did not complete")
+assert(first_chapter_requests() == first_chapter_before, "resume must not download the completed first chapter again")
+print("PASS: real full-download cancel button preserves partial workspace and resumes without refetching completed chapter")
 local file = assert(io.open(full_path, "rb"))
 assert(file:read(2) == "PK", "full download must produce an EPUB ZIP")
 file:close()

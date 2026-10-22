@@ -99,6 +99,12 @@ function Panel:build()
             body[#body+1]=H:new{self.chapter_buttons[1],HS:new{width=px(8)},self.chapter_buttons[2],HS:new{width=px(8)},self.chapter_buttons[3]}
             self.layout[#self.layout+1]=self.chapter_buttons
         end
+        if self.annotations then
+            self.annotations_button=button('划线和想法',width,px(40),action(self.annotations,true),true,14,1)
+            body[#body+1]=VS:new{width=px(8)}
+            body[#body+1]=self.annotations_button
+            self.layout[#self.layout+1]={self.annotations_button}
+        end
         body[#body+1]=VS:new{width=px(12)}
     end
     local gap=px(8)

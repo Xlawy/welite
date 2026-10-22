@@ -59,7 +59,7 @@ local settings = {
     flush = function() end,
 }
 local core = require("weread.lib.updater"):new{
-    settings = settings, current_version = "0.6.0", plugin_dir = "/tmp/weread.koplugin",
+    settings = settings, current_version = "0.6.0", plugin_dir = "/tmp/welite.koplugin",
 }
 local ui = UpdaterUI:new{
     updater = core,

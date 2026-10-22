@@ -77,6 +77,14 @@ python3 scripts/test_mock_weread.py
 
 ## 划线想法专项回归
 
+自动启动和清理本地服务（推荐）：
+
+```bash
+python3 scripts/mock_weread.py --smoke --suite annotations --port 0 \
+    --run-dir /tmp/weread-annotations-01 --koreader /path/to/koreader-runtime
+```
+
+
 先用下节命令创建新的隔离目录并保持 mock 服务运行。另一终端在 KOReader 运行目录执行，
 `WEREAD_PLUGIN_DIR` 为候选源码目录，`WEREAD_RUN_DIR` 为刚创建的隔离目录：
 
@@ -193,3 +201,55 @@ python3 scripts/mock_weread.py --port 8765 --log /tmp/weread-mock-ui-01/evidence
 
 新增 fixture 优先扩展 `scripts/mock_weread.py` 的现有响应，并添加能失败的契约检查。
 不要替掉被测 Downloader、UIManager、文档或排版引擎，也不要把合成数据视作线上协议样本。
+
+## 书评完整 UI 验收
+
+在仓库根目录运行（需要新的隔离目录）：
+
+```bash
+SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy python3 scripts/mock_weread.py \
+  --smoke --suite reviews --port 0 --run-dir /tmp/welite-reviews-check \
+  --koreader /path/to/koreader/runtime
+```
+
+使用实际安装的插件、客户端和后台任务，从书籍详情按钮进入书评，验证推荐/最新、缓存切换、正文弹窗、返回原页、HTTP 503 后重试和关闭清理。
+`evidence/reviews.log` 记录结果，`reviews-list.png` / `reviews-detail.png` 保存中文界面截图；不读取真实账号。
+
+## 云端搜书完整 UI 验收
+
+```bash
+SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy python3 scripts/mock_weread.py \
+  --smoke --suite search --port 0 --run-dir /tmp/welite-search-check \
+  --koreader /path/to/koreader/runtime
+```
+
+从真实主页“搜书”按钮输入关键词，验证 Client 网关查询、WeLite 结果页、选中书籍详情、返回、空结果及 HTTP 503 重试。
+`evidence/search.log`、`search-home.png`、`search-results.png` 为验收证据。后台封面下载必须原地更新书架，不能盖住结果页。
+
+## 章节预下载完整 UI 验收
+
+```bash
+SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy python3 scripts/mock_weread.py \
+  --smoke --suite prefetch --port 0 --run-dir /tmp/welite-prefetch-check \
+  --koreader /path/to/koreader/runtime
+```
+
+通过原生章节选择器启用本书批注后，从 WeLite 设置开启下一章预下载，验证 EPUB 写入、当前章节不切换、只预取下一章，以及补取已经缓存章节的划线和想法。
+随后让合成服务延迟章节响应；`/__state` 的 `delayed_requests` 确认请求实际进入延迟，再测试关闭取消、迟到结果不发布和重新开启。
+`evidence/prefetch.log` 与 `prefetch-settings.png` 保存结果和中文界面。测试使用隔离合成账号，不访问真实服务。
+
+### 公众号文章完整流程
+
+```sh
+SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy python3 scripts/mock_weread.py \
+  --smoke --suite mp --port 0 --run-dir /tmp/welite-mp-check \
+  --koreader "$KOREADER_RUNTIME"
+```
+
+验证实际插件账号选择、Client HTTP 列表、503 重试、正在请求正文时取消、重新下载进入原生 HTML 阅读器，以及缓存文章打开不再请求正文。使用合成公众号与隔离配置；证据在 `evidence/mp.log`、`mp-list.png`、`mp-reader.png` 和请求日志中。不使用真实微信账号。
+
+批注套件现从阅读控制台的「划线和想法」进入 WeLite 管理页，再点击选择章节，接着执行原有 HTTP/SQLite/阅读器同步回归。新增 `annotation-management.png` 可核对管理页中文布局。该入口复用现有同步逻辑，并不代表想法正文弹窗及所有网络初始化路径已完成 UI 改造。
+
+批注套件还会强制刷新目录，注入 `/web/book/chapterInfos` 的 HTTP 503，在 WeLite 加载页点击重试后继续选章同步。目录网络请求由后台任务执行，主进程负责校验当前文档/账号并保存 SQLite；不会使用网络请求来绘制管理页。
+
+批注套件现在还会读取真实匹配得到的 CREngine 划线矩形，通过 ReaderUI 手势入口打开想法，核对弹窗内容与 SQLite 记录一致，并保存 `thought-popup-from-underline.png`。为让测试点击不受页边翻页保护干扰，测试临时关闭忽略页边想法点击，完成后恢复；产品默认设置不变。

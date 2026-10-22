@@ -1,6 +1,6 @@
 describe('welite collection filtering and sorting',function()
     local C,items
-    setup(function() require('commonrequire');package.path='plugins/weread.koplugin/?.lua;'..package.path;C=require('weread.ui.welite.collection') end)
+    setup(function() require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path;C=require('weread.ui.welite.collection') end)
     before_each(function()
         items={{id='b',kind='book',title='Beta',author='',read_updated=10,added=30},
             {id='a',kind='book',title='Alpha',author='',read_updated=20,added=10},

@@ -1,8 +1,26 @@
 describe('WeLite reader panel bridge',function()
     local Bridge,UI,plugin
-    setup(function() require('commonrequire');package.path='plugins/weread.koplugin/?.lua;'..package.path
+    setup(function() require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path
         Bridge=require('weread.ui.welite.reader_controls');UI=require('ui/uimanager') end)
     after_each(function() if plugin then Bridge.close(plugin) end end)
+    it('shows progress state and sends the panel action to real progress sync',function()
+        local status={state='unverified'}
+        local calls=0
+        plugin={ui={document={info={number_of_pages=200}}},
+            progress_sync={status=function() return status end},
+            onWeReadSyncProgress=function() calls=calls+1 end}
+        assert.equals('同步进度',Bridge.syncStatus(plugin))
+        Bridge.show(plugin)
+        plugin.welite_reader_panel.sync_button.callback()
+        assert.equals(1,calls)
+        assert.is_nil(plugin.welite_reader_panel)
+        status={state='verified',verified=true,dirty=true}
+        assert.equals('待上传',Bridge.syncStatus(plugin))
+        status.dirty=false
+        assert.equals('已同步',Bridge.syncStatus(plugin))
+        status={state='error'}
+        assert.equals('同步失败',Bridge.syncStatus(plugin))
+    end)
     it('registers the original top tap/swipe/drag and retains horizontal gestures',function()
         local zones,opened
         plugin={ui={registerTouchZones=function(_,value) zones=value end}}

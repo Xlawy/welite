@@ -26,7 +26,7 @@ local _ = PluginUtil.tr
 local WeReadPlugin = WidgetContainer:extend{
     name = "weread",
     is_doc_only = false,
-    version = "1.6.0",
+    version = "1.0.0",
 }
 
 -- Stable entry point used by third-party launchers such as SimpleUI and ZenUI.
@@ -45,6 +45,9 @@ function WeReadPlugin:onZenUIReady()
 end
 
 function WeReadPlugin:init()
+    -- KOReader derives the public module name from welite.koplugin. Existing
+    -- reader services and third-party launchers still use the weread handle.
+    if self.ui then self.ui.weread = self end
     math.randomseed(os.time())
     self.settings = Settings:new()
     self.external_annotations_db = ExternalAnnotationsDB:new(self.settings)
@@ -95,6 +98,10 @@ function WeReadPlugin:init()
     end
     self.qr_login = QRLogin:new(self, self.client, self.settings)
     self.read_report = ReadReport:new{
+        time_ledger = require("weread.lib.reading_time_ledger").open(self.settings,function()
+            local time=require("ui/time")
+            return time.to_s(time.now())
+        end),
         settings = self.settings,
         client = self.client,
         library_db = self.library_db,
@@ -118,6 +125,10 @@ function WeReadPlugin:init()
         end,
     }
     self.progress_sync = ProgressSync:new{
+        can_finish_close_upload = function()
+            local active = require("apps/reader/readerui").instance
+            return not active or active == self.ui
+        end,
         settings = self.settings,
         client = self.client,
         scheduler = UIManager,
@@ -126,6 +137,9 @@ function WeReadPlugin:init()
         end,
         get_footer = function()
             return self.ui and self.ui.view and self.ui.view.footer
+        end,
+        get_view_mode = function()
+            return self.ui and self.ui.view and self.ui.view.view_mode or "page"
         end,
         detect_book = function()
             return self:detectWeReadBook()
@@ -136,32 +150,8 @@ function WeReadPlugin:init()
         get_chapters = function(book)
             return self:ensureChaptersLoaded(book)
         end,
-        refresh_catalog = function(book_id)
-            local book = self.settings:get("books", {})[tostring(book_id)]
-            if type(book) ~= "table" then
-                return nil, "book_not_found"
-            end
-            local ok, chapters_or_err = pcall(function()
-                Content.ensure_reader_state(self.client, book)
-                return Content.fetch_catalog(self.client, book)
-            end)
-            if not ok then
-                return nil, chapters_or_err
-            end
-            local chapters = chapters_or_err
-            if type(chapters) ~= "table" or #chapters == 0 then
-                return nil, "catalog_unavailable"
-            end
-            local cache_ok, cache_err = Content.save_catalog_cache(
-                self.client, self.settings, book, chapters)
-            if not cache_ok then
-                logger.warn("save chapter catalog cache failed:",
-                    PluginUtil.log_error(cache_err))
-            end
-            if self.library_db then
-                self.library_db:putChapters(book_id, chapters)
-            end
-            return chapters
+        refresh_catalog_async = function(book_id,done,valid)
+            return require("weread.lib.progress_pull_worker").catalog(self,book_id,done,valid)
         end,
         get_file_context = function(book, path)
             return self:getChapterInfoFromFile(book, path)
@@ -170,14 +160,28 @@ function WeReadPlugin:init()
             return self:runOnlineTask(
                 _("Sync progress"), callback, nil, run_options)
         end,
-        upload_position = function(book_id, position, elapsed_seconds)
-            return self.read_report:upload_position(
-                book_id, position, elapsed_seconds)
+        upload_position_async = function(book_id, position, done, valid)
+            return self.read_report:upload_position_async(book_id, position, done, valid)
+        end,
+        capture_local_snapshot = function(context, position)
+            return require("weread.lib.progress_source_locator").snapshot(self,context,position)
+        end,
+        prepare_local_async = function(context, position, done, valid)
+            return require("weread.lib.progress_source_locator").capture(self,context,position,done,valid)
+        end,
+        prepare_remote_async = function(context, remote, done, valid)
+            return require("weread.lib.progress_source_locator").start(self,context,remote,done,valid)
+        end,
+        goto_xpointer = function(xp)
+            return pcall(function() self.ui.rolling:onGotoXPointer(xp) end)
+        end,
+        goto_page = function(page)
+            return pcall(function() self.ui.rolling:onGotoPage(page) end)
         end,
         goto_fraction = function(fraction)
-            local percent = math.floor(
-                math.max(0, math.min(1, tonumber(fraction) or 0))
-                    * 100 + 0.5)
+            -- KOReader accepts fractional percentages. Rounding here loses
+            -- several pages in long books before the host resolves a position.
+            local percent = math.max(0, math.min(1, tonumber(fraction) or 0)) * 100
             return pcall(function()
                 if self.ui and self.ui.rolling
                     and self.ui.rolling.onGotoPercent then
@@ -197,6 +201,16 @@ function WeReadPlugin:init()
         end,
         on_choice = function(context)
             ProgressSyncDialog.show_choice(context)
+        end,
+        run_pull = function(task, done, valid)
+            return require("weread.lib.progress_pull_worker").start(self,task,done,valid)
+        end,
+        cancel_pull = function()
+            require("weread.lib.progress_source_locator").cancel(self)
+            require("weread.lib.progress_pull_worker").cancel(self)
+        end,
+        on_synced = function(book_id, account)
+            require("weread.ui.welite.reading_sync").complete(self, book_id, account)
         end,
         notify = function(code, data)
             ProgressSyncDialog.notify(code, data)

@@ -1,5 +1,5 @@
 describe('welite once-per-process startup',function()
-    setup(function() require('commonrequire');package.path='plugins/weread.koplugin/?.lua;'..package.path end)
+    setup(function() require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path end)
     it('defers first-install choice and opens only when accepted',function()
         local gate=require('weread.ui.welite.startup').new();local queued,answer,opened
         opened=0
@@ -7,6 +7,17 @@ describe('welite once-per-process startup',function()
         gate:queue(scheduler,function() return {decided=false} end,function(open) answer=open end,function() opened=opened+1 end)
         assert.is_nil(answer);queued();assert.equals(0,opened);answer();assert.equals(1,opened)
         assert.is_nil(gate:queue(scheduler,function() error('second host must not prompt') end))
+    end)
+    it('does not show first-run navigation over a reading document',function()
+        local Startup=require('weread.ui.welite.startup')
+        local old=Startup.instance
+        local gate=Startup.new();Startup.instance=gate
+        local ok,err=pcall(function()
+            assert.is_false(require('weread.ui.welite.home').queueStartup({ui={document={}}}))
+            assert.is_nil(gate.claimed,'reader must not consume FileManager startup decision')
+        end)
+        Startup.instance=old
+        assert.is_true(ok,err)
     end)
     it('honors saved startup choices on a fresh process without prompting',function()
         for _,enabled in ipairs({false,true}) do

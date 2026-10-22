@@ -12,6 +12,8 @@ function M.ensure(plugin,view)
         state={fingerprint=fingerprint,values={},order={}}
         plugin.welite_progress=state
     end
+    local _,eligible=require('weread.lib.progress_scope').select(
+        plugin.shelf_regular or {},plugin.settings:get('books',{}))
     local pending={}
     local changed=false
     local first=((view.page or 1)-1)*(view.page_size or 6)+1
@@ -20,7 +22,7 @@ function M.ensure(plugin,view)
         if item.kind=='book' and item.id~='' then
             local cached=state.values[item.id]
             if cached and item.percent~=cached.percent then item.percent=cached.percent;changed=true end
-            if not cached and not Reading.number(item.percent,100) then pending[#pending+1]=item.id end
+            if eligible[item.id] and not cached and not Reading.number(item.percent,100) then pending[#pending+1]=item.id end
         end
     end
     if changed then view:redraw() end

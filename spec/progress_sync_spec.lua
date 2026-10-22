@@ -96,6 +96,8 @@ local function fixture(remote, options)
         get_book = function() return book end,
         get_chapters = options.get_chapters or function() return chapters end,
         refresh_catalog = options.refresh_catalog,
+        refresh_catalog_async = options.refresh_catalog_async,
+        can_finish_close_upload = options.can_finish_close_upload,
         get_file_context = function()
             return nil, nil, true
         end,
@@ -114,6 +116,8 @@ local function fixture(remote, options)
             return true
         end,
         open_chapter = function() return true end,
+        run_pull = options.run_pull,
+        on_synced = options.on_synced,
         on_choice = function(context)
             choices[#choices + 1] = context
         end,
@@ -626,6 +630,449 @@ test("a fresh automatic pull replaces an older retry chain", function()
     eq(#f.queue, 1, "stale chain does not schedule another retry")
     f.step()
     eq(#f.queue, 1, "replacement chain remains active")
+end)
+
+test("manual sync compares small differences and choices are single use", function()
+    for _,remote_choice in ipairs({true, false}) do
+        local f = fixture({ progress = 26, chapterUid = 22, chapterOffset = 160 })
+        f.sync:sync_now()
+        eq(#f.choices, 1, "one percent difference requires explicit resolution")
+        local choice = f.choices[1]
+        if remote_choice then
+            choice.use_remote()
+            choice.keep_local()
+            eq(#f.jumps, 1, "one cloud jump")
+            eq(#f.uploads, 0, "stale local callback cannot overwrite cloud")
+        else
+            choice.keep_local()
+            choice.keep_local()
+            eq(#f.uploads, 1, "one local upload")
+        end
+    end
+    local f = fixture({ progress = 80, chapterUid = 33, chapterOffset = 400 })
+    f.sync:sync_now()
+    local choice = f.choices[1]
+    choice.cancel()
+    choice.keep_local()
+    choice.use_remote()
+    eq(#f.uploads, 0, "dismissed choice cannot upload")
+    eq(#f.jumps, 0, "dismissed choice cannot jump")
+    eq(f.sync:status().state, "unverified", "cancel leaves progress unresolved")
+end)
+
+test("delayed applied positions stay with their document and account", function()
+    for _, change in ipairs({"close", "document", "path", "book", "account"}) do
+        local f = fixture({ progress = 80, chapterUid = 33, chapterOffset = 400 })
+        f.sync:sync_now()
+        f.choices[1].use_remote()
+        local book = f.values.books.book
+        if change == "close" then
+            f.sync:on_close_document()
+        elseif change == "document" then
+            -- Reopening even the same path creates a new document lifetime.
+            local replacement = {}
+            for key, value in pairs(f.document) do replacement[key] = value end
+            f.sync.get_document = function() return replacement end
+        elseif change == "path" then
+            f.document.file = "/cache/book/other.epub"
+        elseif change == "book" then
+            f.sync.detect_book = function() return "another" end
+        else
+            f.values.account = { user_vid = "another-account" }
+        end
+        local before = book.last_local_position
+        f.drain()
+        eq(book.last_local_position, before, change .. " discards delayed persistence")
+        if change == "close" then
+            eq(f.sync.local_position, nil, "close does not resurrect reader state")
+        end
+    end
+end)
+
+test("turning a page before applied-position persistence keeps the upload dirty", function()
+    local f = fixture({ progress = 80, chapterUid = 33, chapterOffset = 400 })
+    f.sync:sync_now()
+    f.choices[1].use_remote()
+    f.document.page = 85
+    f.sync:on_page_update()
+    eq(f.sync.dirty, true, "new reading after the jump needs upload")
+    f.drain()
+    eq(f.sync.dirty, true, "delayed persistence must not erase new reading")
+    eq(f.values.books.book.last_local_position.percent, 85, "save actual reader position")
+    f.sync:on_close_document()
+    eq(#f.uploads, 1, "closing uploads the newly read position")
+    eq(f.uploads[1] and f.uploads[1].percent, 85, "new reading reaches remote")
+end)
+
+test("conflict choices are invalid after account or document changes", function()
+    for _, change in ipairs({
+        function(f) f.values.account = {user_vid="another"} end,
+        function(f) f.document.file = "/other.epub" end,
+    }) do
+        local f = fixture({progress=80,chapterUid=33,chapterOffset=400})
+        f.sync:on_reader_ready();f.drain();change(f)
+        f.choices[1].use_remote()
+        eq(#f.jumps,0,"stale choice cannot jump")
+        eq(#f.uploads,0,"stale choice cannot upload")
+    end
+end)
+
+test("queued upload cannot run in a new reader lifetime", function()
+    local callback
+    local f=fixture({}, {run_online=function(_,fn) callback=fn;return true end})
+    f.sync:_upload_snapshot(f.sync:capture_local(),"manual_sync",true)
+    f.sync:on_reader_ready()
+    callback()
+    eq(#f.uploads,0,"old request does not reach network")
+    eq(f.sync.uploading,false,"new lifetime is not blocked by old uploading flag")
+    eq(f.sync.state,"waiting","old completion leaves new state alone")
+end)
+
+test("upload acknowledgement cannot clear reading performed during the request", function()
+    local f=fixture({})
+    f.sync.current_book_id="book"
+    local original=f.sync.upload_position
+    f.sync.upload_position=function(...)
+        f.document.page=40;f.sync:on_page_update()
+        return original(...)
+    end
+    f.sync:_upload_snapshot(f.sync:capture_local(),"manual_sync",true)
+    eq(f.sync.dirty,true,"new page remains dirty after older snapshot acknowledgement")
+    eq(f.values.books.book.last_local_position.percent,40,"new local page remains persisted")
+    eq(f.values.books.book.last_uploaded_position.percent,25,"acknowledgement records only the sent snapshot")
+end)
+
+test("late upload acknowledgement cannot write another account's records", function()
+    local f=fixture({})
+    f.sync.upload_position=function()
+        f.values.account={user_vid="new-account"}
+        f.values.books={book={book_id="book",title="New account book"}}
+        return true
+    end
+    f.sync:_upload_snapshot(f.sync:capture_local(),"manual_sync",true)
+    eq(f.values.books.book.last_uploaded_position,nil,"new account has no old upload acknowledgement")
+    eq(#f.notifications,0,"no success message for another account")
+end)
+
+test("queued pull and its retry cannot move across accounts", function()
+    local callback
+    local f=fixture({}, {run_online=function(_,fn) callback=fn;return true end})
+    local requests=0
+    f.sync.client.get_progress=function() requests=requests+1;return {} end
+    f.sync:on_reader_ready();f.drain()
+    f.values.account={user_vid="another"};callback()
+    eq(requests,0,"canceled account pull never reaches network")
+    eq(#f.choices,0,"canceled account pull opens no choice")
+    local offline=fixture({}, {is_online=function() return false end})
+    offline.sync:on_reader_ready();offline.step()
+    offline.values.account={user_vid="another"}
+    offline.sync.is_online=function() return true end
+    offline.drain()
+    eq(#offline.choices,0,"offline retries cannot cross accounts")
+end)
+
+test("a changed account during pull stops the second progress source and writes", function()
+    local f=fixture({progress=80,chapterUid=33,chapterOffset=400})
+    local web_calls=0
+    f.sync.client.get_progress=function()
+        f.values.account={user_vid="new"}
+        f.values.books={book={title="New account book"}}
+        return {book={progress=80,chapterUid=33,chapterOffset=400}}
+    end
+    f.sync.client.get_web_progress=function() web_calls=web_calls+1;return {} end
+    f.sync:on_reader_ready();f.drain()
+    eq(web_calls,0,"no second request with the new account")
+    eq(f.values.books.book.last_remote_position,nil,"late pull cannot modify new account")
+    eq(#f.choices,0,"late pull opens no choice")
+end)
+
+test("an explicit close upload may finish after close but cannot revive reader state", function()
+    local callback
+    local f=fixture({}, {run_online=function(_,fn) callback=fn;return true end})
+    f.sync.current_book_id="book";f.sync.verified=true;f.sync.dirty=true
+    f.sync:on_close_document()
+    callback()
+    eq(#f.uploads,1,"the final closed-book snapshot reaches the server")
+    eq(f.sync.current_book_id,nil,"closed book is not resurrected")
+    eq(f.sync.verified,false,"closed reader is not marked verified")
+    eq(f.values.books.book.pending_upload_position,nil,"acknowledged close snapshot is cleared")
+end)
+
+test("a pending close upload stops when another reader instance has opened", function()
+    local callback, another_reader
+    local f=fixture({}, {run_online=function(_,fn) callback=fn;return true end,
+        can_finish_close_upload=function() return not another_reader end})
+    f.sync.current_book_id="book";f.sync.verified=true;f.sync.dirty=true
+    f.sync:on_close_document();another_reader=true;callback()
+    eq(#f.uploads,0,"old close snapshot must not overwrite the new reader's progress")
+    eq(f.values.books.book.pending_upload_position~=nil,true,"unacknowledged snapshot is retained")
+end)
+
+test("completion follows cloud position persistence", function()
+    local events={}
+    local f=fixture({progress=80,chapterUid=33,chapterOffset=400}, {
+        on_synced=function(id,account) events[#events+1]={id=id,account=account} end})
+    f.values.account={user_vid="fixture"}
+    f.sync:on_reader_ready();f.drain()
+    eq(#events,0,"pending choice is not completion")
+    f.choices[1].use_remote()
+    eq(#events,0,"cloud jump waits for host position update")
+    f.drain()
+    eq(#events,1,"persisted cloud position completes once")
+    eq(events[1].id,"book","completion identifies book")
+    eq(events[1].account,"fixture","completion identifies account")
+    eq(f.values.books.book.last_local_position.percent,80,"position persisted before completion")
+end)
+
+test("local choice needs an acknowledged upload to complete", function()
+    for _,accepted in ipairs({false,true}) do
+        local events=0
+        local f=fixture({progress=80,chapterUid=33,chapterOffset=400}, {
+            on_synced=function() events=events+1 end})
+        f.sync.upload_position=function()
+            eq(events,0,"local selection alone cannot complete")
+            return accepted,{error_kind="unknown"}
+        end
+        f.sync:on_reader_ready();f.drain();f.choices[1].keep_local();f.drain()
+        eq(events,accepted and 1 or 0,"only upload acknowledgement completes")
+    end
+end)
+
+test("completion callback failure does not undo accepted progress", function()
+    local f=fixture({progress=80,chapterUid=33,chapterOffset=400}, {
+        on_synced=function() error("fixture completion failure") end})
+    f.sync:on_reader_ready();f.drain();f.choices[1].keep_local();f.drain()
+    eq(f.sync:status().verified,true,"accepted progress stays verified")
+    eq(f.values.books.book.last_uploaded_position~=nil,true,"acknowledgement remains persisted")
+end)
+
+test("account change revokes verification and old choices before reinitializing", function()
+    local f=fixture({progress=80,chapterUid=33,chapterOffset=400})
+    f.sync:on_reader_ready();f.drain()
+    local old_choice=f.choices[1]
+    f.sync.verified=true;f.sync.dirty=true
+    f.sync.pending_jump={book_id="book",fraction=0.8}
+    f.values.account={user_vid="new-account"}
+    f.values.sync.pull_on_open=false
+    f.sync:on_account_changed()
+    local position,reason,applies=f.sync:position_for_report("book")
+    eq(position,nil,"old verification cannot authorize new account report")
+    eq(reason,"progress_unverified","new account must verify first")
+    eq(applies,true,"current WeRead book remains gated")
+    old_choice.keep_local();old_choice.use_remote()
+    eq(#f.uploads,0,"old dialog cannot upload after account change")
+    eq(#f.jumps,0,"old dialog cannot move new account")
+    eq(f.sync.pending_jump,nil,"chapter jump does not cross accounts")
+    f.drain()
+    eq(f.sync:status().state,"unverified","reinitialized reader awaits new account sync")
+    f.sync:on_close_document()
+    eq(#f.uploads,0,"close does not upload unverified account position")
+end)
+
+test("closing without uploads still saves the latest observed reading position", function()
+    local f=fixture({})
+    f.values.sync.upload_on_close=false
+    f.values.sync.pull_on_open=false
+    f.sync:on_reader_ready();f.drain()
+    f.document.page=60;f.sync:on_page_update();f.sync:on_close_document()
+    eq(f.values.books.book.last_local_position.percent,60,"close persists latest position even while unverified")
+    eq(#f.uploads,0,"disabled close upload stays disabled")
+    eq(f.values.books.book.pending_upload_position.percent,60,"home sync retains disabled-close upload position")
+end)
+
+test("background pull compares against the page reached during the request", function()
+    local task,done
+    local f=fixture({progress=80,chapterUid=33,chapterOffset=400},{run_pull=function(run,finish)
+        task,done=run,finish;return true end})
+    f.sync:on_reader_ready();f.drain()
+    eq(f.sync:status().pulling,true,"pull remains active while child works")
+    f.document.page=60;f.sync:on_page_update()
+    done(task(function() return true end))
+    eq(f.choices[1].local_position.percent,60,"choice uses latest page")
+    eq(f.values.books.book.last_local_position.percent,60,"saved position is not stale")
+end)
+
+test("suspend cancels a pending pull and resume restarts even a short sleep", function()
+    local starts,done,task=0
+    local f=fixture({progress=80,chapterUid=33,chapterOffset=400},{run_pull=function(run,finish)
+        starts=starts+1;task,done=run,finish;return true end})
+    f.sync:on_reader_ready();f.drain()
+    local stale_done,stale_task=done,task
+    f.sync:on_suspend()
+    eq(f.sync:status().pulling,false,"suspend clears pending state")
+    stale_done(stale_task(function() return true end))
+    eq(#f.choices,0,"late suspended result cannot show a choice")
+    f.sync:on_resume();f.drain()
+    eq(starts,2,"interrupted pull restarts after short sleep")
+    done(task(function() return true end))
+    eq(#f.choices,1,"resumed request completes normally")
+end)
+
+test("missing catalog waits for background persistence before comparing progress", function()
+    local available=false
+    local complete
+    local f=fixture({progress=80,chapterUid=33,chapterOffset=400},{
+        get_chapters=function() return available and chapters or {} end,
+        refresh_catalog_async=function(_,done) complete=done;return true end})
+    f.sync.current_book_id="book"
+    f.sync:sync_now()
+    eq(f.sync:status().pulling,true,"catalog request is pending")
+    eq(#f.choices,0,"no premature position comparison")
+    available=true;complete(chapters)
+    eq(#f.choices,1,"successful catalog enables progress comparison")
+end)
+
+test("asynchronous upload waits for acknowledgement and preserves newer reading", function()
+    local f=fixture({progress=70,chapterUid=33,chapterOffset=200})
+    f.sync:on_reader_ready();f.drain()
+    local done
+    f.sync.upload_position_async=function(_,_,callback) done=callback;return true end
+    local snapshot=f.sync:capture_local()
+    f.sync:_upload_snapshot(snapshot,"manual",true)
+    eq(f.sync.uploading,true,"pending worker remains uploading")
+    eq(f.values.books.book.last_uploaded_position,nil,"launch is not acknowledged")
+    f.document.page=40
+    done(true,{accepted=true})
+    eq(f.sync.uploading,false,"ack completes worker")
+    eq(f.sync.dirty,true,"newer local position remains dirty")
+    eq(f.values.books.book.last_local_position.percent,40,"new position persisted")
+    eq(f.values.books.book.last_uploaded_position.percent,25,"only sent snapshot acknowledged")
+    done(false,{error="duplicate"})
+    eq(f.values.books.book.last_sync_error,nil,"duplicate callback ignored")
+end)
+
+test("remote source mapping waits for a valid completion before applying", function()
+    local f=fixture({progress=80,chapterUid=33,chapterOffset=400})
+    local done,valid
+    f.sync.prepare_remote_async=function(_,_,callback,guard) done,valid=callback,guard;return true end
+    f.sync.goto_xpointer=function(xp) eq(xp,'exact-xp','mapped pointer');f.document.page=81;return true end
+    f.sync:sync_now();f.choices[1].use_remote()
+    eq(f.document.page,25,'mapping does not jump early')
+    eq(f.sync.pulling,true,'mapping owns busy state')
+    eq(valid(),true,'active mapping is valid')
+    done('exact-xp')
+    eq(f.document.page,81,'mapped pointer applied')
+    eq(f.sync.pulling,false,'mapping busy state cleared')
+    eq(f.sync.verified,true,'only successful jump verified')
+    done(nil,'late duplicate')
+    eq(f.sync.verified,true,'duplicate callback ignored')
+end)
+test("failed or stale source mapping never falls back to a page estimate", function()
+    for _,stale in ipairs({false,true}) do
+        local f=fixture({progress=80,chapterUid=33,chapterOffset=400})
+        local done
+        f.sync.prepare_remote_async=function(_,_,callback) done=callback;return true end
+        f.sync.goto_xpointer=function() error('must not jump') end
+        f.sync:sync_now();f.choices[1].use_remote()
+        if stale then f.values.account={user_vid='another'} end
+        done(nil,'source_text_ambiguous')
+        eq(f.document.page,25,'no approximate jump')
+        eq(f.sync.verified,false,'failed mapping is not verified')
+        if not stale then eq(f.sync.state,'error','failure is visible') end
+    end
+end)
+
+test("local selection converts its snapshot before reporting", function()
+    local f=fixture({progress=80,chapterUid=33,chapterOffset=400})
+    local done
+    f.document.getPageXPointer=function(_,page) return 'xp-'..page end
+    f.sync.prepare_local_async=function(_,position,callback)
+        eq(position.local_xpointer,'xp-25','immutable selected pointer')
+        done=callback;return true
+    end
+    f.sync:sync_now();f.choices[1].keep_local()
+    eq(#f.uploads,0,'no approximate report before source resolution')
+    eq(f.sync.uploading,true,'mapping is part of upload')
+    done(4321,nil,'actual reading text')
+    eq(#f.uploads,1,'one report after resolution')
+    eq(f.uploads[1].chapter_offset,4321,'source coordinate sent')
+    eq(f.uploads[1].summary,'actual reading text','source summary sent')
+    eq(f.sync:capture_local().chapter_offset,4321,'same pointer reuses exact source coordinate')
+    eq(f.sync.dirty,false,'acknowledged same page is not falsely dirty')
+end)
+test("source lookup failures retain the pending snapshot without sending", function()
+    local f=fixture({progress=80,chapterUid=33,chapterOffset=400})
+    local done
+    f.document.getPageXPointer=function(_,page) return 'xp-'..page end
+    f.sync.prepare_local_async=function(_,_,callback) done=callback;return true end
+    f.sync:sync_now();f.choices[1].keep_local()
+    done(nil,'source_text_ambiguous')
+    eq(#f.uploads,0,'ambiguous coordinates never sent')
+    eq(f.sync.state,'error','lookup failure visible')
+    eq(f.values.books.book.pending_upload_position.local_xpointer,'xp-25','retry snapshot retained')
+end)
+test("timed reporting waits for source resolution and invalidates it after a page turn", function()
+    local f=fixture({progress=80,chapterUid=33,chapterOffset=400})
+    local done,calls=nil,0
+    f.document.getPageXPointer=function(_,page) return 'xp-'..page end
+    f.sync.prepare_local_async=function(_,_,callback) calls=calls+1;done=callback;return true end
+    f.sync.verified=true
+    local position,reason,applies=f.sync:position_for_report('book')
+    eq(position,nil,'approximation withheld');eq(reason,'source_position_preparing','preparation status')
+    eq(applies,true,'no legacy report fallback')
+    f.sync:position_for_report('book');eq(calls,1,'one preparation per position')
+    done(4321,nil,'real text')
+    position=f.sync:position_for_report('book');eq(position.chapter_offset,4321,'timed report uses source offset')
+    f.document.page=45
+    position=f.sync:position_for_report('book');eq(position,nil,'new page requires fresh mapping')
+    eq(calls,2,'new position prepared once')
+end)
+
+test("suspend cancels source preparation without leaving upload permanently busy", function()
+    local f=fixture({progress=80,chapterUid=33,chapterOffset=400})
+    local callbacks={}
+    f.document.getPageXPointer=function(_,page) return 'xp-'..page end
+    f.sync.prepare_local_async=function(_,_,callback) callbacks[#callbacks+1]=callback;return true end
+    f.sync:sync_now();f.choices[1].keep_local()
+    eq(f.sync.uploading,true,'source upload active')
+    f.values.sync.upload_on_close=false
+    f.sync:on_suspend()
+    eq(f.sync.uploading,false,'canceled source upload releases busy flag')
+    callbacks[1](9999,nil,'stale')
+    eq(#f.uploads,0,'canceled source result not sent')
+    f.sync:sync_now();f.choices[#f.choices].keep_local()
+    callbacks[#callbacks](4321,nil,'fresh')
+    eq(#f.uploads,1,'explicit retry can finish')
+end)
+
+test("close preparation keeps its context after the reader lifetime ends", function()
+    local f=fixture({progress=80,chapterUid=33,chapterOffset=400})
+    local done
+    f.document.getPageXPointer=function(_,page) return 'xp-'..page end
+    f.sync.prepare_local_async=function(context,position,callback)
+        eq(context.book_id,'book','captured context retained')
+        eq(position.source_snapshot.text,'snapshot','detached snapshot passed')
+        done=callback;return true
+    end
+    f.sync.capture_local_snapshot=function(context,position)
+        eq(context.book_id,'book','snapshot captured before context cleared')
+        return {version=1,text='snapshot',byte=1,summary='snapshot'}
+    end
+    f.sync.verified=true;f.sync.dirty=true
+    f.sync:on_close_document()
+    eq(f.sync.document_context,nil,'reader context released')
+    eq(#f.uploads,0,'source preparation still pending')
+    done(4321,nil,'snapshot')
+    eq(#f.uploads,1,'close upload finishes without reader context')
+    eq(f.uploads[1].chapter_offset,4321,'resolved source coordinate uploaded')
+    eq(f.values.books.book.pending_upload_position,nil,'ack consumes pending snapshot')
+    eq(f.values.books.book.last_uploaded_position.source_snapshot,nil,'temporary source text discarded after mapping')
+end)
+
+test("pending close uploads reconcile on book open only for the same account", function()
+    for _,same in ipairs({true,false}) do
+        local f=fixture({progress=80,chapterUid=33,chapterOffset=400})
+        f.values.account={user_vid=same and 'one' or 'two'}
+        f.values.sync.pull_on_open=false
+        f.values.books.book.pending_upload_position={book_id='book',account_id='one',chapter_uid=22,chapter_offset=100,percent=25}
+        f.sync:on_reader_ready();f.drain()
+        eq(#f.choices,same and 1 or 0,'pending data cannot cross accounts')
+        if same then
+            eq(type(f.values.books.book.pending_upload_position),'table','comparison does not consume pending data')
+            f.choices[1].use_remote();f.drain()
+            eq(f.values.books.book.pending_upload_position,nil,'confirmed cloud choice discards old local retry')
+        end
+    end
 end)
 
 print(string.format(

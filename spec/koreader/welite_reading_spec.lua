@@ -1,6 +1,6 @@
 describe("welite reading data",function()
     local R
-    setup(function() require("commonrequire");package.path="plugins/weread.koplugin/?.lua;"..package.path;R=require("weread.ui.welite.reading") end)
+    setup(function() require("commonrequire");package.path="plugins/welite.koplugin/?.lua;"..package.path;R=require("weread.ui.welite.reading") end)
     it("expires period caches across calendar boundaries and clock rollback",function()
         local before=os.time{year=2026,month=10,day=31,hour=23,min=59,sec=0}
         local after=before+120

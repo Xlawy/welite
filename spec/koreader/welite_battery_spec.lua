@@ -1,6 +1,6 @@
 describe('welite outlined battery',function()
     local Battery
-    setup(function() require('commonrequire');package.path='plugins/weread.koplugin/?.lua;'..package.path;Battery=require('weread.ui.welite.battery') end)
+    setup(function() require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path;Battery=require('weread.ui.welite.battery') end)
     it('clamps charge and draws separated thin segments instead of a solid fill',function()
         local b=Battery:new{scale=1,percentage=0.78}
         assert.equals(4,b:segments())

@@ -132,10 +132,11 @@ end
 
 --- Quote rendering: first paragraph only (with an ellipsis when more
 --- paragraphs follow), truncated to 50 runes, wrapped in 「」.
-local function buildQuoteText(quote)
+local function buildQuoteText(quote, full_quote)
     if type(quote) ~= "string" or quote == "" then return nil end
     quote = trimText(quote)
     if quote == "" then return nil end
+    if full_quote then return "「" .. quote .. "」" end
     local nl = quote:find("[\r\n]")
     if nl then
         local first = quote:sub(1, nl - 1)
@@ -154,6 +155,7 @@ end
 --- @param opts table|nil options table:
 ---   contrast  number  contrast delta (positive darkens)
 ---   skip_quote  boolean  omit the quote block (shown in title bar)
+---   full_quote  boolean  paginate the complete quote instead of the short preview
 --- @return table[] blocks
 function ContentBuilder.build(items, opts)
     if type(opts) == "number" then
@@ -165,7 +167,7 @@ function ContentBuilder.build(items, opts)
         return blocks
     end
 
-    local quote = not opts.skip_quote and buildQuoteText(items[1] and items[1].abstract)
+    local quote = not opts.skip_quote and buildQuoteText(items[1] and items[1].abstract, opts.full_quote)
     if quote then
         blocks[#blocks + 1] = {
             kind = "paragraph",

@@ -149,7 +149,7 @@ end
 
 host:showShelfView("books", nil, nil, {})
 expect(shown[1].data.paged == true, "bookshelf did not enable pagination by default")
-expect(shown[1].data.page_size == 10, "bookshelf used the wrong page size")
+expect(shown[1].data.page_size == 9 and shown[1].data.cover_mode == true, "bookshelf used the wrong page size")
 expect(#shown[1].data.books == 1000, "pagination discarded full shelf search data")
 
 local prepared_books = shown[1].data.books
@@ -160,8 +160,8 @@ expect(shown[2].data.books == prepared_books,
 
 shelf_settings.paginated = false
 host:showShelfView("books", nil, shown[2], {})
-expect(shown[3].data.paged == false,
-    "bookshelf ignored the continuous-scroll preference")
+expect(shown[3].data.paged == true and shown[3].data.cover_mode == true,
+    "legacy list preferences must not replace the WeLite shelf")
 
 shelf_settings.paginated = true
 shelf_settings.sort_order = "name_asc"
@@ -309,6 +309,8 @@ host.client.get_shelf = function()
     return { books = grouped_books, archive = { archives[2], archives[1] } }
 end
 host.library_db = { cacheShelf = function(_self, _books, value) written_archives = value end }
+-- Native selection dialogs retain the upstream refresh lifecycle.
+host:showShelfView("books", nil, shown[#shown], {page=2,on_select=function() end})
 local before_refresh = shown[#shown]
 local cover_generation = host.shelf_cover_generation
 host.shelf_cover_pending = { view = host.shelf_view }
@@ -350,16 +352,20 @@ host:showBookshelf()
 expect(#dialogs == 1 and shelf_settings.groups_refresh_hint_shown,
     "old shelf cache did not show and remember the one-time upgrade hint")
 local hinted_view = host.shelf_view
-local saved_refresh = host.refreshBookshelf
+local saved_refresh = hinted_view.on_refresh
 local refreshed_view
-host.refreshBookshelf = function(_self, view) refreshed_view = view end
+hinted_view.on_refresh = function() refreshed_view = hinted_view end
 dialogs[1].ok_callback()
 expect(refreshed_view == hinted_view, "upgrade hint did not refresh the visible shelf")
-host.refreshBookshelf = saved_refresh
+hinted_view.on_refresh = saved_refresh
 host:showBookshelf()
 expect(#dialogs == 1, "old shelf cache repeated the upgrade hint before a refresh")
 host.shelf_group_key = "archive:7"
+local services={}
+host.progress_sync={on_account_changed=function() services[#services+1]="progress" end}
+host.read_report={on_account_changed=function() services[#services+1]="time" end}
 host:onWeReadAccountChanged()
+expect(services[1]=="progress" and services[2]=="time", "revoke progress before restarting reading time")
 expect(host.shelf_groups == nil and host.shelf_group_key == nil, "account switch retained old groups")
 
 print(("bookshelf_pagination_spec: %d checks"):format(checks))
@@ -370,6 +376,7 @@ local local_settings={shelf={view_mode='list',paginated=true,sort_order='default
     ['local-only']={title='Offline chapter',cached_chapters={['1']='chapter.epub'}},
 }}
 local local_host=setmetatable({
+    isNetworkOnline=function() return false end,
     ui={},settings={get=function(_,key,default) return local_settings[key] or default end},
     shelf_regular={},shelf_mp={},shelf_groups={},
     bookRecordHasDownload=function() local_checks=local_checks+1;return true end,

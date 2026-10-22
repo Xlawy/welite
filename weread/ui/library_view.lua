@@ -858,24 +858,6 @@ function LibraryView:showOptions()
             text = T(_("Filter: %1"), self.filter_label or _("All")),
             callback = action(function() if self.on_filter then self.on_filter() end end),
         }}
-        local row = {}
-        for _, option in ipairs({ { "list", _("List view") }, { "cover", _("Cover view") } }) do
-            row[#row + 1] = {
-                text = option[2], checked_func = function() return self.cover_mode == (option[1] == "cover") end,
-                callback = action(function() self.on_display_change("view_mode", option[1]) end),
-            }
-        end
-        buttons[#buttons + 1] = row
-    end
-    if not self.cover_mode then
-        local row = {}
-        for _, option in ipairs({ { true, _("Page mode") }, { false, _("Continuous scrolling") } }) do
-            row[#row + 1] = {
-                text = option[2], checked_func = function() return self.paged == option[1] end,
-                callback = action(function() self.on_display_change("paginated", option[1]) end),
-            }
-        end
-        buttons[#buttons + 1] = row
     end
     dialog = ButtonDialog:new{ title = _("Bookshelf"), buttons = buttons }
     dialog.movable[1].radius = 0

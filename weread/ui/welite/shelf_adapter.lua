@@ -27,6 +27,17 @@ function Adapter:setSyncStatus(value)
     self.persisted_status=value;self.sync_status=value
     if not self.welite_closed then self:redraw() end
 end
+-- Refresh only the visible thumbnails; keep the shelf's place in the UI stack.
+function Adapter:refreshCoverPaths(cache)
+    if self.welite_closed then return end
+    local changed=false
+    for _,item in ipairs(self:visibleItems()) do
+        local key=item.kind..':'..item.id
+        local path=cache:pathFor(item.record)
+        if path~=self.cover_paths[key] then self.cover_paths[key]=path;changed=true end
+    end
+    if changed then self:redraw() end
+end
 function Adapter:showSourceMenu()
     return require('weread.ui.library_view').showSourceMenu(self)
 end
@@ -66,13 +77,13 @@ function M.show(data,callbacks)
         more=function() require('weread.ui.welite.home').menu(view) end,
         login=callbacks.on_login or callbacks.on_main_menu,
         refresh=callbacks.on_refresh,status=callbacks.on_refresh,
-        filter=callbacks.on_filter_draft,
+        filter=callbacks.on_filter_draft,search=callbacks.on_cloud_search,
         statistics=function(mode) if callbacks.on_statistics then callbacks.on_statistics(mode=='daily' and 'monthly' or mode) end end,
         detail=function(item) if callbacks.on_select then callbacks.on_select(item.record,data.mode) end end,
         download=function(item) if callbacks.on_hold then callbacks.on_hold(item.record,data.mode)
             elseif callbacks.on_select then callbacks.on_select(item.record,data.mode) end end,
     }
-    local props={items=items,actions=actions,inventory=true,host=data.welite_host,
+    local props={items=items,actions=actions,inventory=true,host=data.welite_host,welite_plugin=data.welite_plugin,
         overview=data.welite_overview,logged_in=data.logged_in==true,
         sync_status=data.sync_status or '未同步',persisted_status=data.sync_status or '未同步',
         category=data.local_only and 'local' or 'shelf',query=data.keyword or '',

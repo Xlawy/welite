@@ -131,17 +131,21 @@ function Shelf:build()
     local tabs=Horizontal:new{align="center",self.filters[1],self.filters[2],
         require("ui/widget/horizontalspan"):new{width=width-180*s-self.collection_sync_button:getSize().w},self.collection_sync_button}
     self.filter_button=textbutton("筛选 / 排序",120*s,function() if actions.filter then actions.filter() end end,15,"right",28*s)
+    self.search_button=actions.search and textbutton("搜书",60*s,actions.search,15,"right",28*s) or nil
     local filtered=self:filtered()
     local descriptions={full="全书下载",partial="部分下载",none="未下载"}
     local summary=#filtered.." 本 · "..require("weread.ui.welite.collection").sorts[self.sort]
     if descriptions[self.download_filter] then summary=summary.." · "..descriptions[self.download_filter] end
     if self.query~="" then summary=summary.." · 搜索中" end
-    local summary_width=width-self.filter_button:getSize().w
+    local summary_width=width-self.filter_button:getSize().w-(self.search_button and self.search_button:getSize().w or 0)
     local summary_label=label(summary,12,false)
     summary_label.max_width=summary_width-8*s
+    local query_row=Horizontal:new{align="center",slot(summary_label,summary_width,28*s,"left")}
+    if self.search_button then query_row[#query_row+1]=self.search_button end
+    query_row[#query_row+1]=self.filter_button
     local header=Vertical:new{align="left",head,line(width,1),Span:new{width=4*s},
         stats,Span:new{width=4*s},line(width,1),Span:new{width=6*s},tabs,
-        Horizontal:new{align="center",slot(summary_label,summary_width,28*s,"left"),self.filter_button},Span:new{width=12*s}}
+        query_row,Span:new{width=12*s}}
     local footer_height=52*s
     local available=h-2*pad-header:getSize().h-footer_height
     local columns=w<screen:scaleBySize(540) and 2 or 3
@@ -150,7 +154,7 @@ function Shelf:build()
     local filtered=self:filtered()
     self.pages=math.max(1,math.ceil(#filtered/self.page_size))
     self.page=math.max(1,math.min(self.page,self.pages))
-    self.visible={};self.cards={};self.layout={{self.brand,self.login_button,self.sync_button},self.stat_buttons,self.filters,{self.filter_button}}
+    self.visible={};self.cards={};self.layout={{self.brand,self.login_button,self.sync_button},self.stat_buttons,self.filters,self.search_button and {self.search_button,self.filter_button} or {self.filter_button}}
     local grid=Vertical:new{align="left"}
     local row_height=math.floor(available/rows)
     local cell_width=math.floor(width/columns)

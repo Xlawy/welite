@@ -17,13 +17,14 @@ belong to their respective owners.
 
 WeLite modified distribution
 Copyright (C) 2026 Xlawy and contributors (WeLite modifications)
-Modification date: 2026-10-21
+Modification date: 2026-10-22
+WeLite release version: 1.0.0 (independent of the upstream baseline)
 SPDX-License-Identifier: AGPL-3.0-only
 
 Upstream project: WeRead KOReader Plugin, by finlater and contributors
 Upstream source: https://github.com/finlater/weread.koplugin
 Upstream baseline: ae3930fa91e59ac72152fa709029e39fe6bcd1d6 (1.6.0)
-Modified source: https://github.com/Xlawy/weread-based-welite
+Modified source: https://github.com/Xlawy/welite
 WeLite UI origin: https://github.com/Xlawy/welite
 
 This is an independently maintained modified version, not an upstream release.

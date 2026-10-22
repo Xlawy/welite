@@ -74,8 +74,8 @@ jobs:
           echo "automatic_release=$automatic_release"
           echo "version=$current" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "artifact_name=weread.koplugin-$package_label" >> "$GITHUB_OUTPUT"
-          echo "archive=dist/weread.koplugin-$package_label.zip" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=welite.koplugin-$package_label" >> "$GITHUB_OUTPUT"
+          echo "archive=dist/welite.koplugin-$package_label.zip" >> "$GITHUB_OUTPUT"
           echo "automatic_release=$automatic_release" >> "$GITHUB_OUTPUT"
           echo "target_sha=$TARGET_SHA" >> "$GITHUB_OUTPUT"
 
@@ -123,19 +123,19 @@ jobs:
         run: |
           unzip -l "${{ steps.version.outputs.archive }}"
           test "$(unzip -Z1 "${{ steps.version.outputs.archive }}" | head -n 1)" \
-            = "weread.koplugin/"
+            = "welite.koplugin/"
           unzip -Z1 "${{ steps.version.outputs.archive }}" \
-            | grep -qx "weread.koplugin/main.lua"
+            | grep -qx "welite.koplugin/main.lua"
           unzip -Z1 "${{ steps.version.outputs.archive }}" \
-            | grep -qx "weread.koplugin/_meta.lua"
+            | grep -qx "welite.koplugin/_meta.lua"
           unzip -Z1 "${{ steps.version.outputs.archive }}" \
-            | grep -qx "weread.koplugin/icons/weread-w-book.svg"
+            | grep -qx "welite.koplugin/icons/weread-w-book.svg"
           unzip -Z1 "${{ steps.version.outputs.archive }}" \
-            | grep -qx "weread.koplugin/integrations/init.lua"
+            | grep -qx "welite.koplugin/integrations/init.lua"
           unzip -Z1 "${{ steps.version.outputs.archive }}" \
-            | grep -qx "weread.koplugin/integrations/zenui.lua"
+            | grep -qx "welite.koplugin/integrations/zenui.lua"
           if unzip -Z1 "${{ steps.version.outputs.archive }}" \
-            | grep -Eq '^weread\.koplugin/(spec|scripts|docs|\.github)/'; then
+            | grep -Eq '^welite\.koplugin/(spec|scripts|docs|\.github)/'; then
             echo "error: development-only files were included in the release package" >&2
             exit 1
           fi

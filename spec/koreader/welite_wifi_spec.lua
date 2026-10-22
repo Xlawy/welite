@@ -1,6 +1,6 @@
 describe('welite bounded WIFI scanner',function()
     local W
-    setup(function() require('commonrequire');package.path='plugins/weread.koplugin/?.lua;'..package.path;W=require('weread.ui.welite.wifi') end)
+    setup(function() require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path;W=require('weread.ui.welite.wifi') end)
     it('runs one scan off the UI callback and ignores cancelled late results',function()
         local task,finish,timeout,shown,cancelled
         local ui={show=function(_,w) shown=w end,close=function() end}

@@ -12,7 +12,7 @@ end
 
 function M.settings(owner)
     if not owner.welite_settings_ui then
-        owner.welite_settings_ui=require('weread.ui.welite.settingsui').new{changed=function()
+        owner.welite_settings_ui=require('weread.ui.welite.settingsui').new{plugin=owner.welite_plugin or (owner.downloader and owner),changed=function()
             if owner.updateStatus and not owner.welite_closed then owner:updateStatus() end
         end}
     end
@@ -20,6 +20,8 @@ function M.settings(owner)
 end
 
 function M.queueStartup(plugin)
+    -- Startup navigation belongs to FileManager, never interrupt an open book.
+    if plugin.ui and plugin.ui.document then return false end
     return require('weread.ui.welite.startup').instance:queue(UI,
         function() return require('weread.ui.welite.preferences').read() end,
         function(open) M.settings(plugin):askStartup(open) end,
@@ -38,6 +40,9 @@ function M.menu(view)
             end
             UI:show(require('ui/widget/menu'):new{title='选择下载书籍',item_table=rows,
                 width=Device.screen:getWidth(),height=Device.screen:getHeight()})
+        end)}},
+        {{text='公众号',enabled=view.welite_plugin~=nil,callback=action(function()
+            if view.welite_plugin then view.welite_plugin:showMPShelfPage() end
         end)}},
         {{text='重新加载本页封面',callback=action(view.on_retry_covers)}},
         {{text='切换账号',callback=action(view.on_switch_account)}},

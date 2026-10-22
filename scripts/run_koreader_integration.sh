@@ -29,7 +29,7 @@ if [[ "$actual_commit" != "$KOREADER_TESTED_COMMIT" ]]; then
     exit 1
 fi
 
-plugin_target="$koreader_dir/plugins/weread.koplugin"
+plugin_target="$koreader_dir/plugins/welite.koplugin"
 spec_target="$koreader_dir/spec/unit/weread_plugin_spec.lua"
 if [[ -e "$plugin_target" || -L "$plugin_target" ]]; then
     echo "error: integration target already exists: $plugin_target" >&2

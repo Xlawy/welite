@@ -154,4 +154,14 @@ expect(status_text == "Report book: Auto: Auto Book\nStatus: Running\nReported: 
         .. os.date("%H:%M:%S", report_status.last_time) .. "\nLast error: offline",
     "status gesture preserves the live automatic target, report time, and last error")
 
+report_status.time_ledger={pending=42.5,uncertain=30}
+host:onShowWeReadReportStatus()
+expect(status_text:find("Pending reading time: 42 s",1,true), "pending duration missing")
+expect(status_text:find("Unconfirmed reading time: 30 s (not retried)",1,true), "ambiguous duration hidden")
+
+
+local reviewed=false
+package.preload['weread.ui.reading_time_review']=function() return {show=function(plugin) reviewed=plugin==host end} end
+report_items[6].callback()
+expect(reviewed,'review menu must reach the account time-review controller')
 print(("read_report_picker_spec: %d checks"):format(checks))

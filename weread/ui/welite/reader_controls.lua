@@ -2,10 +2,12 @@
 local M={}
 function M.close(plugin)
     plugin.welite_pulldown_drag=nil
+    if plugin.welite_annotations_panel then plugin.welite_annotations_panel:onClose() end
     if plugin.welite_reader_panel then plugin.welite_reader_panel:onClose() end
     if plugin.welite_settings_ui then plugin.welite_settings_ui:close() end
 end
 function M.install(plugin)
+    require("weread.ui.welite.reading_sync").onReaderReady(plugin)
     local ui=plugin.ui
     if not ui or not ui.registerTouchZones then return end
     ui:registerTouchZones{{id='welite_community_pulldown',ges='swipe',screen_zone={ratio_x=0,ratio_y=0,ratio_w=1,ratio_h=0.12},
@@ -33,6 +35,16 @@ function M.install(plugin)
             end},
     }
 end
+function M.syncStatus(plugin)
+    local status=plugin.progress_sync and plugin.progress_sync:status() or {}
+    if status.pulling or status.uploading then return '同步中…' end
+    if status.state=='error' then return '同步失败' end
+    if status.state=='offline' then return '等待联网' end
+    if status.state=='awaiting_choice' then return '待选进度' end
+    if status.dirty then return '待上传' end
+    if status.verified then return '已同步' end
+    return '同步进度'
+end
 function M.show(plugin)
     if plugin.welite_reader_panel then return true end
     local ui=plugin.ui
@@ -47,9 +59,11 @@ function M.show(plugin)
         if page and ui.toc:getNextChapter(page) then chapters.next=function() ui.rolling:onGotoNextChapter() end end
     end
     plugin.welite_reader_panel=require('weread.ui.welite.pulldown'):new{
-        controls=controls,host=ui,chapters=chapters,sync_status='未同步',
+        controls=controls,host=ui,chapters=chapters,sync_status=M.syncStatus(plugin),
         auth_view={logged_in=plugin.settings and (plugin.settings:get('account',{}).login_method or '')~=''},
         sync=function() plugin:onWeReadSyncProgress() end,
+        annotations=plugin._xpointerOverlayPrototypeAvailable and plugin:_xpointerOverlayPrototypeAvailable()
+            and function() return require('weread.ui.welite.annotations').show(plugin) end or nil,
         home=function()
             local file=ui.document.file
             ui:onClose()

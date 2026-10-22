@@ -49,10 +49,12 @@ package.preload["weread.lib.plugin_util"] = function()
     }
 end
 
+local detail_data
 local detail_view = { id = "detail" }
 local chapter_view = { id = "chapters" }
 package.preload["weread.ui.book_detail_view"] = function()
     return { show = function(data)
+        detail_data=data
         expect(data.cover_path == "/fixture-cover.png", "detail receives only the cached cover path")
         return detail_view
     end }
@@ -89,6 +91,10 @@ end
 
 local book = { book_id = "book", title = "Book", chapters = {} }
 host:showBookMenu(book)
+local reviewed
+host.showBookReviews=function(_,chosen) reviewed=chosen end
+detail_data.review_action.callback()
+expect(reviewed==book,"book detail review action must open reviews for the selected book")
 expect(host._book_detail_view == detail_view,
     "book detail view was not tracked")
 
@@ -115,5 +121,21 @@ host.shelf_view = shelf_view
 host:openFile(nil)
 expect(#closed == 0 and host.shelf_view == shelf_view,
     "invalid open request unexpectedly closed the bookshelf")
+
+
+local review_closed=false
+host._time_review_session={close=function() review_closed=true end}
+require("weread.ui.library").closeWeReadUI(host)
+expect(review_closed,'closing plugin UI must close time review and its confirmation')
+closed = {}
+host.shelf_view = shelf_view
+local settings_closed = 0
+host.welite_settings_ui = {close=function() settings_closed=settings_closed+1 end}
+expect(host:onCloseWidget() == nil, 'host teardown must propagate to native handlers')
+expect(host.shelf_view == nil and closed[1] == shelf_view,
+    'host teardown must release independent shelf window')
+expect(settings_closed == 1, 'host teardown must close plugin settings')
+host:onCloseWidget()
+expect(#closed == 1, 'repeated host cleanup must not close stale shelf references')
 
 print(("library_ui_cleanup_spec: %d checks"):format(checks))

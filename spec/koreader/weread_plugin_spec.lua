@@ -8,22 +8,22 @@ describe("WeRead plugin integration", function()
     end)
 
     it("is discovered and loaded by KOReader PluginLoader", function()
-        load_plugin("weread.koplugin")
+        load_plugin("welite.koplugin")
 
         local PluginLoader = require("pluginloader")
         local plugin
         for _, candidate in ipairs(PluginLoader.enabled_plugins) do
-            if candidate.name == "weread" then
+            if candidate.name == "welite" then
                 plugin = candidate
                 break
             end
         end
 
         assert.is_table(plugin)
-        assert.equals("weread", plugin.name)
+        assert.equals("welite", plugin.name)
         assert.equals("WeLite", plugin.fullname)
         assert.is_false(plugin.is_doc_only)
-        assert.matches("weread%.koplugin$", plugin.path)
+        assert.matches("welite%.koplugin$", plugin.path)
     end)
 
     it("loads project modules only through the weread namespace", function()

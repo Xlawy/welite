@@ -1,6 +1,6 @@
 describe('welite filter draft form',function()
     local F,UI,dialog
-    setup(function() require('commonrequire');package.path='plugins/weread.koplugin/?.lua;'..package.path;F=require('weread.ui.welite.filter');UI=require('ui/uimanager') end)
+    setup(function() require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path;F=require('weread.ui.welite.filter');UI=require('ui/uimanager') end)
     after_each(function() if dialog then UI:close(dialog);dialog=nil end end)
     it('applies search and choices once, and leaves cancelled choices untouched',function()
         local applied=0;local result

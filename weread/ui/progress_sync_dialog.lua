@@ -33,14 +33,19 @@ function ProgressSyncDialog.show_choice(context)
             percent(context.remote_position))
     end
 
-    UIManager:show(ConfirmBox:new{
+    local dialog = ConfirmBox:new{
         title = _("Reading progress sync"),
         text = message,
         ok_text = _("Use WeRead progress"),
-        cancel_text = _("Keep KOReader progress"),
+        cancel_text = _("Cancel"),
         ok_callback = context.use_remote,
-        cancel_callback = context.keep_local,
-    })
+        cancel_callback = context.cancel or function() end,
+        other_buttons = {{
+            { text = _("Keep KOReader progress"), callback = context.keep_local },
+        }},
+    }
+    UIManager:show(dialog)
+    return dialog
 end
 
 function ProgressSyncDialog.notify(code, data)

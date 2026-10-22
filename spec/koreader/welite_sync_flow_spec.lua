@@ -1,0 +1,512 @@
+-- Real plugin composition, worker process, storage, shelf, reader, and dialogs.
+-- Only remote service responses and the file-manager open-file host are supplied.
+describe('WeLite shelf-to-reader sync flow',function()
+    local UI,Storage,Settings,Plugin,Dialog,Reader,root,old_full,old_dir
+    local manager,reader,target,dialog,old_show,remote,opened,bookpath,online
+    local function reports()
+        local file=io.open(root..'/server-report.json','r')
+        if not file then return 0 end
+        local state=require('json').decode(file:read('*a'));file:close()
+        remote=state.remote
+        return state.count
+    end
+    local function drain(predicate)
+        local socket=require('socket')
+        local deadline=socket.gettime()+8
+        repeat UI:_checkTasks();if predicate() then return end;socket.sleep(0.02) until socket.gettime()>deadline
+        assert.is_true(predicate(),'UI flow did not finish before deadline')
+    end
+    local function wire(plugin)
+        plugin.isNetworkOnline=function() return online end
+        plugin.isNetworkConnected=function() return online end
+        plugin.client.get_shelf=function() return {books={{bookId='fixture',title='Fixture',author='Author',progress=remote.progress}}} end
+        plugin.client.get_read_stats=function() return {totalReadTime=120,readTimes={}} end
+        plugin.client.get_progress=function() return {book=remote} end
+        plugin.client.get_web_progress=function() return {book=remote} end
+        plugin.client.get_text=function() return '{"psvts":"fixture-session","token":"fixture-token"}' end
+        plugin.client.report_read=function(_,payload)
+            if payload.rt~=nil then
+                assert.equals(0,payload.rt)
+                local count=reports()+1
+                remote={progress=payload.pr,chapterUid=1,chapterIdx=1,chapterOffset=payload.co}
+                local file=assert(io.open(root..'/server-report.json','w'))
+                file:write(require('json').encode({count=count,remote=remote}));file:close()
+            end
+            return {succ=1,synckey='fixture-ack'},200
+        end
+    end
+    setup(function()
+        require('commonrequire');disable_plugins()
+        package.path='plugins/welite.koplugin/?.lua;'..package.path
+        UI=require('ui/uimanager');Storage=require('datastorage')
+        Settings=require('weread.lib.settings');Reader=require('apps/reader/readerui')
+        Plugin=dofile('plugins/welite.koplugin/main.lua')
+        Dialog=require('weread.ui.progress_sync_dialog')
+    end)
+    before_each(function()
+        online=true
+        root=os.tmpname();os.remove(root)
+        local lfs=require('libs/libkoreader-lfs');lfs.mkdir(root);lfs.mkdir(root..'/settings')
+        old_full,old_dir=Storage.getFullDataDir,Storage.getSettingsDir
+        Storage.getFullDataDir=function() return root end;Storage.getSettingsDir=function() return root..'/settings' end
+        local settings=Settings:new()
+        settings:update_auth({api_key='fixture',cookies={wr_vid='123',wr_skey='fixture-session'},account={user_vid='123',login_method='qr'}})
+        local cache=settings:get('cache');cache.show_annotations=false;settings:set('cache',cache)
+        settings:set('update',{auto_check=false})
+        settings:set('shelf',{view_mode='cover',sort_order='default'})
+        local book={book_id='fixture',title='Fixture'}
+        local Content=require('weread.lib.content')
+        local body='<h1>Fixture chapter</h1>'
+        for i=1,200 do
+            body=body..'<p>Paragraph '..i..': Synthetic reading position text, with enough lines to measure fractional page precision.</p>'
+        end
+        local chapter={chapterUid=1,chapterIdx=1,wordCount=1000,title='Fixture chapter'}
+        Content.cache_annotation_source(settings,book,chapter,body)
+        bookpath=Content.save_book_epub(settings,book,{chapter},{['1']=body})
+        book.cached_file=bookpath;book.cached_full_book=bookpath
+        book.cached_chapters={['1']=bookpath}
+        settings:set('books',{fixture=book});settings:flush()
+        remote={progress=70,chapterUid=1,chapterIdx=1,chapterOffset=700};opened=0
+        local host={menu={registerToMainMenu=function() end},openFile=function(_,path)
+            opened=opened+1
+            reader=Reader:new{dimen=require('device').screen:getSize(),document=require('document/documentregistry'):openDocument(path)}
+            reader.rolling:onGotoPercent(20)
+            target=Plugin:new{ui=reader};reader.weread=target;wire(target)
+            assert.is_true(target.settings:is_cookie_configured())
+            target:onReaderReady()
+        end}
+        manager=Plugin:new{ui=host};wire(manager)
+        assert.equals(manager,host.weread,"legacy service handle survives the directory rename")
+        assert(require('weread.lib.content').save_catalog_cache(manager.client,settings,book,
+            {{chapterUid=1,chapterIdx=1,wordCount=1000,title='Fixture chapter'}}))
+        old_show=Dialog.show_choice
+        Dialog.show_choice=function(context) dialog=old_show(context);return dialog end
+        manager.welite_stats_attempt=os.time()
+        manager:applyShelfSnapshot({{bookId='fixture',title='Fixture',progress=70}}, {})
+        manager:showShelfView('books')
+    end)
+    after_each(function()
+        if dialog then UI:close(dialog);dialog=nil end
+        if manager then manager:closeWeReadUI() end
+        if reader then
+            if target then target:onCloseDocument() end
+            reader:onClose();reader=nil;target=nil
+        end
+        Dialog.show_choice=old_show
+        Storage.getFullDataDir,Storage.getSettingsDir=old_full,old_dir
+        require('ffi/util').purgeDir(root)
+    end)
+    local function expected_source_offset()
+        local doc=reader.document
+        local xp=doc:getPageXPointer(doc:getCurrentPage())
+        local ranges=target.progress_sync:_rendered_positions(target.progress_sync.document_context).ranges
+        local range=ranges['1']
+        local prefix=doc:getTextFromXPointers(range.start_xpointer,xp)
+        local full=doc:getTextFromXPointers(range.start_xpointer,range.end_xpointer)
+        doc:clearSelection()
+        local normalize=require('weread.lib.external_annotations').flatten_text
+        local byte=#normalize(prefix)+1
+        local flat=normalize(full)
+        -- The generated paragraphs have a unique number. Include preceding text
+        -- to distinguish page starts that fall in an otherwise repeated phrase.
+        local first,last=math.max(1,byte-150),math.min(#flat,byte+150)
+        local needle=flat:sub(first,last)
+        local raw='<h1>Fixture chapter</h1>'
+        for i=1,200 do raw=raw..'<p>Paragraph '..i..': Synthetic reading position text, with enough lines to measure fractional page precision.</p>' end
+        local text,indices={},{}
+        local in_tag=false
+        for i=1,#raw do
+            local char=raw:sub(i,i)
+            if char=='<' then in_tag=true
+            elseif char=='>' then in_tag=false
+            elseif not in_tag and not char:match('%s') then text[#text+1]=char;indices[#indices+1]=i-1 end
+        end
+        local source=table.concat(text)
+        local found=assert(source:find(needle,1,true))
+        assert.is_nil(source:find(needle,found+1,true))
+        return indices[found+byte-first]
+    end
+    local function sync_and_open()
+        manager.shelf_view.collection_sync_button.callback()
+        drain(function() return not manager.shelf_refreshing end)
+        assert.equals(0,opened);assert.is_nil(dialog)
+        assert.equals('数据已刷新',manager.welite_shelf_status)
+        assert.is_true(manager.settings:get('welite_pending_progress_sync').books.fixture)
+        assert.equals(120,manager.welite_overview.monthly.total_seconds)
+        manager.shelf_view.cards[1].callback()
+        drain(function() return dialog~=nil end)
+        assert.equals(1,opened)
+        assert.is_true(target.settings:get('welite_pending_progress_sync').books.fixture)
+    end
+    it('defers unread cloud-only progress until the reader opens',function()
+        local books=manager.settings:get('books')
+        local record=books.fixture
+        local full,file,chapters=record.cached_full_book,record.cached_file,record.cached_chapters
+        record.cached_full_book,record.cached_file,record.cached_chapters=nil,nil,nil
+        manager.settings:set('books',books);manager.settings:flush()
+        manager.client.get_progress=function() error('unread cloud-only book must not be queried on the shelf') end
+        manager.shelf_view.collection_sync_button.callback()
+        drain(function() return not manager.shelf_refreshing end)
+        assert.equals('数据已刷新',manager.welite_shelf_status)
+        assert.equals(0,opened);assert.is_nil(dialog)
+        assert.is_nil(manager.settings:get('welite_pending_progress_sync').books.fixture)
+        -- Publish the downloaded file immediately before the user opens it.
+        books=manager.settings:get('books');record=books.fixture
+        record.cached_full_book,record.cached_file,record.cached_chapters=full,file,chapters
+        manager.settings:set('books',books);manager.settings:flush()
+        manager:openFile(bookpath)
+        drain(function() return dialog~=nil end)
+        assert.equals(1,opened)
+        assert.equals(0,reports(),'opening still preserves the upstream conflict choice')
+    end)
+    it('keeps repeated home refreshes deferred and persists the request across settings reloads',function()
+        for _=1,2 do
+            manager.shelf_view.collection_sync_button.callback()
+            drain(function() return not manager.shelf_refreshing end)
+            assert.equals(0,opened)
+            assert.equals(0,reports())
+            assert.is_nil(dialog)
+            assert.equals('数据已刷新',manager.welite_shelf_status)
+        end
+        local reloaded=Settings:new()
+        assert.is_true(reloaded:get('welite_pending_progress_sync').books.fixture)
+        assert.equals('123',reloaded:get('welite_pending_progress_sync').account)
+        manager.shelf_view.cards[1].callback()
+        drain(function() return dialog~=nil end)
+        assert.equals(1,opened)
+        assert.equals(0,reports(),'opening a book must not implicitly select local progress')
+    end)
+    it('refreshes without opening, then uploads only after selecting local progress',function()
+        sync_and_open()
+        local selected=assert(target.progress_sync:capture_local())
+        local source_offset=expected_source_offset()
+        dialog.other_buttons[1][1].callback()
+        drain(function() return reports()==1 and not target.settings:get('welite_pending_progress_sync').books.fixture end)
+        assert.is_true(math.abs(remote.progress-selected.percent)<0.01)
+        assert.equals(source_offset,remote.chapterOffset)
+        local stored=target.settings:get('books').fixture
+        assert.equals(remote.progress,stored.last_uploaded_position.percent)
+        assert.is_nil(stored.pending_upload_position)
+        assert.is_nil(stored.last_sync_error)
+    end)
+    it('persists confirmed cloud offset across real settings reload without reusing verification',function()
+        local config=manager.settings:get('sync');config.pull_on_open=false;manager.settings:set('sync',config)
+        remote={progress=35.7,chapterUid=1,chapterIdx=1,chapterOffset=357}
+        sync_and_open();dialog.ok_callback()
+        drain(function() return not target.settings:get('welite_pending_progress_sync').books.fixture end)
+        assert.equals(357,target.progress_sync:capture_local().chapter_offset)
+        assert.is_table(target.settings:get('books').fixture.last_local_position.confirmed_layout)
+        target:onCloseDocument();reader:onClose();reader=nil;target=nil;dialog=nil
+        manager:openFile(bookpath)
+        -- The fixture openFile callback deliberately moves to 20%; return to
+        -- the host's saved cloud page before delayed progress initialization.
+        local saved=target.settings:get('books').fixture.last_local_position.confirmed_layout
+        reader.rolling:onGotoPage(saved.page)
+        drain(function() return target.progress_sync:status().state=='unverified' end)
+        assert.equals(357,target.progress_sync:capture_local().chapter_offset)
+        assert.is_false(target.progress_sync:status().verified)
+        assert.is_nil(dialog);assert.equals(0,reports())
+    end)
+    it('keeps confirmed source offsets beyond catalog words without rewriting server percent',function()
+        remote={progress=42,chapterUid=1,chapterIdx=1,chapterOffset=2400}
+        sync_and_open();dialog.ok_callback()
+        drain(function() return not target.settings:get('welite_pending_progress_sync').books.fixture end)
+        local captured=assert(target.progress_sync:capture_local())
+        assert.equals(2400,captured.chapter_offset)
+        assert.equals(42,captured.percent)
+        local stored=target.settings:get('books').fixture.last_local_position
+        assert.equals(2400,stored.chapter_offset)
+        assert.equals(42,stored.percent)
+        assert.equals(0,reports())
+    end)
+    it('recovers a missing catalog asynchronously before showing the progress choice',function()
+        sync_and_open();dialog.cancel_callback();UI:close(dialog);dialog=nil
+        local Content=require('weread.lib.content')
+        local books=target.settings:get('books');books.fixture.chapters=nil
+        target.settings:set('books',books);target.settings:flush()
+        target.library_db:putChapters('fixture',{})
+        os.remove(Content.catalog_cache_path(target.settings,books.fixture))
+        target.progress_sync.document_context=nil;target.progress_sync.rendered_positions=nil
+        local position,reason=target.progress_sync:capture_local()
+        assert.is_nil(position);assert.equals('catalog_unavailable',reason)
+        target.client.post_json=function(_,url,data)
+            assert.is_truthy(url:find('/web/book/chapterInfos',1,true))
+            return {data={{bookId='fixture',updated={{chapterUid=1,chapterIdx=1,wordCount=1000,title='Fixture chapter'}}}}}
+        end
+        local failure
+        local notify=target.progress_sync.notify
+        target.progress_sync.notify=function(code,data)
+            if code=='local_unavailable' then failure=data.error end
+            return notify(code,data)
+        end
+        target:onWeReadSyncProgress()
+        drain(function() return dialog~=nil or failure~=nil end)
+        assert.is_nil(failure)
+        assert.equals(1,#target.library_db:getChapters('fixture'))
+        assert.is_table(Content.load_catalog_cache(target.client,target.settings,books.fixture))
+        assert.equals(0,reports())
+        dialog.ok_callback()
+        drain(function() return not target.settings:get('welite_pending_progress_sync').books.fixture end)
+    end)
+    it('keeps a canceled choice pending and asks again only after reopening the book',function()
+        sync_and_open()
+        dialog.cancel_callback();UI:close(dialog);dialog=nil
+        assert.equals('choice_cancelled',target.progress_sync:status().verified_reason)
+        local deadline=require('socket').gettime()+1.2
+        drain(function() return require('socket').gettime()>deadline end)
+        assert.is_nil(dialog);assert.equals(0,reports())
+        assert.is_true(target.settings:get('welite_pending_progress_sync').books.fixture)
+        target:onCloseDocument();reader:onClose();reader=nil;target=nil
+        manager:openFile(bookpath)
+        drain(function() return dialog~=nil end)
+        assert.equals(2,opened);assert.equals(0,reports())
+        assert.is_nil(target.progress_sync:status().verified_reason)
+        dialog.ok_callback()
+        drain(function() return not target.settings:get('welite_pending_progress_sync').books.fixture end)
+        assert.equals(0,reports())
+    end)
+    it('does not reopen a quickly canceled automatic choice from the deferred home request',function()
+        local config=manager.settings:get('sync')
+        config.pull_on_open=true;manager.settings:set('sync',config);manager.settings:flush()
+        local choices=0
+        Dialog.show_choice=function(context)
+            choices=choices+1
+            local shown=old_show(context)
+            context.cancel();UI:close(shown)
+        end
+        manager.shelf_view.collection_sync_button.callback()
+        drain(function() return not manager.shelf_refreshing end)
+        manager.shelf_view.cards[1].callback()
+        drain(function() return choices==1 end)
+        local deadline=require('socket').gettime()+1.2
+        drain(function() return require('socket').gettime()>deadline end)
+        assert.equals(1,choices);assert.equals(0,reports())
+        assert.equals('choice_cancelled',target.progress_sync:status().verified_reason)
+        assert.is_true(target.settings:get('welite_pending_progress_sync').books.fixture)
+    end)
+    it('retains a deferred request while offline and allows an explicit connected retry',function()
+        manager.shelf_view.collection_sync_button.callback()
+        drain(function() return not manager.shelf_refreshing end)
+        online=false
+        manager.shelf_view.cards[1].callback()
+        drain(function() return target.progress_sync:status().state=='offline' end)
+        assert.is_nil(dialog);assert.equals(0,reports())
+        assert.is_true(target.settings:get('welite_pending_progress_sync').books.fixture)
+        online=true
+        target:onWeReadSyncProgress()
+        drain(function() return dialog~=nil end)
+        dialog.ok_callback()
+        drain(function() return target.progress_sync:status().verified
+            and not target.settings:get('welite_pending_progress_sync').books.fixture end)
+        assert.is_nil(target.settings:get('welite_pending_progress_sync').books.fixture,
+            'successful explicit retry must consume the marker without reopening')
+        assert.equals(0,reports())
+    end)
+    it('revokes the old account choice and requires a new comparison in the open reader',function()
+        local config=manager.settings:get('sync');config.pull_on_open=false;manager.settings:set('sync',config)
+        sync_and_open()
+        local old_dialog=dialog
+        target.settings:set('account',{user_vid='another-account'})
+        target.settings:flush()
+        target:onWeReadAccountChanged()
+        old_dialog.other_buttons[1][1].callback()
+        old_dialog.ok_callback()
+        assert.equals(0,reports())
+        local position,reason,applies=target.progress_sync:position_for_report('fixture')
+        assert.is_nil(position);assert.equals('progress_unverified',reason);assert.is_true(applies)
+        drain(function() return target.progress_sync:status().state=='unverified' end)
+        assert.is_false(target.progress_sync:status().verified)
+        dialog=nil
+        target:onWeReadSyncProgress()
+        drain(function() return dialog~=nil end)
+        assert.is_not.equal(old_dialog,dialog)
+        dialog.other_buttons[1][1].callback()
+        drain(function() return reports()==1 and not target.progress_sync:status().uploading end)
+        assert.is_true(target.progress_sync:status().verified)
+    end)
+    it('keeps pages read during upload dirty after the earlier snapshot is acknowledged',function()
+        sync_and_open()
+        local selected=assert(target.progress_sync:capture_local())
+        local source_offset=expected_source_offset()
+        local report=target.client.report_read
+        target.client.report_read=function(client,payload)
+            if payload.rt~=nil then require('socket').sleep(0.3) end
+            return report(client,payload)
+        end
+        dialog.other_buttons[1][1].callback()
+        drain(function() return target.read_report.job~=nil end)
+        reader.rolling:onGotoPercent(40)
+        target:onPageUpdate()
+        local advanced=assert(target.progress_sync:capture_local())
+        assert.is_true(advanced.percent>selected.percent)
+        assert.is_true(target.progress_sync:status().uploading)
+        assert.is_nil(target.settings:get('books').fixture.last_uploaded_position)
+        drain(function() return reports()==1 and not target.progress_sync:status().uploading end)
+        assert.is_true(target.progress_sync:status().dirty)
+        assert.is_true(math.abs(remote.progress-selected.percent)<0.01)
+        local stored=target.settings:get('books').fixture
+        assert.equals(advanced.chapter_offset,stored.last_local_position.chapter_offset)
+        assert.equals(source_offset,stored.last_uploaded_position.chapter_offset)
+        assert.equals(selected.percent,stored.last_uploaded_position.percent)
+    end)
+    it('retains a timed-out upload for explicit reconciliation without reporting success',function()
+        sync_and_open()
+        target.client.report_read=function() require('socket').sleep(2);return {succ=1},200 end
+        dialog.other_buttons[1][1].callback()
+        drain(function() return target.read_report.job~=nil end)
+        local reporter=target.read_report
+        local job=reporter.job
+        reporter.now=function() return job.started_at+181 end
+        reporter:_poll_job(job,reporter.generation,nil)
+        assert.is_nil(reporter.job)
+        assert.is_false(target.progress_sync:status().uploading)
+        local stored=target.settings:get('books').fixture
+        assert.is_table(stored.pending_upload_position)
+        assert.is_nil(stored.last_uploaded_position)
+        assert.is_truthy(stored.last_sync_error:find('unknown',1,true))
+        assert.is_true(target.settings:get('welite_pending_progress_sync').books.fixture)
+        assert.equals(0,reports())
+    end)
+    it('abandons an in-flight upload when the account changes',function()
+        sync_and_open()
+        target.client.report_read=function() require('socket').sleep(2);return {succ=1},200 end
+        dialog.other_buttons[1][1].callback()
+        drain(function() return target.read_report.job~=nil end)
+        target.settings:set('account',{user_vid='new-account'})
+        target:onWeReadAccountChanged()
+        assert.is_nil(target.read_report.job)
+        assert.is_false(target.progress_sync:status().uploading)
+        assert.is_nil(target.settings:get('books').fixture.last_uploaded_position)
+        assert.equals(0,reports())
+    end)
+    it('preserves sub-percent position precision in the real reader',function()
+        sync_and_open()
+        -- Use the host as the oracle: its layout may have hundreds of pages.
+        -- Quantizing to whole percentages must not change the destination page.
+        for _, percent in ipairs({12.345, 26.789, 57.321, 88.654}) do
+            reader.rolling:onGotoPercent(percent)
+            local expected=reader.document:getCurrentPage()
+            reader.rolling:onGotoPercent(1)
+            assert.is_true(target.progress_sync.goto_fraction(percent/100))
+            assert.equals(expected,reader.document:getCurrentPage())
+        end
+    end)
+    it('applies cloud progress to the real reader and persists the resulting position',function()
+        sync_and_open()
+        dialog.ok_callback()
+        drain(function() return not target.settings:get('welite_pending_progress_sync').books.fixture end)
+        assert.equals(0,reports())
+        -- Source offset 700 is in paragraph 7, not at 70% of the EPUB.
+        local matches=reader.document:findAllText('Paragraph 7: Synthetic re',true,0,2,false,0)
+        reader.document:clearSelection()
+        assert.equals(1,#matches)
+        assert.equals(reader.document:getPageFromXPointer(matches[1]['end']),reader.document:getCurrentPage())
+        assert.equals(700,target.settings:get('books').fixture.last_local_position.chapter_offset)
+        assert.is_true(math.abs(target.settings:get('books').fixture.last_local_position.percent-70)<2)
+    end)
+    it('uploads a closed book from home without opening it or asking about an unchanged cloud',function()
+        sync_and_open();dialog.ok_callback()
+        drain(function() return not target.progress_sync:status().pulling end)
+        local config=target.settings:get('sync');config.upload_on_close=false;target.settings:set('sync',config)
+        reader.rolling:onGotoPercent(50);target:onPageUpdate()
+        local expected=expected_source_offset()
+        local page=reader.document:getCurrentPage()
+        target:onCloseDocument();reader:onClose();reader=nil
+        assert.equals(0,reports(),'disabled automatic upload must not send')
+        assert.is_table(Settings:new():get('books').fixture.pending_upload_position)
+        if dialog then UI:close(dialog);dialog=nil end
+        manager:showShelfView('books');wire(manager)
+        local before=opened
+        manager.shelf_view.collection_sync_button.callback()
+        drain(function() return not manager.shelf_refreshing end)
+        assert.equals(1,reports())
+        assert.equals(expected,remote.chapterOffset)
+        assert.equals(before,opened);assert.is_nil(dialog)
+        assert.is_nil(Settings:new():get('books').fixture.pending_upload_position)
+        assert.equals('数据已刷新',manager.welite_shelf_status)
+        manager:openFile(bookpath);reader.rolling:onGotoPage(page)
+        drain(function() return target.progress_sync:status().verified==true end)
+        assert.is_nil(dialog,'acknowledged source position must not become a false conflict on reopening')
+        assert.equals(1,reports())
+    end)
+    it('does not treat a cancelled opening conflict as permission to overwrite cloud from home',function()
+        sync_and_open();dialog.cancel_callback()
+        reader.rolling:onGotoPercent(50);target:onPageUpdate()
+        target:onCloseDocument();reader:onClose();reader=nil
+        if dialog then UI:close(dialog);dialog=nil end
+        manager:showShelfView('books');wire(manager)
+        manager.shelf_view.collection_sync_button.callback()
+        drain(function() return not manager.shelf_refreshing end)
+        assert.equals(0,reports())
+        assert.is_table(Settings:new():get('books').fixture.pending_upload_position)
+        assert.equals('同步未完成',manager.welite_shelf_status)
+    end)
+    it('preserves both changed positions for a later choice instead of overwriting cloud at home',function()
+        sync_and_open();dialog.ok_callback()
+        drain(function() return not target.progress_sync:status().pulling end)
+        local config=target.settings:get('sync');config.upload_on_close=false;target.settings:set('sync',config)
+        reader.rolling:onGotoPercent(50);target:onPageUpdate()
+        target:onCloseDocument();reader:onClose();reader=nil
+        if dialog then UI:close(dialog);dialog=nil end
+        remote={progress=90,chapterUid=1,chapterIdx=1,chapterOffset=900}
+        manager:showShelfView('books');wire(manager)
+        manager.shelf_view.collection_sync_button.callback()
+        drain(function() return not manager.shelf_refreshing end)
+        assert.equals(0,reports());assert.equals(900,remote.chapterOffset)
+        assert.is_table(Settings:new():get('books').fixture.pending_upload_position)
+        assert.is_nil(dialog)
+        assert.equals('同步未完成',manager.welite_shelf_status)
+    end)
+
+    it('uploads the last page after the document closes using a bounded text snapshot',function()
+        sync_and_open();dialog.other_buttons[1][1].callback()
+        drain(function() return reports()==1 and not target.progress_sync:status().uploading end)
+        local config=target.settings:get('sync');config.upload_on_close=true;target.settings:set('sync',config)
+        reader.rolling:onGotoPercent(40);target:onPageUpdate()
+        local expected=expected_source_offset()
+        local document=reader.document
+        local old_read=document.getTextFromXPointers
+        local closed=false
+        document.getTextFromXPointers=function(self,...)
+            assert.is_false(closed,'closed reader DOM must never be accessed')
+            return old_read(self,...)
+        end
+        local started=require('socket').gettime()
+        target:onCloseDocument()
+        local elapsed=require('socket').gettime()-started
+        local pending=target.settings:get('books').fixture.pending_upload_position
+        assert.is_table(pending.source_snapshot)
+        assert.is_true(#pending.source_snapshot.text<=3075)
+        reader:onClose();reader=nil;closed=true
+        drain(function() return reports()==2 and not target.progress_sync:status().uploading end)
+        assert.equals(expected,remote.chapterOffset)
+        assert.is_nil(target.settings:get('books').fixture.pending_upload_position)
+        assert.is_nil(target.settings:get('books').fixture.last_uploaded_position.source_snapshot)
+        print(string.format('source close capture: %.6f seconds',elapsed))
+    end)
+
+    it('retains an offline close snapshot and reconciles it only after reopening the book',function()
+        sync_and_open();dialog.other_buttons[1][1].callback()
+        drain(function() return reports()==1 and not target.progress_sync:status().uploading end)
+        local config=target.settings:get('sync');config.upload_on_close=true;target.settings:set('sync',config)
+        reader.rolling:onGotoPercent(40);target:onPageUpdate()
+        local expected=expected_source_offset()
+        local page=reader.document:getCurrentPage()
+        online=false
+        target:onCloseDocument();reader:onClose();reader=nil
+        local pending=Settings:new():get('books').fixture.pending_upload_position
+        assert.is_table(pending.source_snapshot);assert.equals('123',pending.account_id)
+        assert.equals(1,reports(),'offline close must not report success')
+        if dialog then UI:close(dialog);dialog=nil end
+        target=nil;online=true
+        manager:openFile(bookpath)
+        reader.rolling:onGotoPage(page)
+        drain(function() return dialog~=nil end)
+        assert.equals(1,reports(),'reopening requires reconciliation, not blind replay')
+        dialog.other_buttons[1][1].callback()
+        drain(function() return reports()==2 and not target.progress_sync:status().uploading end)
+        assert.equals(expected,remote.chapterOffset)
+        assert.is_nil(target.settings:get('books').fixture.pending_upload_position)
+    end)
+
+end)

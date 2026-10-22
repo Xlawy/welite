@@ -1,5 +1,5 @@
 -- Real KOReader updater UI, subprocess, persistence, and candidate installation.
--- Run with a fresh KO_HOME containing plugins/weread.koplugin and sibling fixtures/.
+-- Run with a fresh KO_HOME containing plugins/welite.koplugin and sibling fixtures/.
 -- WEREAD_UPDATER_INTERACTIVE=1 leaves a native window for manual interaction.
 require("setupkoenv")
 local home = assert(os.getenv("KO_HOME"))
@@ -14,7 +14,7 @@ else
 end
 G_reader_settings:saveSetting("language", "zh_CN")
 require("gettext").changeLang("zh_CN")
-package.path = home .. "/plugins/weread.koplugin/?.lua;" .. package.path
+package.path = home .. "/plugins/welite.koplugin/?.lua;" .. package.path
 local Device = require("device")
 require("document/canvascontext"):init(Device)
 local Screen = Device.screen
@@ -31,7 +31,7 @@ local function read(path)
     return data
 end
 local metadata = json.decode(read(root .. "/fixtures/release.json"))
-local current_version = assert(read(home .. "/plugins/weread.koplugin/_meta.lua")
+local current_version = assert(read(home .. "/plugins/welite.koplugin/_meta.lua")
     :match('version%s*=%s*"([^"]+)"'))
 local settings = Settings:new()
 local state = settings:get("update")
@@ -39,7 +39,7 @@ state.prefer_proxy = false
 settings:set("update", state)
 settings:flush()
 local core = Updater:new{
-    settings = settings, current_version = current_version, plugin_dir = home .. "/plugins/weread.koplugin",
+    settings = settings, current_version = current_version, plugin_dir = home .. "/plugins/welite.koplugin",
 }
 -- Inject only the HTTP boundary. Parsing, subprocesses, SHA-256 verification,
 -- archive extraction, directory replacement, settings and all widgets stay real.
@@ -138,8 +138,8 @@ assert(not top(), "native back/close left a viewer open")
 local original_tag = metadata.tag_name
 metadata.tag_name = "v9999.9.2"
 metadata.assets = {
-    { name = "weread.koplugin-v9999.9.2.zip", browser_download_url = Updater.RELEASE_PREFIX .. "v9999.9.2/test.zip" },
-    { name = "weread.koplugin-v9999.9.2.zip.sha256", browser_download_url = Updater.RELEASE_PREFIX .. "v9999.9.2/test.sha256" },
+    { name = "welite.koplugin-v9999.9.2.zip", browser_download_url = Updater.RELEASE_PREFIX .. "v9999.9.2/test.zip" },
+    { name = "welite.koplugin-v9999.9.2.zip.sha256", browser_download_url = Updater.RELEASE_PREFIX .. "v9999.9.2/test.sha256" },
 }
 check(false)
 assert(top() and top().title:find("9999.9.2", 1, true), "newer release did not notify")

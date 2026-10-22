@@ -42,3 +42,5 @@ package.loaded["gettext"] = function(text) return text end
 assert(I18n.language() == "en", "identity gettext stubs must remain supported")
 
 print("i18n_spec: automatic locale, saved overrides and English fallback passed")
+
+assert(require("_meta").version == "1.0.0", "WeLite must have an independent release version")

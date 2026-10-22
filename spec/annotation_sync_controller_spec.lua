@@ -87,7 +87,7 @@ host.annotation_store = store
 host.external_annotations_db = store.legacy
 local context = { path = "single", book_id = "book", document_key = "single", store = store,
     binding = { book_id = "book", title = "fixture" }, statuses = {},
-    chapters = { { chapterUid = "1" } }, ranges = {} }
+    catalog = { { chapterUid = "1" } }, chapters = { { chapterUid = "1" } }, ranges = {} }
 host._annotation_context = context
 host._annotationBinding = function() return context.binding end
 host._prepareAnnotationContext = function() return context end

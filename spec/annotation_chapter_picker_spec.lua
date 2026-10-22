@@ -2,7 +2,7 @@
 -- This does not replace visual verification on KOReader/e-ink hardware.
 package.path = "./?.lua;" .. package.path
 local width, height, live_buttons, max_buttons = 600, 800, 0, 0
-local function scale(n) return math.floor(n * width / 600) end
+local function scale(n) return math.floor(n * math.min(width, height) / 600) end
 local Widget = {}
 function Widget:extend(args) return setmetatable(args or {}, { __index = self }) end
 function Widget:new(args)
@@ -227,7 +227,7 @@ choices[20].callback = function() saved = 20 end
 view = Picker.show{ choices = choices, local_title = "Current local chapter",
     on_remove = function() removed = true end }
 assert(view.page == math.ceil(20 / view.per_page))
-assert(view[1]:getSize().h == height and live_buttons == math.min(view.per_page, #choices) + 4)
+assert(view[1]:getSize().h == height and live_buttons == math.min(view.per_page, #choices) + 5)
 local chosen_row = view.layout[(20 - 1) % view.per_page + 1][1]
 assert(chosen_row.enabled and not view.layout[1][1].enabled)
 chosen_row.callback(); assert(saved == 20)

@@ -281,7 +281,7 @@ function Chapters.map(document, catalog, descriptor, overrides)
         if next_match and (not stop or next_match.index < stop) then stop = next_match.index end
         ranges[Chapters.uid(match.chapter)] = {
             start_xpointer = entry.xpointer, end_xpointer = stop and toc[stop].xpointer or doc_end,
-            title = entry.title, toc_index = match.index,
+            title = entry.title, toc_index = match.index, ends_document = not stop,
         }
         selected[#selected + 1] = match.chapter
     end

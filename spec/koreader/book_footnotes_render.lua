@@ -1,5 +1,5 @@
 -- Run from a built KOReader runtime with a fresh, isolated KO_HOME:
--- Install/link the candidate at $KO_HOME/plugins/weread.koplugin and create /evidence.
+-- Install/link the candidate at $KO_HOME/plugins/welite.koplugin and create /evidence.
 -- EMULATE_READER=1 ./luajit /repo/spec/koreader/book_footnotes_render.lua /repo /evidence
 -- Uses the real SDL window, ReaderUI, CREngine, link gestures and MuPDF popup.
 local repo, evidence = assert(arg[1]), assert(arg[2])

@@ -94,6 +94,7 @@ end
 function M:getMainMenuItems()
     local items = {
         {
+            welite_id = "login",
             text_func = function()
                 if self.settings.mock_endpoint then return _("Mock account (no QR login)") end
                 local account = self.settings:get("account", {})
@@ -153,6 +154,7 @@ function M:getMainMenuItems()
         },
         {
             text = _("Settings"),
+            welite_settings_group = true,
             sub_item_table_func = function()
                 return self:getSettingsMenuItems()
             end,
@@ -184,6 +186,7 @@ function M:getMainMenuItems()
         end
         reader_items[#reader_items + 1] = {
             text = _("Show underlines and thoughts"),
+            welite_id = "annotation_visibility",
             checked_func = function()
                 -- The checkbox reflects the user's display preference.  Annotation
                 -- data may still be downloading (or may be unavailable for this
@@ -220,79 +223,8 @@ end
 function M:getSettingsMenuItems()
     return {
         {
-            text = _("Bookshelf view"),
-            sub_item_table_func = function()
-                local function set_view_mode(mode)
-                    return function(touchmenu_instance)
-                        local shelf = self.settings:get("shelf")
-                        shelf.view_mode = mode
-                        self.settings:set("shelf", shelf)
-                        self.settings:flush()
-                        self.shelf_view_pages = { books = 1, public_account = 1 }
-                        if touchmenu_instance then touchmenu_instance:updateItems() end
-                    end
-                end
-                local function set_list_browsing(paginated)
-                    return function(touchmenu_instance)
-                        local shelf = self.settings:get("shelf")
-                        shelf.paginated = paginated
-                        self.settings:set("shelf", shelf)
-                        self.settings:flush()
-                        self.shelf_view_pages = { books = 1, public_account = 1 }
-                        if touchmenu_instance then touchmenu_instance:updateItems() end
-                    end
-                end
-                return {
-                    {
-                        text = _("List view"),
-                        checked_func = function()
-                            return self.settings:get("shelf").view_mode ~= "cover"
-                        end,
-                        keep_menu_open = true,
-                        callback = self:safeCallback(_("List view"), set_view_mode("list")),
-                    },
-                    {
-                        text = _("Cover view"),
-                        checked_func = function()
-                            return self.settings:get("shelf").view_mode == "cover"
-                        end,
-                        keep_menu_open = true,
-                        callback = self:safeCallback(_("Cover view"), set_view_mode("cover")),
-                    },
-                    {
-                        text = _("List browsing"),
-                        separator = true,
-                        enabled_func = function()
-                            return self.settings:get("shelf").view_mode ~= "cover"
-                        end,
-                        sub_item_table_func = function()
-                            return {
-                                {
-                                    text = _("Page mode"),
-                                    checked_func = function()
-                                        return self.settings:get("shelf").paginated ~= false
-                                    end,
-                                    keep_menu_open = true,
-                                    callback = self:safeCallback(
-                                        _("Page mode"), set_list_browsing(true)),
-                                },
-                                {
-                                    text = _("Continuous scrolling"),
-                                    checked_func = function()
-                                        return self.settings:get("shelf").paginated == false
-                                    end,
-                                    keep_menu_open = true,
-                                    callback = self:safeCallback(
-                                        _("Continuous scrolling"), set_list_browsing(false)),
-                                },
-                            }
-                        end,
-                    },
-                }
-            end,
-        },
-        {
             text = _("Cache management"),
+            welite_id = "storage",
             sub_item_table_func = function()
                 return {
                     {
@@ -324,6 +256,7 @@ function M:getSettingsMenuItems()
         },
         {
             text = _("Progress management"),
+            welite_id = "sync",
             sub_item_table_func = function()
                 return {
                     {
@@ -368,6 +301,7 @@ function M:getSettingsMenuItems()
         },
         {
             text = _("Download settings"),
+            welite_id = "download",
             sub_item_table_func = function()
                 return {
                     {
@@ -415,6 +349,7 @@ function M:getSettingsMenuItems()
                     },
                     {
                         text = _("Chapter prefetch"),
+                        welite_id = "prefetch",
                         sub_item_table_func = function()
                             return {
                                 {
@@ -430,21 +365,7 @@ function M:getSettingsMenuItems()
                                         function(touchmenu_instance)
                                             local cache = self.settings:get("cache")
                                             local function apply(enabled)
-                                                cache.auto_prefetch_next_chapter = enabled
-                                                self.settings:set("cache", cache)
-                                                self.settings:flush()
-                                                if not enabled then
-                                                    self:cancelAnnotationPrefetch()
-                                                    self.downloader:cancelPrefetch(
-                                                        "setting_disabled")
-                                                elseif self._current_weread_book_id then
-                                                    local book_id = self._current_weread_book_id
-                                                    UIManager:scheduleIn(0.1, function()
-                                                        if self._current_weread_book_id == book_id then
-                                                            self:maybePrefetchNextChapter(book_id)
-                                                        end
-                                                    end)
-                                                end
+                                                require("weread.lib.prefetch_preferences").set_chapters(self, enabled)
                                                 if touchmenu_instance then
                                                     touchmenu_instance:updateItems()
                                                 end
@@ -481,7 +402,7 @@ function M:getSettingsMenuItems()
                                         _("Prefetch underlines and thoughts"),
                                         function(touchmenu_instance)
                                             local function apply(enabled)
-                                                self:setAnnotationPrefetchEnabled(enabled)
+                                                require("weread.lib.prefetch_preferences").set_annotations(self, enabled)
                                                 if touchmenu_instance then
                                                     touchmenu_instance:updateItems()
                                                 end
@@ -515,10 +436,8 @@ function M:getSettingsMenuItems()
                                         _("Show prefetch notifications"),
                                         function(touchmenu_instance)
                                             local cache = self.settings:get("cache")
-                                            cache.show_prefetch_notifications =
-                                                not (cache.show_prefetch_notifications ~= false)
-                                            self.settings:set("cache", cache)
-                                            self.settings:flush()
+                                            require("weread.lib.prefetch_preferences").set_notifications(
+                                                self, cache.show_prefetch_notifications == false)
                                             if touchmenu_instance then
                                                 touchmenu_instance:updateItems()
                                             end
@@ -532,6 +451,7 @@ function M:getSettingsMenuItems()
         },
         {
             text = _("Underline settings"),
+            welite_id = "reading",
             sub_item_table_func = function()
                 return {
                     {
@@ -569,6 +489,7 @@ function M:getSettingsMenuItems()
                     },
                     {
                         text = _("Thought popup settings"),
+                        welite_id = "thought_popup",
                         sub_item_table_func = function()
                             return {
                                 {
@@ -652,10 +573,12 @@ function M:getSettingsMenuItems()
         },
         {
             text = _("Account management"),
+            welite_id = "account",
             sub_item_table_func = function()
                 return {
                     {
                         text = _("Account status"),
+                        welite_id = "account_status",
                         keep_menu_open = true,
                         callback = self:safeCallback(_("Account status"), function()
                             self:showAccountStatus()
@@ -682,6 +605,7 @@ function M:getSettingsMenuItems()
         },
         {
             text = _("Advanced options"),
+            welite_id = "advanced",
             sub_item_table_func = function()
                 return {
                     {
@@ -693,6 +617,7 @@ function M:getSettingsMenuItems()
         },
         {
             text = _("About"),
+            welite_id = "about",
             sub_item_table_func = function()
                 return self:getAboutMenuItems()
             end,
@@ -823,27 +748,26 @@ end
 
 function M:showAbout()
     UIManager:show(InfoMessage:new{
-        text = T(_("WeLite v%1\n\nBased on finlater/weread.koplugin. Copyright (C) 2026 finlater and contributors. WeLite modifications: Xlawy and contributors, 2026-10-21.\n\nLicensed under AGPL-3.0-only; see LICENSE and NOTICE in the plugin directory. You may redistribute this software under that license. No warranty is provided. Third-party fonts retain their OFL license.\n\nSource: https://github.com/Xlawy/weread-based-welite\nUpstream: https://github.com/finlater/weread.koplugin"), self.version),
+        text = _("Open source acknowledgements") .. "\n\n" .. T(_("WeLite v%1\n\nBased on finlater/weread.koplugin. Copyright (C) 2026 finlater and contributors. WeLite modifications: Xlawy and contributors, 2026-10-21.\n\nLicensed under AGPL-3.0-only; see LICENSE and NOTICE in the plugin directory. You may redistribute this software under that license. No warranty is provided. Third-party fonts retain their OFL license.\n\nSource: https://github.com/Xlawy/welite\nUpstream: https://github.com/finlater/weread.koplugin"), self.version:gsub("%.0$", "")) .. "\n\nKOReader · https://github.com/koreader/koreader\nNoto Emoji · Copyright 2013 Google LLC · SIL OFL 1.1 (fonts/LICENSE)",
     })
 end
 
 function M:getAboutMenuItems()
     local items = {
         {
-            text = T(_("Version %1"), self.version),
+            text = T(_("Version %1"), "v" .. self.version:gsub("%.0$", "")),
+            enabled = false,
             keep_menu_open = true,
-            callback = function()
-                self:showAbout()
-            end,
         },
         {
-            text = T(_("Author: %1"), "finlater"),
+            text = T(_("Author: %1"), "Xlawy"),
+            enabled = false,
             keep_menu_open = true,
-            callback = function()
-                UIManager:show(InfoMessage:new{
-                    text = "finlater\n\nhttps://github.com/finlater",
-                })
-            end,
+        },
+        {
+            text = _("Open source acknowledgements"),
+            keep_menu_open = true,
+            callback = function() self:showAbout() end,
         },
     }
     for _, item in ipairs(self:getUpdateMenuItems()) do

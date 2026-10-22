@@ -46,6 +46,15 @@ package.preload["weread.lib.content"] = function()
     }
 end
 
+-- Inject scheduling and view boundaries; exercise the real catalog controller.
+local catalog_job
+package.preload["weread.lib.background_worker"]=function()
+    return {new=function() return {start=function(_,job) catalog_job=job;return true end} end}
+end
+package.preload["weread.ui.welite.record_list"]=function()
+    return {show=function() return {onClose=function() end} end}
+end
+
 local Library = require("weread.ui.library")
 local checks = 0
 local function expect(condition, message)
@@ -65,6 +74,7 @@ local single_download_options
 local single_download_refreshed = false
 local host = {
     settings = {
+        data_dir="/unused",
         get = function(_self, key, default)
             if key == "books" then return books end
             return default
@@ -95,6 +105,7 @@ local host = {
     end,
     showInfo = function() end,
     requireLogin = function() return true end,
+    isNetworkOnline = function() return true end,
     runOnlineTask = function(_self, _label, callback) callback() return true end,
     showBusy = function() end,
     closeBusy = function() end,
@@ -120,6 +131,8 @@ local callback_chapters
 host:loadChapters({ book_id = "42", title = "Catalog" }, function(chapters)
     callback_chapters = chapters
 end, true)
+expect(callback_chapters == nil, "network callback must wait for the worker")
+catalog_job.on_done{ok=true,value=catalog_job.task{checkCancelled=function() end}}
 expect(written_chapters == fetched_chapters,
     "fetched chapter catalog was not written to SQLite")
 expect(callback_chapters == fetched_chapters,

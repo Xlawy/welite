@@ -65,16 +65,16 @@ local release, release_err = Updater.parse_release({
     draft = false,
     prerelease = false,
     body = "## What's Changed\n\n**Added** `updates`",
-    html_url = "https://github.com/Xlawy/weread-based-welite/releases/tag/v0.7.0",
+    html_url = "https://github.com/Xlawy/welite/releases/tag/v0.7.0",
     assets = {
         {
-            name = "weread.koplugin-v0.7.0.zip",
-            browser_download_url = "https://github.com/Xlawy/weread-based-welite/releases/download/v0.7.0/weread.koplugin-v0.7.0.zip",
+            name = "welite.koplugin-v0.7.0.zip",
+            browser_download_url = "https://github.com/Xlawy/welite/releases/download/v0.7.0/welite.koplugin-v0.7.0.zip",
             size = 1234,
         },
         {
-            name = "weread.koplugin-v0.7.0.zip.sha256",
-            browser_download_url = "https://github.com/Xlawy/weread-based-welite/releases/download/v0.7.0/weread.koplugin-v0.7.0.zip.sha256",
+            name = "welite.koplugin-v0.7.0.zip.sha256",
+            browser_download_url = "https://github.com/Xlawy/welite/releases/download/v0.7.0/welite.koplugin-v0.7.0.zip.sha256",
         },
     },
 })
@@ -88,8 +88,8 @@ local function parse_notes(notes)
     return assert(Updater.parse_release{
         tag_name = "v0.7.0", body = notes,
         assets = {
-            { name = "weread.koplugin-v0.7.0.zip", browser_download_url = release.archive_url },
-            { name = "weread.koplugin-v0.7.0.zip.sha256", browser_download_url = release.checksum_url },
+            { name = "welite.koplugin-v0.7.0.zip", browser_download_url = release.archive_url },
+            { name = "welite.koplugin-v0.7.0.zip.sha256", browser_download_url = release.checksum_url },
         },
     }).notes
 end
@@ -109,8 +109,8 @@ expect(missing == nil and missing_err:find("checksum", 1, true),
 local foreign = Updater.parse_release({
     tag_name = "v0.7.0",
     assets = {
-        { name = "weread.koplugin-v0.7.0.zip", browser_download_url = "https://example.com/plugin.zip" },
-        { name = "weread.koplugin-v0.7.0.zip.sha256", browser_download_url = "https://example.com/plugin.sha256" },
+        { name = "welite.koplugin-v0.7.0.zip", browser_download_url = "https://example.com/plugin.zip" },
+        { name = "welite.koplugin-v0.7.0.zip.sha256", browser_download_url = "https://example.com/plugin.sha256" },
     },
 })
 expect(foreign == nil, "foreign download URL should be rejected")
@@ -165,7 +165,7 @@ local updater = Updater:new{
         flush = function() end,
     },
     current_version = "0.6.0",
-    plugin_dir = "/tmp/weread.koplugin",
+    plugin_dir = "/tmp/welite.koplugin",
 }
 updater:cache_release(release)
 expect(updater:should_notify("0.7.0"), "new release should notify by default")

@@ -112,6 +112,7 @@ package.preload["ui/widget/focusmanager"] = function()
     FocusManager.FOCUS_ONLY_ON_NT = 0
     FocusManager.NOT_UNFOCUS = 1
     FocusManager.key_events = {}
+    FocusManager.ges_events = {}
     function FocusManager:moveFocusTo() return true end
     function FocusManager.onFocusMove() return true end
     return FocusManager
@@ -121,6 +122,8 @@ for _, name in ipairs({
     "ui/gesturerange",
     "ui/widget/button",
     "ui/widget/container/centercontainer",
+    "ui/widget/container/leftcontainer",
+    "ui/widget/textboxwidget",
     "ui/widget/container/framecontainer",
     "ui/widget/container/inputcontainer",
     "ui/widget/container/scrollablecontainer",
@@ -142,6 +145,8 @@ package.preload["ui/widget/button"] = function()
     function Button:init()
         self.label_widget = Widget:new{}
         self.label_container = { self.label_widget }
+        self.frame = Widget:new{}
+        self.dimen = {w=self.width or 100,h=self.height or 20}
     end
     return Button
 end
@@ -175,7 +180,9 @@ if native_widgets then
     size.border.button, size.padding.button = 1, 4
     for _, name in ipairs({
         "ui/widget/container/widgetcontainer", "ui/widget/container/framecontainer",
-        "ui/widget/container/centercontainer", "ui/widget/container/leftcontainer",
+        "ui/widget/container/centercontainer",
+    "ui/widget/container/leftcontainer",
+    "ui/widget/textboxwidget", "ui/widget/container/leftcontainer",
         "ui/widget/horizontalgroup", "ui/widget/verticalgroup",
         "ui/widget/horizontalspan", "ui/widget/verticalspan", "ui/widget/button",
     }) do
@@ -518,10 +525,8 @@ selector.custom_title_bar[2].callback()
 expect(changed_type == "public_account", "content picker lost the public-account action")
 selector_view:showOptions()
 local options_dialog = shown[#shown]
-options_dialog.buttons[3][2].callback()
-expect(display_key == "view_mode" and display_value == "cover", "cover option is missing from the shelf menu")
-options_dialog.buttons[4][2].callback()
-expect(display_key == "paginated" and display_value == false, "continuous-list option is missing")
+expect(#options_dialog.buttons == 2, "shelf options should only expose sort and filter")
+expect(display_key == nil and display_value == nil, "opening options must not change the view")
 selector_view.groups = {}
 for i = 1, 11 do selector_view.groups[i] = { key = tostring(i), label = tostring(i), books = {} } end
 selector_view:showSourceMenu()

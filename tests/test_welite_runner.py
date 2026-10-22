@@ -35,11 +35,11 @@ class PackageTests(unittest.TestCase):
                            check=True,stdout=subprocess.DEVNULL)
             with zipfile.ZipFile(archive) as package:
                 names=package.namelist()
-                self.assertIn('weread.koplugin/weread/ui/welite/home.lua',names)
-                self.assertIn('weread.koplugin/LICENSE',names)
-                self.assertIn('weread.koplugin/NOTICE',names)
+                self.assertIn('welite.koplugin/weread/ui/welite/home.lua',names)
+                self.assertIn('welite.koplugin/LICENSE',names)
+                self.assertIn('welite.koplugin/NOTICE',names)
                 for name in names:
-                    self.assertTrue(name.startswith('weread.koplugin/'))
+                    self.assertTrue(name.startswith('welite.koplugin/'))
                     self.assertFalse(any(part in {'tests','spec','scripts','.dev','.git','cache','settings'} for part in name.split('/')))
                     self.assertFalse(name.endswith(('.cookies','.log','.py','.pyc')))
 

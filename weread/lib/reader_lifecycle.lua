@@ -65,8 +65,7 @@ function M:onWeReadSyncProgress()
     if not self:requireLogin(true, false) then
         return false
     end
-    self.progress_sync:sync_now()
-    return true
+    return self.progress_sync:sync_now()
 end
 
 function M:handleEndOfBook(status_self)

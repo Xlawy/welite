@@ -201,6 +201,230 @@ test("report context backfills SQLite from catalog.json", function()
     eq(written_catalog, disk_catalog, "catalog.json backfills SQLite")
 end)
 
+test("account switch abandons old report and restarts with a fresh progress gate", function()
+    local report,records=fixture(function() return nil,"progress_unverified",true end)
+    report:on_reader_ready()
+    local old_task,old_session=report.task,report.session_id
+    report.count=3;report.failure_count=2;report.last_time=99
+    report.last_error="old account error"
+    local terminated,drained=0,0
+    report.subprocess={terminate=function() terminated=terminated+1 end,
+        is_done=function() return true end,read_all=function() drained=drained+1 end}
+    report.job={pid=123,read_fd=456,poll=function() end}
+    report:on_account_changed()
+    eq(terminated,1,"old subprocess terminated")
+    eq(drained,1,"old pipe collected")
+    eq(report.job,nil,"old result detached")
+    eq(report.session_id~=old_session,true,"new account has a fresh reading session")
+    eq(report.task~=old_task,true,"new interval does not inherit elapsed time")
+    eq(report.count,0,"old success count cleared")
+    eq(report.last_time,nil,"old success time cleared")
+    eq(report.last_error,nil,"old failure cleared")
+    old_task()
+    eq(#records,0,"stale tick cannot report")
+    eq(report:_precheck(),false,"new account waits for progress verification")
+    report.settings.is_cookie_configured=function() return false end
+    report:on_account_changed()
+    eq(report.task,nil,"logout cannot restart reporting")
+    report.settings.is_cookie_configured=function() return true end
+    local get=report.settings.get
+    report.settings.get=function(self,key)
+        local value=get(self,key)
+        if key=="read_report" then value.mode="manual";value.book_id="old-target" end
+        return value
+    end
+    report:on_account_changed()
+    eq(report.task,nil,"old manual target does not restart under new account")
+end)
+
+test("spawn failure never falls back to UI network and can recover next interval", function()
+    local report, records = fixture(function() return {percent=20}, nil, true end)
+    local scheduled, attempts = {}, 0
+    report.scheduler.scheduleIn=function(_,delay,fn)
+        scheduled[#scheduled+1]={delay=delay,fn=fn}
+    end
+    report:maybe_start("test")
+    local task=report.task
+    scheduled={}
+    -- Without subprocess support, no network context or report may be built.
+    report.client.get_text=function() error("network on UI thread") end
+    task()
+    eq(report.last_error_kind,"job","explicit subprocess error")
+    eq(report.last_error:find("no subprocess support",1,true)~=nil,true,"original cause retained")
+    eq(#records,0,"no inline report")
+    eq(#scheduled,1,"one retry at normal cadence")
+    eq(scheduled[1].delay,30,"no fast retry loop")
+    report.subprocess={run=function()
+        attempts=attempts+1
+        return nil,"fixture fork failure"
+    end}
+    scheduled={};task()
+    eq(attempts,1,"one spawn per tick")
+    eq(report.last_error:find("fixture fork failure",1,true)~=nil,true,"spawn cause retained")
+    eq(#scheduled,1,"failed fork schedules one next tick")
+    eq(#records,0,"failed fork has no inline report")
+    -- Recovery starts a real job boundary; the child is not executed by this
+    -- runner. Its acknowledgement remains the poller's responsibility.
+    report.subprocess.run=function() attempts=attempts+1;return 123,456 end
+    scheduled={};task()
+    eq(report.job.pid,123,"later spawn recovers")
+    eq(#scheduled,1,"only poll is scheduled while job runs")
+    eq(scheduled[1].fn,report.job.poll,"result must be polled")
+    eq(report.count,0,"spawn is not successful delivery")
+end)
+
+test("async progress shares the report slot and preserves unknown cancellation", function()
+    local report=fixture()
+    local result, calls, spawned=nil,0,0
+    local function done(accepted,outcome) calls=calls+1;result=outcome;eq(accepted,false,"not acknowledged") end
+    report.job={}
+    report:upload_position_async("book",{},done,function() return true end)
+    eq(result.error_kind,"busy","time report owns the shared slot")
+    report.job=nil
+    report:upload_position_async("book",{},done,function() return true end)
+    eq(result.error_kind,"job","no inline fallback on spawn failure")
+    report.subprocess={run=function() spawned=spawned+1;return 123,456 end,
+        terminate=function() end,is_done=function() return true end,read_all=function() return '' end}
+    local before=calls
+    report:upload_position_async("book",{},done,function() return true end)
+    eq(calls,before,"launch does not complete upload")
+    eq(spawned,1,"one worker")
+    report:stop("suspend")
+    eq(calls,before+1,"interruption completes once")
+    eq(result.error_kind,"transport","interruption has unknown write outcome")
+    eq(report.job,nil,"interruption frees shared slot")
+    eq(report.count,0,"progress upload is not reading time success")
+end)
+
+test("unknown refreshed writes are never replayed by cookie renewal", function()
+    for _,elapsed in ipairs({0,30}) do
+        for _,unknown_at in ipairs({1,2,3}) do
+            local report=fixture()
+            local requests,renewals=0,0
+            local book={book_id="book",chapter_uid=11,psvts="fixture",
+                read_session_id=report.session_id,read_session_entered_at=100}
+            report.ensure_context=function() return book end
+            report.client.report_read=function(_,payload)
+                requests=requests+1
+                eq(payload.elapsed_seconds,elapsed,"original interval retained")
+                if requests==unknown_at then error("synthetic response lost after write") end
+                return {errCode=-1},200
+            end
+            report.client.renew_cookie=function() renewals=renewals+1;return {succ=1} end
+            local outcome=report:_run_pipeline("book",{allow_renewal=true,elapsed_seconds=elapsed})
+            eq(requests,unknown_at,"no further write after unknown response")
+            eq(renewals,unknown_at==3 and 1 or 0,"renewal only follows explicit rejections")
+            eq(outcome.accepted,false,"unknown result is not acknowledged")
+            eq(outcome.error_kind,"transport","transport error preserved at every stage")
+        end
+    end
+end)
+
+test("explicit rejection still permits bounded renewal recovery", function()
+    local report=fixture()
+    local requests,renewals=0,0
+    local book={book_id="book",chapter_uid=11,psvts="fixture",
+        read_session_id=report.session_id,read_session_entered_at=100}
+    report.ensure_context=function() return book end
+    report.client.report_read=function()
+        requests=requests+1
+        return requests==3 and {succ=1} or {errCode=-1},200
+    end
+    report.client.renew_cookie=function() renewals=renewals+1;return {succ=1} end
+    local outcome=report:_run_pipeline("book",{allow_renewal=true,elapsed_seconds=30})
+    eq(requests,3,"bounded upstream recovery")
+    eq(renewals,1,"one renewal")
+    eq(outcome.accepted,true,"confirmed recovery accepted")
+end)
+
+test("ambiguous HTTP replies cannot trigger a second reading-time write", function()
+    for _,unknown_at in ipairs({1,2,3}) do
+        local report=fixture()
+        local calls=0
+        local book={book_id="book",chapter_uid=11,psvts="fixture",read_session_id=report.session_id,read_session_entered_at=100}
+        report.ensure_context=function() return book end
+        report.client.renew_cookie=function() return {succ=1} end
+        report.client.report_read=function()
+            calls=calls+1
+            if calls==unknown_at then return {},500 end
+            return {errCode=-1},200
+        end
+        local outcome=report:_run_pipeline("book",{allow_renewal=true,elapsed_seconds=30})
+        eq(calls,unknown_at,"ambiguous reply not replayed")
+        eq(outcome.time_rejected==true,false,"unknown duration cannot be safely retried")
+        eq(outcome.accepted,false,"no synthetic success")
+    end
+end)
+
+test("time catch-up reads fresh cloud coordinates before each bounded attempt",function()
+    local report=fixture()
+    local reads,writes=0,0
+    local book={book_id='book',chapter_uid=11,chapter_offset=2,progress=1,psvts='fixture',
+        chapters={{chapterUid=11,chapterIdx=1}},read_session_id=report.session_id,read_session_entered_at=100}
+    report.ensure_context=function() return book end
+    report.client.get_progress=function()
+        reads=reads+1
+        return {book={chapterUid=11,chapterOffset=reads*100,progress=reads*10}}
+    end
+    report.client.report_read=function(_,payload)
+        writes=writes+1
+        eq(payload.chapter_offset,reads*100,'fresh cloud offset, never stale local offset')
+        eq(payload.progress,reads*10,'fresh cloud percentage')
+        eq(payload.elapsed_seconds,17,'only actual pending seconds')
+        return writes==1 and {errCode=-1} or {succ=1},200
+    end
+    local result=report:_run_pipeline('book',{cloud_position=true,elapsed_seconds=17})
+    eq(result.accepted,true,'catch-up acknowledged');eq(reads,2,'refresh cloud on explicit retry')
+end)
+test("missing cloud coordinates never fall back to the closed reader position",function()
+    for _,remote in ipairs({{}, {book={progress=50}},
+        {book={chapterUid=99,chapterOffset=10,progress=20}},
+        {book={chapterUid=11,chapterOffset=-1,progress=20}}}) do
+        local report=fixture()
+        report.ensure_context=function() return {book_id='book',chapters={{chapterUid=11,chapterIdx=1}}} end
+        report.client.get_progress=function() return remote end
+        local writes=0;report.client.report_read=function() writes=writes+1 end
+        local result=report:_child_report('book',false,nil,17,true)
+        eq(writes,0,'no write without a valid cloud position')
+        eq(result.time_report_sent,false,'unsent duration remains retryable')
+        eq(result.accepted,false,'incomplete cloud data is not success')
+    end
+end)
+
+test("rejected time remains retryable when a later attempt fails before its time write",function()
+    for _,stage in ipairs({2,3}) do
+        for _,failure in ipairs({'lookup','entry','write'}) do
+            local report=fixture()
+            local contexts,writes,reads=0,0,0
+            local book={book_id='book',chapter_uid=11,psvts='fixture',
+                chapters={{chapterUid=11,chapterIdx=1}},
+                read_session_id=report.session_id,read_session_entered_at=100}
+            report.ensure_context=function()
+                contexts=contexts+1
+                if contexts==stage and failure=='entry' then book.read_session_entered_at=nil end
+                return book
+            end
+            report.client.get_progress=function()
+                reads=reads+1
+                if reads==stage and failure=='lookup' then error('synthetic progress fetch failed') end
+                return {book={chapterUid=11,chapterOffset=10,progress=20}}
+            end
+            report.client.renew_cookie=function() return {succ=1} end
+            report.client.report_read=function(_,payload)
+                if contexts==stage and failure=='entry' then error('synthetic entry failed') end
+                writes=writes+1
+                if writes==stage and failure=='write' then error('synthetic response lost') end
+                return {errCode=-1},200
+            end
+            local result=report:_child_report('book',true,nil,17,true)
+            eq(result.accepted,false,'failure cannot report success')
+            eq(result.time_rejected,failure~='write','only an attempted time write can become unknown')
+            eq(writes,failure=='write' and stage or stage-1,'no unexpected time request')
+            eq(result.time_report_sent,true,'earlier explicitly rejected writes are still recorded')
+        end
+    end
+end)
+
 print(string.format(
     "read_report_progress_spec: %d checks, %d failure(s)", checks, failures))
 os.exit(failures == 0 and 0 or 1)

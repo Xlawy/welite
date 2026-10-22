@@ -1,7 +1,7 @@
 describe("welite cover shelf",function()
     local Shelf,view,UI
     setup(function()
-        require("commonrequire");package.path="plugins/weread.koplugin/?.lua;"..package.path
+        require("commonrequire");package.path="plugins/welite.koplugin/?.lua;"..package.path
         Shelf=require("weread.ui.welite.shelf");UI=require("ui/uimanager")
     end)
     after_each(function() if view then UI:close(view);view=nil end end)
@@ -22,6 +22,14 @@ describe("welite cover shelf",function()
         view:onSwipe(nil,{direction="east"});assert.equals(1,view.page)
         view:setQuery("山间来信 30");assert.equals(1,#view:visibleItems());assert.equals(1,view.pages)
         view:setQuery("不存在");assert.equals(0,#view:visibleItems())
+    end)
+    it("separates cloud search from filtering the existing shelf",function()
+        local searched,filtered=0,0
+        view=Shelf:new{items={},actions={search=function() searched=searched+1 end,filter=function() filtered=filtered+1 end}}
+        UI:show(view);UI:forceRePaint()
+        view.search_button.callback();assert.equals(1,searched);assert.equals(0,filtered)
+        view.filter_button.callback();assert.equals(1,searched);assert.equals(1,filtered)
+        assert.is_true(view.search_button.dimen.x+view.search_button.dimen.w<=view.filter_button.dimen.x)
     end)
     it("offers a bordered sync action beside both collection tabs and disables it while syncing",function()
         local calls=0
@@ -47,7 +55,7 @@ describe("welite cover shelf",function()
         assert.is_true(view.collection_sync_button.enabled)
     end)
     it("renders cached image cards with correctly scoped reading totals",function()
-        local path=require("ffi/util").realpath("plugins/weread.koplugin").."/spec/fixtures/cover.png"
+        local path=require("ffi/util").realpath("plugins/welite.koplugin").."/spec/fixtures/cover.png"
         local fixture=assert(io.open(path, "rb"));fixture:close()
         local items={
             {id="a",kind="book",title="很长很长的书名，用于验证中文标题单行截断与居中对齐",author="测试作者"},

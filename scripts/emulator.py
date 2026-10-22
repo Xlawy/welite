@@ -56,7 +56,7 @@ def migrate(source, root=ROOT):
 
 @contextmanager
 def plugin_link(runtime, root=ROOT):
-    plugin = runtime / 'plugins/weread.koplugin'
+    plugin = runtime / 'plugins/welite.koplugin'
     plugin.parent.mkdir(parents=True, exist_ok=True)
     if plugin.exists() or plugin.is_symlink():
         raise ValueError(f'Plugin target already exists: {plugin}')

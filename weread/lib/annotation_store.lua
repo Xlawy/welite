@@ -33,8 +33,26 @@ function Store:open(book_id, create)
     return db
 end
 
-function Store:get(book_id, kind, key)
-    local db, err = self:open(book_id, false)
+-- Background source lookups must not initialize schemas or change journal
+-- mode while the parent may be accessing the same annotation database.
+function Store:openReadOnly(book_id)
+    assert(book_id and tostring(book_id)~='', 'book id required')
+    local path=self.legacy:databasePath('weread-book-'..tostring(book_id))
+    if not require('libs/libkoreader-lfs').attributes(path,'mode') then return nil end
+    local ok,db=pcall(function() return require('lua-ljsqlite3/init').open(path,'ro') end)
+    if not ok then return nil,tostring(db) end
+    local checked,exists=pcall(db.rowexec,db,
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='annotation_data'")
+    if not checked or not exists then
+        db:close()
+        return nil,not checked and tostring(exists) or nil
+    end
+    return db
+end
+function Store:get(book_id, kind, key, read_only)
+    local db,err
+    if read_only then db,err=self:openReadOnly(book_id)
+    else db,err=self:open(book_id,false) end
     if not db then
         if err then error(err) end
         return nil

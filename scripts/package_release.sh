@@ -13,7 +13,7 @@ if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     exit 1
 fi
 
-archive_path="${1:-dist/weread.koplugin-v${version}.zip}"
+archive_path="${1:-dist/welite.koplugin-v${version}.zip}"
 if [[ "$archive_path" != /* ]]; then
     archive_path="$repo_dir/$archive_path"
 fi
@@ -25,7 +25,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-plugin_dir="$stage_dir/weread.koplugin"
+plugin_dir="$stage_dir/welite.koplugin"
 mkdir -p "$plugin_dir"
 cp _meta.lua main.lua LICENSE NOTICE README.md "$plugin_dir/"
 cp -R fonts icons integrations weread "$plugin_dir/"
@@ -34,7 +34,7 @@ find "$plugin_dir" -name '.DS_Store' -delete
 rm -f "$archive_path"
 (
     cd "$stage_dir"
-    zip -qr "$archive_path" weread.koplugin
+    zip -qr "$archive_path" welite.koplugin
 )
 unzip -tq "$archive_path"
 

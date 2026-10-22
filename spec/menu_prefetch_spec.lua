@@ -196,53 +196,15 @@ for name, expected in pairs(general_actions) do
 end
 
 local settings_items = host:getSettingsMenuItems()
-local bookshelf_view_item = settings_items[1]
-expect(bookshelf_view_item and bookshelf_view_item.text == "Bookshelf view",
-    "bookshelf view preference is the first settings item")
-local view_items = bookshelf_view_item.sub_item_table_func()
-expect(view_items[1].text == "List view" and view_items[1].checked_func(),
-    "bookshelf defaults to list view for legacy settings")
-expect(view_items[2].text == "Cover view" and not view_items[2].checked_func(),
-    "cover view is available without being enabled by default")
-expect(view_items[3].text == "List browsing",
-    "list browsing preference is nested under bookshelf view")
-local menu_update_count = 0
-view_items[2].callback({
-    updateItems = function() menu_update_count = menu_update_count + 1 end,
-})
-expect(shelf.view_mode == "cover" and flush_count == 1,
-    "cover view preference was enabled and persisted")
-expect(menu_update_count == 1 and view_items[2].checked_func(),
-    "cover view preference refreshed the settings menu")
-expect(not view_items[3].enabled_func(),
-    "list browsing preference is disabled in cover view")
-local browsing_items = view_items[3].sub_item_table_func()
-local page_mode, scroll_mode = browsing_items[1], browsing_items[2]
-expect(page_mode.text == "Page mode" and page_mode.checked_func(),
-    "list browsing defaults to page mode for legacy settings")
-expect(scroll_mode.text == "Continuous scrolling" and not scroll_mode.checked_func(),
-    "continuous scrolling is available alongside page mode")
-scroll_mode.callback({
-    updateItems = function() menu_update_count = menu_update_count + 1 end,
-})
-expect(shelf.paginated == false and flush_count == 2,
-    "continuous scrolling was enabled and persisted")
-expect(menu_update_count == 2,
-    "list browsing preference refreshed the settings menu")
-expect(scroll_mode.checked_func() and not page_mode.checked_func(),
-    "list browsing choices preserve their selected setting")
-page_mode.callback({ updateItems = function() end })
-expect(shelf.paginated == true and flush_count == 3,
-    "page mode was re-enabled and persisted")
-view_items[1].callback({ updateItems = function() end })
-expect(view_items[3].enabled_func(),
-    "list browsing preference is enabled again in list view")
+for _, item in ipairs(settings_items) do
+    expect(item.text ~= "Bookshelf view", "obsolete view selector must not be exposed")
+end
 local last_settings_item = settings_items[#settings_items]
 expect(last_settings_item and last_settings_item.text == "About",
     "about is the last settings menu item")
 local about_items = last_settings_item and last_settings_item.sub_item_table_func()
-expect(about_items and #about_items == 5,
-    "about contains version, author, and three update settings")
+expect(about_items and #about_items == 6,
+    "about contains version, author, acknowledgements, and three update settings")
 for index, item in ipairs(about_items or {}) do
     expect(item.keep_menu_open == true,
         "about item " .. index .. " keeps the menu open")
@@ -251,21 +213,26 @@ expect(about_items[1] and about_items[1].text == "Version %1",
     "version is the first about item")
 expect(about_items[2] and about_items[2].text == "Author: %1",
     "author is the second about item")
-expect(about_items[3] and about_items[3].text == "Check for updates"
-        and about_items[4].text == "Automatically check once an hour"
-        and about_items[5].text == "Prefer proxy for updates",
+expect(about_items[4] and about_items[4].text == "Check for updates"
+        and about_items[5].text == "Automatically check once an hour"
+        and about_items[6].text == "Prefer proxy for updates",
     "update settings follow version and author at the same level")
 available_version = "0.7.0"
 local update_available_items = last_settings_item.sub_item_table_func()
-expect(#update_available_items == 5
-        and update_available_items[3].text == "Update to v%1",
-    "available update replaces the check item without adding a sixth item")
+expect(#update_available_items == 6
+        and update_available_items[4].text == "Update to v%1",
+    "available update replaces the check item without adding a seventh item")
 available_version = nil
-about_items[1].callback()
+expect(about_items[1].enabled == false and about_items[1].callback == nil,
+    "version is informational, never clickable")
+expect(about_items[2].enabled == false and about_items[2].callback == nil,
+    "author is informational")
+expect(about_items[3].text == "Open source acknowledgements", "credits have a dedicated entry")
+about_items[3].callback()
 expect(shown_widget and shown_widget.text:find("AGPL-3.0-only", 1, true),
-    "version item shows the applicable license")
+    "acknowledgements show the applicable license")
 expect(shown_widget.text:find("finlater/weread.koplugin", 1, true), "about retains upstream attribution")
-expect(shown_widget.text:find("Xlawy/weread-based-welite", 1, true), "about links modified source")
+expect(shown_widget.text:find("Xlawy/welite", 1, true), "about links modified source")
 expect(not shown_widget.text:find("not for commercial use", 1, true), "about must not add noncommercial restrictions")
 local toolbar = {}
 host:addToMainMenu(toolbar)

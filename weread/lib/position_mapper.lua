@@ -113,21 +113,10 @@ function PositionMapper.normalize_remote(value, book_id, source, chapters)
         source = source or "unknown",
     }
 
-    local map = catalog(chapters)
-    local item = remote.chapter_uid ~= nil
-        and map.by_uid[tostring(remote.chapter_uid)] or nil
-    if item and remote.has_chapter_offset
-        and item.words > 0 and map.total_words > 0 then
-        local offset = clamp(remote.chapter_offset, 0, item.words)
-        remote.percent = clamp(
-            (item.before + offset) / map.total_words * 100,
-            0,
-            100
-        )
-        remote.position_basis = "chapter_offset"
-    else
-        remote.position_basis = "raw_percent"
-    end
+    -- Web computes progress separately from the rendered object's source
+    -- offset. HTML offsets are not catalog word counts: preserve both fields
+    -- instead of fabricating a percentage from incompatible coordinates.
+    remote.position_basis = "raw_percent"
     return remote
 end
 

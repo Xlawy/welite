@@ -69,7 +69,8 @@ function M:_usesUnifiedAnnotations()
         or store:get(binding.book_id, "manual_only", key) == true
 end
 
-function M:_prepareAnnotationContext(online, refresh_catalog)
+-- Local document mapping only. Remote catalog acquisition belongs to annotation_catalog.
+function M:_prepareAnnotationContext()
     local path = file(self)
     if not path or not self:_xpointerOverlayPrototypeAvailable() then return nil end
     local perf = PluginUtil.reader_open_perf
@@ -78,8 +79,7 @@ function M:_prepareAnnotationContext(online, refresh_catalog)
     started = perf("annotation_binding", started, "book_id=", binding and binding.book_id or "none")
     if not binding then return nil end
     local context = self._annotation_context
-    if not refresh_catalog and context and context.path == path and context.book_id == tostring(binding.book_id)
-        and (context.catalog and #context.catalog > 0 or not online) then
+    if context and context.path == path and context.book_id == tostring(binding.book_id) then
         perf("context_cached", started)
         return context
     end
@@ -89,15 +89,6 @@ function M:_prepareAnnotationContext(online, refresh_catalog)
     local book = books[book_id] or books[tonumber(book_id)]
     local descriptor = binding.automatic and Chapters.descriptor(book, path)
     local catalog = store:get(book_id, "meta", "catalog") or book and book.chapters
-    if online and (not catalog or refresh_catalog) then
-        local remote = { bookId = book_id, book_id = book_id, title = binding.title,
-            author = binding.author, format = binding.format }
-        Content.ensure_reader_state(self.client, remote)
-        catalog = Content.fetch_catalog(self.client, remote)
-        assert(type(catalog) == "table" and #catalog > 0, _("No chapter catalog available."))
-        store:put(book_id, "meta", "catalog", catalog)
-        if refresh_catalog then store:put(book_id, "meta", "prune_catalog", catalog) end
-    end
     catalog = catalog or descriptor and descriptor.chapters or {}
     local document_key = store.documentKey(path)
     local overrides = store:get(book_id, "chapter_mapping", document_key)
@@ -270,6 +261,7 @@ function M:_refreshAnnotationOverlay()
 end
 
 function M:_cancelUnifiedAnnotationSync(preserve_pending)
+    if self._annotation_catalog_session then self._annotation_catalog_session:close() end
     local request = self._external_annotation_sync
     if not request then return end
     request.cancelled = true
@@ -592,8 +584,7 @@ function M:startUnifiedAnnotationSync(options)
     if not self:_xpointerOverlayPrototypeAvailable() then
         self:showInfo(_("Annotation matching requires a reflowable document.")); return
     end
-    local function start()
-        local context = self:_prepareAnnotationContext(not options.offline, options.refresh)
+    local function start(context)
         if not context or #context.chapters == 0 then
             self:showInfo(_("No matching chapters found. Check the bound book and local chapter titles."))
             return
@@ -607,9 +598,9 @@ function M:startUnifiedAnnotationSync(options)
         if self._xpointer_overlay then self._xpointer_overlay:setEnabled(true) end
         self:_runAnnotationJob(context, options)
     end
-    if options.offline then return start() end
+    if options.offline then return start(self:_prepareAnnotationContext()) end
     if not self:requireLogin(true, true) then return end
-    return self:runOnlineTask(_("Sync underlines and thoughts"), start)
+    return require("weread.ui.annotation_catalog").ensure(self, start, options.refresh)
 end
 
 function M:ensureAnnotationDisplay()
@@ -624,7 +615,7 @@ function M:ensureAnnotationDisplay()
             ok_text = _("Match with WeRead book"), ok_callback = function() self:bindExternalAnnotationsBook() end })
         return true
     end
-    local context = self:_prepareAnnotationContext(false)
+    local context = self:_prepareAnnotationContext()
     local summary = context and self:_annotationSummary(context)
     if summary and summary.chapters > 0 then return false end
     local ConfirmBox = require("ui/widget/confirmbox")
@@ -785,7 +776,7 @@ function M:_saveAnnotationChapterMatch(context, node, uid)
     end
     context.store:write(context.book_id, changes)
     self._annotation_context = nil
-    local updated = self:_prepareAnnotationContext(false)
+    local updated = self:_prepareAnnotationContext()
     if self._xpointer_overlay then
         self._xpointer_overlay._annotation_window = nil
         self._xpointer_overlay:setRecords({})
@@ -829,8 +820,7 @@ end
 
 function M:chooseAnnotationChapters()
     if not self:_annotationBinding() then return self:bindExternalAnnotationsBook() end
-    local function show()
-        local context = self:_prepareAnnotationContext(self:isNetworkConnected())
+    local function show(context)
         if not context or not context.catalog or #context.catalog == 0 then
             self:showInfo(_("No chapter catalog available.")); return
         end
@@ -849,10 +839,7 @@ function M:chooseAnnotationChapters()
             end,
         }
     end
-    local context = self:_prepareAnnotationContext(false)
-    if context and context.catalog and #context.catalog > 0 then return show() end
-    if not self:requireLogin(true, true) then return end
-    self:runOnlineTask(_("Loading chapter list..."), show)
+    return require("weread.ui.annotation_catalog").ensure(self, show)
 end
 
 function M:getUnifiedAnnotationMenuItems()
@@ -878,7 +865,7 @@ function M:getUnifiedAnnotationMenuItems()
 end
 
 function M:clearUnifiedAnnotationProjections()
-    local context = self:_prepareAnnotationContext(false)
+    local context = self:_prepareAnnotationContext()
     if not context then return end
     self:_cancelUnifiedAnnotationSync()
     local ok, clear_err = pcall(function()

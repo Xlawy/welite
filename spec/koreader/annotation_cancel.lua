@@ -4,7 +4,7 @@
 -- test databases and inert widgets; never touches accounts or the open reader.
 local probe_root = assert(arg[1], "probe directory required")
 dofile("setupkoenv.lua")
-package.path = probe_root .. "/?.lua;plugins/weread.koplugin/?.lua;" .. package.path
+package.path = probe_root .. "/?.lua;plugins/welite.koplugin/?.lua;" .. package.path
 -- Keep the native FFI module loaded once: reloading its C declarations after
 -- the fixture replaces package.loaded would redefine platform structs.
 local FFIUtil = require("ffi/util")

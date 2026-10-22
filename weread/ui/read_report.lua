@@ -95,6 +95,13 @@ function M:getReadReportMenuItems()
                 self:onShowWeReadReportStatus()
             end),
         },
+        {
+            text = _("Review reading time"),
+            keep_menu_open = true,
+            callback = self:safeCallback(_("Review reading time"), function()
+                require("weread.ui.reading_time_review").show(self)
+            end),
+        },
     }
 end
 
@@ -152,6 +159,13 @@ function M:onShowWeReadReportStatus()
     local err = report_status.last_error or ""
     local msg = T(_("Report book: %1\nStatus: %2"), target, status)
         .. "\n" .. T(_("Reported: %1 times, last: %2"), tostring(count), last)
+    local time_status=report_status.time_ledger
+    if time_status then
+        msg=msg.."\n"..T(_("Pending reading time: %1 s"),math.floor(time_status.pending or 0))
+        if (time_status.uncertain or 0)>0 then
+            msg=msg.."\n"..T(_("Unconfirmed reading time: %1 s (not retried)"),math.floor(time_status.uncertain))
+        end
+    end
     if err ~= "" then
         msg = msg .. "\n" .. T(_("Last error: %1"), err)
     end

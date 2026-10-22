@@ -31,13 +31,13 @@ def main():
         (root / directory).mkdir(parents=True, exist_ok=True)
     candidate = root / "candidate.zip"
     subprocess.run(["bash", str(REPO / "scripts/package_release.sh"), str(candidate)], check=True)
-    name = "weread.koplugin-v9999.9.1.zip"
+    name = "welite.koplugin-v9999.9.1.zip"
     with zipfile.ZipFile(candidate) as source:
         source.extractall(root / "profile/plugins")
         with zipfile.ZipFile(root / "fixtures" / name, "w", zipfile.ZIP_DEFLATED) as target:
             for entry in source.infolist():
                 data = source.read(entry.filename)
-                if entry.filename in ("weread.koplugin/_meta.lua", "weread.koplugin/main.lua"):
+                if entry.filename in ("welite.koplugin/_meta.lua", "welite.koplugin/main.lua"):
                     data = re.sub(rb'version\s*=\s*"[0-9.]+"', b'version = "9999.9.1"', data, count=1)
                 target.writestr(entry.filename, data)
     digest = hashlib.sha256((root / "fixtures" / name).read_bytes()).hexdigest()
@@ -48,7 +48,7 @@ def main():
     ) + "最后一条更新：感谢使用微信读书插件。"
     metadata = dict(tag_name="v9999.9.1", body=notes, assets=[dict(
         name=asset,
-        browser_download_url="https://github.com/finlater/weread.koplugin/releases/download/v9999.9.1/" + asset,
+        browser_download_url="https://github.com/Xlawy/welite/releases/download/v9999.9.1/" + asset,
         size=(root / "fixtures" / asset).stat().st_size,
     ) for asset in (name, name + ".sha256")])
     (root / "fixtures/release.json").write_text(json.dumps(metadata, ensure_ascii=False))

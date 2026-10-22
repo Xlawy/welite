@@ -9,7 +9,7 @@ package.preload['weread.lib.worker_settings']=function() return {
 } end
 local calls,paint=0,0
 local plugin={settings={data_dir='/tmp',is_api_configured=function() return true end,
-    get=function() return {user_vid='one'} end},client={get_progress=function(_,id)
+    get=function(_,key) if key=='books' then local books={};for i=1,18 do books[tostring(i)]={cached_file='fixture.epub'} end;return books end;return {user_vid='one'} end},client={get_progress=function(_,id)
         calls=calls+1;return {book={progress=tonumber(id)}} end}}
 local function view(page)
     local v={mode='books',page=page,page_size=6,items={},redraw=function() paint=paint+1 end}
@@ -50,3 +50,10 @@ assert(launches==before+1)
 result=job.task{checkCancelled=function() end};busy=false;job.on_done{ok=true,value=result}
 assert(current.items[13].percent==0,'zero is real progress, not missing')
 print('welite_progress_spec: bounded visible-page requests, cache, failures, account isolation and page changes passed')
+
+plugin.welite_progress=nil
+plugin.settings.get=function(_,key) return key=='account' and {user_vid='one'} or {} end
+current=view(1);plugin.shelf_view=current
+local before=launches
+P.ensure(plugin,current)
+assert(launches==before,'unread cloud-only pages must not launch progress requests')

@@ -28,7 +28,7 @@ def integration(runtime):
     runtime = Path(runtime).resolve()
     if not (runtime / 'spec/runtests').is_file():
         raise ValueError('KOREADER_RUNTIME must contain luajit and spec/runtests')
-    plugin = runtime / 'plugins/weread.koplugin'
+    plugin = runtime / 'plugins/welite.koplugin'
     if plugin.exists() or plugin.is_symlink():
         raise ValueError(f'Integration target already exists: {plugin}')
     installed = []
@@ -47,10 +47,16 @@ def integration(runtime):
         if target.exists():
             raise ValueError(f'Test target already exists: {target}')
         target.write_bytes(source.read_bytes()); installed.append(target)
+        helper=runtime / 'spec/front/unit/community_welite_native_helper.lua'
+        if helper.exists():
+            raise ValueError(f'Test helper already exists: {helper}')
+        helper.write_bytes((ROOT / 'spec/koreader/welite_native_helper.lua').read_bytes())
+        installed.append(helper)
         env=dict(os.environ, SDL_VIDEODRIVER='dummy', SDL_AUDIODRIVER='dummy',
                  WELITE_SCREENSHOT=str(reports / 'plugin-smoke.png'))
-        subprocess.run(['./spec/runtests','--busted','-o',str(reports / 'integration.xml'),
-                        'front',*[str(p.relative_to(runtime)) for p in installed]],
+        subprocess.run(['./spec/runtests','--busted=--helper=' + str(helper.relative_to(runtime)),
+                        '-o',str(reports / 'integration.xml'),
+                        'front',*[str(p.relative_to(runtime)) for p in installed if p != helper]],
                        cwd=runtime, env=env, check=True)
     finally:
         for target in installed: target.unlink()

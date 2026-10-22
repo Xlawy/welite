@@ -9,8 +9,8 @@ require('commonrequire')
 disable_plugins()
 G_reader_settings:saveSetting('language', 'zh_CN')
 G_reader_settings:saveSetting('extra_plugin_paths', { home .. '/plugins' })
-load_plugin('weread.koplugin')
-package.path = home .. '/plugins/weread.koplugin/?.lua;' .. package.path
+load_plugin('welite.koplugin')
+package.path = home .. '/plugins/welite.koplugin/?.lua;' .. package.path
 local UIManager = require('ui/uimanager')
 local Screen = require('device').screen
 -- KOReader's dummy framebuffer defaults to 600x800 regardless of SDL env.
@@ -89,30 +89,59 @@ local function open_reader()
     pump_for(0.3)
 end
 open_reader()
-local picker = assert(plugin:chooseAnnotationChapters())
+control{match='/web/book/chapterInfos',status=503,times=-1}
+local prepared_catalog
+local catalog_session=require('weread.ui.annotation_catalog').ensure(plugin,function(context) prepared_catalog=context end,true)
+assert(catalog_session.worker and not prepared_catalog)
+pump_until(function() return not catalog_session.worker end)
+assert(catalog_session.view._retry_button and not prepared_catalog)
+control{match='',times=0,delay=0}
+catalog_session.view._retry_button.callback()
+pump_until(function() return prepared_catalog~=nil end)
+assert(#prepared_catalog.catalog==6 and catalog_session.closed)
+print('PASS: asynchronous catalog HTTP 503 retry and parent-owned SQLite publication')
+assert(require('weread.ui.welite.reader_controls').show(plugin))
+local reader_panel=assert(plugin.welite_reader_panel)
+assert(reader_panel.annotations_button,'reader must expose annotations')
+reader_panel.annotations_button.callback()
+local management=assert(plugin.welite_annotations_panel)
+UIManager:forceRePaint()
+require('device').screen.bb:writePNG(home..'/../evidence/annotation-management.png')
+management._management_buttons[3].callback()
+local picker = assert(UIManager._window_stack[#UIManager._window_stack].widget)
+assert(management.closed and not plugin.welite_annotations_panel)
 assert(picker.model.count == 0 and picker.model.by_uid['1'] and picker.model.by_uid['6'])
 local first = picker.model.by_uid['1']
 assert(first.chapter and first.state == 'ready_to_fetch')
 shot('01-matched-default-unchecked')
 -- Native checkbox changes only one chapter, not its siblings.
-picker.layout[2][1].callback()
-assert(picker.model.count == 1 and picker.model.by_uid['2'].selected)
+local second = picker.model.by_uid['2']
+local second_index
+for index, node in ipairs(picker.model:visible()) do if node == second then second_index = index end end
+assert(second_index, 'second chapter must be visible in the chapter model')
+picker.page = math.ceil(second_index / picker.per_page)
+picker:rebuild()
+picker.layout[(second_index - 1) % picker.per_page + 1][1].callback()
+pump_until(function() return picker.model.count == 1 end)
+assert(picker.model.count == 1 and picker.model.by_uid['2'].selected, 'selection count='..tostring(picker.model.count)..' selected='..tostring(picker.model.by_uid['2'].selected)..' index='..tostring(second_index)..' per_page='..tostring(picker.per_page))
 picker:edit(first)
 local menu = UIManager._window_stack[#UIManager._window_stack].widget
-assert(menu.item_table and menu.item_table[1].callback, 'native chapter menu')
+assert(menu.choices and menu.action_button.enabled, 'native paginated chapter picker')
 shot('02-change-chapter-menu')
-menu.item_table[1].callback()
+menu.action_button.callback()
+pump_until(function() return not picker.model.by_uid['1'] end)
 assert(not picker.model.by_uid['1'] and picker.model.count == 1)
 local unmatched = picker.model.nodes[first.index]
 assert(not unmatched.chapter and not unmatched.selectable)
 shot('03-unmatched-keeps-selection')
 picker:edit(unmatched)
 menu = UIManager._window_stack[#UIManager._window_stack].widget
-menu.item_table[1].callback()
+menu.layout[1][1].callback()
+pump_until(function() return picker.model.by_uid['1'] ~= nil end)
 assert(picker.model.by_uid['1'] and picker.model.by_uid['2'].selected and picker.model.count == 1)
 -- Slow real HTTP request, real progress dialog, real Trapper child.
 control { match = '/book/readreviews', delay = 3, times = 0 }
-picker.actions.buttons_layout[1][1].callback()
+picker.action_button.callback()
 pump_until(function()
     local r = plugin._external_annotation_sync
     return r and r.progress and r.progress.dismiss_callback
@@ -148,6 +177,29 @@ picker = plugin:chooseAnnotationChapters()
 assert(picker.model.by_uid['2'].state == 'matched' and picker.model.count == 0)
 shot('05-retrieved-default-unchecked')
 picker:onClose()
+-- Use actual CREngine positions and the registered reader gesture route, not a fabricated hit result.
+local projection=assert(store:get('900001','projection',store:projectionKey(context.document_key,'2')))
+local record=assert(projection.records[1])
+reader.rolling:onGotoXPointer(record.pos0)
+plugin:_refreshAnnotationOverlay()
+UIManager:forceRePaint()
+local overlay=assert(plugin._xpointer_overlay)
+local visible=assert(overlay.visible[1],'matched underline must be visible')
+local cache=plugin.settings:get('cache');local ignore_edges=cache.ignore_edge_thought_taps
+cache.ignore_edge_thought_taps=false;plugin.settings:set('cache',cache)
+local rect=visible.rect
+local gesture={ges='tap',pos=require('ui/geometry'):new{x=rect.x+rect.w/2,y=rect.y+rect.h/2,w=0,h=0}}
+assert(reader:onGesture(gesture),'reader did not consume underline tap')
+local thought_popup=UIManager._window_stack[#UIManager._window_stack].widget
+assert(thought_popup._pages and thought_popup.items,'tap did not open thoughts')
+local stored_items=assert(store:get('900001','thought',visible.record.chapter_uid..':'..visible.record.range))
+assert(#thought_popup.items==#stored_items and thought_popup.items[1].content==stored_items[1].content,
+    'popup must show the actual downloaded thought')
+shot('thought-popup-from-underline')
+thought_popup:onClose()
+assert(not UIManager:isWidgetShown(thought_popup))
+cache.ignore_edge_thought_taps=ignore_edges;plugin.settings:set('cache',cache)
+print('PASS: actual underline rectangle -> reader gesture -> SQLite thoughts -> native popup -> close')
 -- An unfinished chapter and a cached source with no positions coexist on open.
 local ok, data = plugin.client:get_chapter_underlines('900001', 4)
 assert(ok)

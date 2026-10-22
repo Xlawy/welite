@@ -48,7 +48,7 @@ jobs:
         run: python3 scripts/test_mock_weread.py
 
       - name: Release package smoke test
-        run: bash scripts/package_release.sh /tmp/weread.koplugin-release-test.zip
+        run: bash scripts/package_release.sh /tmp/welite.koplugin-release-test.zip
 
       - name: Release changelog check
         run: |

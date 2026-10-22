@@ -1,6 +1,6 @@
 describe('welite native pull-down menu',function()
     local P,UI,panel
-    setup(function() require('commonrequire');package.path='plugins/weread.koplugin/?.lua;'..package.path;P=require('weread.ui.welite.pulldown');UI=require('ui/uimanager') end)
+    setup(function() require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path;P=require('weread.ui.welite.pulldown');UI=require('ui/uimanager') end)
     after_each(function() if panel then panel:onClose();panel=nil end end)
     local function controls()
         return {snapshot=function() return {wifi='WIFI已连接',wifi_on=true,wifi_supported=true,network='家庭网络 ›',time='12:54',battery='88%',capacity=88,

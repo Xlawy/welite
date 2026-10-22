@@ -1,7 +1,7 @@
 describe('WeLite book details',function()
     local Detail,UI,Screen,view
     setup(function()
-        require('commonrequire');package.path='plugins/weread.koplugin/?.lua;'..package.path
+        require('commonrequire');package.path='plugins/welite.koplugin/?.lua;'..package.path
         Detail=require('weread.ui.book_detail_view');UI=require('ui/uimanager');Screen=require('device').screen
     end)
     after_each(function() if view then view:onClose();view=nil end end)
@@ -28,26 +28,26 @@ describe('WeLite book details',function()
         assert.is_false(contains(view,'已缓存 12 / 28 章'))
         assert.is_false(contains(view,'Chapter list'))
         assert.is_true(contains(view,'目录'))
-        assert.is_false(contains(view,'查看书评 ›'))
+        assert.is_true(contains(view,'查看书评 ›'))
         assert.is_false(contains(view,'2026-10-21 23:40'))
         assert.is_false(contains(view,data().intro))
-        assert.equals(1,#view._action_buttons)
+        assert.equals(2,#view._action_buttons)
         assert.equals(3,#view._footer_actions)
         assert.is_nil(view._refresh_button)
         assert.is_false(contains(view,'Get latest'))
-        view._action_buttons[1].callback()
+        view._action_buttons[1].callback();view._action_buttons[2].callback()
         view._footer_actions[1].callback();view._footer_actions[2].callback();view._footer_actions[3].callback()
-        assert.equals(3,calls)
+        assert.equals(4,calls)
         assert.is_false(view._footer_actions[3].enabled)
         assert.is_true(view.scroll.dimen.h>0)
         assert.is_true(view[1]:getSize().h<=Screen:getHeight())
         view:onOutside(nil,{pos=require('ui/geometry'):new{x=0,y=0,w=0,h=0}})
         assert.is_true(view.closed)
-        view._footer_actions[1].callback();assert.equals(3,calls)
+        view._footer_actions[1].callback();assert.equals(4,calls)
         local readable=data(function() calls=calls+1 end)
         readable.bottom_actions[3].enabled=true
         view=Detail.show(readable,{})
-        view._footer_actions[3].callback();assert.equals(4,calls)
+        view._footer_actions[3].callback();assert.equals(5,calls)
     end)
     it('renders cached and missing covers at small and Kindle sizes with bounded previews',function()
         local BB=require('ffi/blitbuffer')
@@ -60,7 +60,7 @@ describe('WeLite book details',function()
                 Screen.screen_size={w=dimensions[1],h=dimensions[2]}
                 local fixture=data(function() end)
                 fixture.bottom_actions[3].enabled=true
-                if dimensions[1]~=320 then fixture.cover_path='plugins/weread.koplugin/spec/fixtures/cover.png' end
+                if dimensions[1]~=320 then fixture.cover_path='plugins/welite.koplugin/spec/fixtures/cover.png' end
                 if dimensions[1]==320 then
                     fixture.title=string.rep('很长的书名',30);fixture.author_line=string.rep('作者与译者 ',20)
                     fixture.intro=string.rep('长简介。',2000)

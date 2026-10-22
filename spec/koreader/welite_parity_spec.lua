@@ -2,7 +2,7 @@ describe('original WeLite pixel parity',function()
     local UI,Screen,BB,ffi,Original,Adapter,old_status,new_status
     setup(function()
         require('commonrequire')
-        package.path='plugins/weread.koplugin/spec/reference/?.lua;plugins/weread.koplugin/?.lua;'..package.path
+        package.path='plugins/welite.koplugin/spec/reference/?.lua;plugins/welite.koplugin/?.lua;'..package.path
         UI=require('ui/uimanager');Screen=require('device').screen;BB=require('ffi/blitbuffer');ffi=require('ffi')
         Original=require('welite/shelf');Adapter=require('weread.ui.welite.shelf_adapter')
         old_status=require('welite/display').status;new_status=require('weread.ui.welite.display').status
@@ -20,7 +20,7 @@ describe('original WeLite pixel parity',function()
                 a=BB.new(size[1],size[2],BB.TYPE_BB8);b=BB.new(size[1],size[2],BB.TYPE_BB8)
                 Screen.bb=b;Screen.screen_size={w=size[1],h=size[2]}
                 local items,books,paths,cover_paths,downloads={},{},{},{},{}
-                local cover='plugins/weread.koplugin/spec/fixtures/cover.png'
+                local cover='plugins/welite.koplugin/spec/fixtures/cover.png'
                 for i=1,8 do
                     local title=i==1 and '很长很长的书名，用于验证中文标题单行截断与居中对齐' or '山间来信 '..i
                     items[i]={kind='book',id=tostring(i),title=title,author='林知远',percent=i==2 and 42 or nil}

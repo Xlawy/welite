@@ -1568,27 +1568,29 @@ function Content.txt_to_xhtml(text)
         .. '<body>\n' .. table.concat(parts, "\n") .. '\n</body></html>'
 end
 
-function Content.fetch_txt_as_xhtml(client, settings, book, chapter)
+function Content.fetch_txt_as_xhtml(client, settings, book, chapter, options)
     local t0 = Content.fetch_chapter_shard(client, settings, book, chapter, "/web/book/chapter/t_0")
     local ok_t1, t1 = pcall(Content.fetch_chapter_shard, client, settings, book, chapter, "/web/book/chapter/t_1")
     if not ok_t1 then t1 = "" end
     local plain = Content.decode_content_shards(t0, t1, "")
-    Content.cache_annotation_source(settings, book, chapter, plain, true)
-    return Content.txt_to_xhtml(plain)
+    if not (options and options.no_source_cache) then
+        Content.cache_annotation_source(settings, book, chapter, plain, true)
+    end
+    return Content.txt_to_xhtml(plain), plain
 end
 
-function Content.fetch_chapter_xhtml(client, settings, book, chapter)
+function Content.fetch_chapter_xhtml(client, settings, book, chapter, options)
     Content.refresh_reader_state(client, book, chapter)
 
     if book._content_format == "txt" then
-        return Content.fetch_txt_as_xhtml(client, settings, book, chapter)
+        return Content.fetch_txt_as_xhtml(client, settings, book, chapter, options)
     end
 
     local ok, e0 = pcall(Content.fetch_chapter_shard, client, settings, book, chapter, "/web/book/chapter/e_0")
 
     if ok and e0:sub(1, 1) == "{" and e0:find('"bookId"', 1, true) then
         book._content_format = "txt"
-        return Content.fetch_txt_as_xhtml(client, settings, book, chapter)
+        return Content.fetch_txt_as_xhtml(client, settings, book, chapter, options)
     end
 
     if not ok then
@@ -2081,11 +2083,23 @@ local function strip_blank_mp_blocks(html)
     return html
 end
 
+-- Titles are mutable and non-unique; lossy filename sanitization also aliases
+-- IDs such as "review/1" and "review_1". Hash a namespaced upstream identity.
+local function mp_article_cache_key(book, article)
+    local kind, identity
+    for _,field in ipairs({"reviewId", "originalId", "sourceUrl"}) do
+        local value=tostring(article[field] or "")
+        if value~="" then kind,identity=field,value;break end
+    end
+    assert(identity, "public-account article has no stable identity")
+    local book_id=tostring(book.book_id or book.bookId or "")
+    return Crypto.sha256_hex(tostring(#book_id)..":"..book_id..":"..kind..":"..identity)
+end
+
 function Content.mp_article_path(settings, book, article)
     local book_id = book.book_id or book.bookId
     local dir = Content.book_resolved_dir(settings, book_id, book)
-    local title = filename_safe(article.title or "article")
-    return dir .. "/" .. title .. ".html"
+    return dir .. "/weread-mp-" .. mp_article_cache_key(book, article) .. ".html"
 end
 
 -- MP articles are kept as standalone HTML files, so embedding every image as a
@@ -2105,13 +2119,7 @@ local function mp_image_url(src)
 end
 
 local function mp_article_asset_name(book, article)
-    local key = tostring(article.reviewId or "")
-    if key == "" then key = tostring(article.originalId or "") end
-    if key == "" then
-        key = tostring(article.bookId or book.book_id or book.bookId or "")
-    end
-    if key == "" then key = tostring(article.title or "article") end
-    return ".weread-mp-" .. basename_safe(key) .. "-assets"
+    return ".weread-mp-" .. mp_article_cache_key(book, article) .. "-assets"
 end
 
 function Content.download_mp_images_to_files(
@@ -2287,12 +2295,15 @@ p {
 </body>
 </html>]]
 
-    write_file(path, html)
+    local ok, err = atomic_write(path, html)
+    assert(ok, err)
     return path
 end
 
 function Content.fetch_mp_article_html(client, settings, book, article, opts)
     opts = opts or {}
+    local check_cancelled = opts.check_cancelled or function() end
+    check_cancelled()
     local book_id = article.bookId
     if not book_id or book_id == "" then
         book_id = book.book_id or book.bookId
@@ -2318,6 +2329,7 @@ function Content.fetch_mp_article_html(client, settings, book, article, opts)
     local attempts = {}
     local function fetch_candidates(prefix, request_opts)
         for candidate_index, review_id in ipairs(candidate_ids) do
+            check_cancelled()
             local ok, candidate_html, candidate_meta = pcall(function()
                 return client:get_mp_content(review_id, {
                     referer = referer,
@@ -2368,6 +2380,7 @@ function Content.fetch_mp_article_html(client, settings, book, article, opts)
             table.insert(attempts, "source_url:error")
         end
     end
+    check_cancelled()
     local body = Content.extract_mp_body(html)
     if not body then
         local empty_response = not html or html:match("^%s*$") ~= nil
@@ -2393,6 +2406,7 @@ function Content.fetch_mp_article_html(client, settings, book, article, opts)
     else
         body = Content.strip_mp_images(body)
     end
+    check_cancelled()
     return Content.save_mp_article_html(settings, book, article, body)
 end
 

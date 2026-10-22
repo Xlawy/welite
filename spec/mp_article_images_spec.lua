@@ -9,7 +9,6 @@ end
 package.preload["weread.lib.logger"] = function()
     return { info = function() end, warn = function() end, err = function() end }
 end
-package.preload["weread.lib.crypto"] = function() return {} end
 package.preload["weread.lib.reader_state"] = function() return {} end
 package.preload["weread.lib.protocol"] = function()
     return {
@@ -47,6 +46,13 @@ local progress = {}
 local settings = { cache_dir = root }
 local book = { book_id = "mp-book", cache_dir = root }
 local article = { reviewId = "review/1", title = "Disk images" }
+local other = {reviewId="review_1",title=article.title}
+expect(Content.mp_article_path(settings,book,article) ~= Content.mp_article_path(settings,book,other),
+    "same-title articles with different IDs must not overwrite each other")
+expect(Content.mp_article_path(settings,book,article) == Content.mp_article_path(settings,book,
+    {reviewId=article.reviewId,title="Renamed title"}), "title changes must preserve the article cache key")
+expect(not pcall(Content.mp_article_path,settings,book,{title="No identity"}),
+    "title alone must not masquerade as a stable article identity")
 local body = [[
 <p><img src="//mmbiz.qpic.cn/image?id=1&amp;format=png"></p>
 <p><img src='https://mmbiz.qpic.cn/image?id=1&format=png'></p>
@@ -73,7 +79,8 @@ expect(#progress == 2 and progress[1][1] == 1 and progress[1][2] == 2
         and progress[2][1] == 2 and progress[2][2] == 2,
     "MP image progress did not count unique URLs")
 
-local relative = ".weread-mp-review_1-assets/img-0001.png"
+local asset_key=Content.mp_article_path(settings,book,article):match("/weread%-mp%-(%x+)%.html$")
+local relative = ".weread-mp-"..asset_key.."-assets/img-0001.png"
 local first_reference = rewritten:find(relative, 1, true)
 local second_reference = first_reference
     and rewritten:find(relative, first_reference + #relative, true)
@@ -93,11 +100,44 @@ local image = assert(io.open(root .. "/" .. relative, "rb"))
 expect(image:read(8) == "\137PNG\r\n\026\n",
     "streamed MP image bytes were corrupted")
 image:close()
-expect(io.open(root .. "/.weread-mp-review_1-assets/img-0001.download", "rb")
+expect(io.open(root .. "/.weread-mp-"..asset_key.."-assets/img-0001.download", "rb")
         == nil,
     "successful MP image download left an incoming file")
 expect(after_kb - before_kb < 1024,
     "MP image download retained resource-sized Lua memory")
+
+-- A failed publication must leave a previously complete cached article intact.
+local saved = Content.save_mp_article_html(settings, book, article, '<p>Original body</p>')
+local other_path=Content.save_mp_article_html(settings,book,other,'<p>Other article body</p>')
+expect(saved~=other_path,'same-title publication collided')
+local other_file=assert(io.open(other_path,'rb'));local other_html=other_file:read('*a');other_file:close()
+expect(other_html:find('Other article body',1,true),'second article was not saved')
+expect(Content.mp_article_cached_path(settings,book,{reviewId=article.reviewId,title='Renamed'})==saved,
+    'renamed article lost its offline cache')
+local legacy=assert(io.open(root..'/Legacy title.html','wb'));legacy:write('ambiguous legacy article');legacy:close()
+expect(Content.mp_article_cached_path(settings,book,{reviewId='legacy-id',title='Legacy title'})==nil,
+    'unverified legacy title cache must not be opened as another article')
+expect(Content.mp_article_path(settings,book,{originalId='original',title='Fallback'})~=
+    Content.mp_article_path(settings,book,{reviewId='original',title='Fallback'}),'identity namespaces collided')
+expect(Content.mp_article_path(settings,book,article)~=
+    Content.mp_article_path(settings,{book_id='another',cache_dir=root},article),'account/book identity collided')
+local second_images=Content.download_mp_images_to_files(client,settings,book,other,
+    '<img src="https://mmbiz.qpic.cn/other.png">')
+expect(not second_images:find('.weread-mp-'..asset_key..'-assets',1,true),
+    'different article images shared a directory')
+local original_rename = os.rename
+os.rename = function(from, to)
+    if to == saved then return nil, 'synthetic rename failure' end
+    return original_rename(from, to)
+end
+local ok = pcall(Content.save_mp_article_html, settings, book, article, '<p>Replacement body</p>')
+os.rename = original_rename
+expect(not ok, 'failed article publication must be reported')
+local file = assert(io.open(saved, 'rb'))
+local saved_html = file:read('*a');file:close()
+expect(saved_html:find('Original body', 1, true) and not saved_html:find('Replacement body', 1, true),
+    'failed publication overwrote the existing article')
+expect(io.open(saved .. '.part', 'rb') == nil, 'failed publication left a partial article')
 
 assert(os.execute("rm -rf " .. string.format("%q", root)))
 print(("mp_article_images_spec: %d checks"):format(checks))

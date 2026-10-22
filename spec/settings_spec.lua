@@ -89,7 +89,7 @@ local Settings = require("weread.lib.settings")
 local settings = Settings:new()
 
 expect(settings.data_dir == "/data/weread", "data directory was wrong")
-expect(settings.cache_dir == "/data/weread/cache", "default cache directory was wrong")
+expect(settings.cache_dir == "/data/welite/cache", "default cache directory was wrong")
 expect(settings:get("update").prefer_proxy == true,
     "update proxy should be preferred by default")
 expect(settings:get("shelf").paginated == true,
@@ -107,7 +107,8 @@ expect(settings:get("shelf").sort_order == "default", "new installations preserv
 expect(settings:get("shelf").view_mode == "cover",
     "new installations default to the bounded cover view")
 expect(created_dirs[1] == "/data/weread"
-    and created_dirs[2] == "/data/weread/cache",
+    and created_dirs[2] == "/data/welite"
+    and created_dirs[3] == "/data/welite/cache",
     "settings directories were not initialized")
 expect(values.api_key == "" and next(values.cookies) == nil
     and values.wr_ticket == "" and values.wr_wrpa == "",
@@ -164,7 +165,7 @@ expect(settings:set_download_dir("/external/books") == "/external/books",
     "custom download directory was not selected")
 expect(values.download_dir == "/external/books",
     "custom download directory was not persisted")
-expect(settings:set_download_dir("") == "/data/weread/cache",
+expect(settings:set_download_dir("") == "/data/welite/cache",
     "download directory did not reset to default")
 
 local original_environment = getfenv(Settings.get_device_fingerprint)
@@ -212,4 +213,33 @@ expect(not ok and values.device_fingerprint == "invalid; cookie=value",
     "failed entropy reads must not save a partial or shared fallback fingerprint")
 setfenv(Settings.get_device_fingerprint, original_environment)
 
+values.sync = nil
+local fresh = Settings:new():get("sync")
+expect(fresh.pull_on_open and fresh.upload_on_close, "automatic sync must default on")
+values.sync = { pull_on_open = false }
+local migrated = Settings:new():get("sync")
+expect(migrated.pull_on_open == false and migrated.upload_on_close == true,
+    "fill missing sync defaults while preserving explicit choices")
+values.sync.upload_on_close = false
+expect(Settings:new():get("sync").upload_on_close == false, "reopening must preserve disabled upload")
+
 print(("settings_spec: %d checks"):format(checks))
+
+values.welite_cache_layout = nil
+values.download_dir = "/data/weread/cache/"
+values.books = {
+    old = {cache_dir="/data/weread/cache/old"},
+    legacy = {cached_chapters={one="/data/weread/cache/legacy.epub"}},
+    current = {cache_dir="/data/welite/cache/current"},
+    custom = {cache_dir="/external/books/custom"},
+    prefix = {cache_dir="/data/weread/cache-other/book"},
+}
+values.welite_pending_progress_sync = {books={old=true,current=true}}
+local migrated_cache = Settings:new()
+expect(migrated_cache.cache_dir == "/data/welite/cache" and values.download_dir == "", "old default override must be retired")
+expect(not values.books.old and not values.books.legacy, "old paths must be discarded before BookStore reads them")
+expect(values.books.current and values.books.custom and values.books.prefix, "new/custom paths must survive")
+expect(not values.welite_pending_progress_sync.books.old and values.welite_pending_progress_sync.books.current, "clear only retired handoffs")
+local before = flush_count
+Settings:new()
+expect(flush_count == before, "cache transition must only run once")

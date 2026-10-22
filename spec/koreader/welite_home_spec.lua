@@ -1,11 +1,63 @@
 describe('WeLite community shelf integration',function()
-    local View,UI,Device,view
+    local View,UI,Device,view,overlay
     setup(function()
         require('commonrequire')
-        package.path='plugins/weread.koplugin/?.lua;'..package.path
+        package.path='plugins/welite.koplugin/?.lua;'..package.path
         View=require('weread.ui.library_view');UI=require('ui/uimanager');Device=require('device')
     end)
-    after_each(function() if view then UI:close(view);view=nil end end)
+    after_each(function() if overlay then UI:close(overlay);overlay=nil end;if view then UI:close(view);view=nil end end)
+    it('releases the home and its overlays through KOReader native Exit',function()
+        local Container=require('ui/widget/container/widgetcontainer')
+        local Library=require('weread.ui.library')
+        local FileManager=require('apps/filemanager/filemanager')
+        local Menu=require('apps/filemanager/filemanagermenu')
+        local Event=require('ui/event')
+        local previous=FileManager.instance
+        local baseline=#UI._window_stack
+        -- Keep native exit/close dispatch, without loading accounts or scanning files.
+        local host=FileManager:extend{init=function() end}:new{}
+        local plugin=Container:extend(Library):new{}
+        plugin.ui=host
+        host[1]=require('device/devicelistener'):new{ui=host}
+        host[2]=plugin
+        host.menu=Menu:extend{init=function() end}:new{ui=host}
+        FileManager.instance=host
+        UI:show(host)
+        view=View.show({welite=true,mode='books',books={},paged=true,cover_mode=true,
+            welite_host=host,welite_plugin=plugin},{})
+        plugin.shelf_view=view
+        view:onQuickMenu()
+        local timer=view.clock_timer
+        local ok,err=pcall(function()
+            UI:broadcastEvent(Event:new('Exit'))
+            assert.equals(baseline,#UI._window_stack)
+            assert.is_nil(FileManager.instance)
+            assert.is_nil(plugin.shelf_view)
+            assert.is_nil(view.clock_timer)
+            assert.is_nil(view.quick_menu)
+            for _,task in ipairs(UI._task_queue) do assert.are_not.equal(timer,task.action) end
+        end)
+        UI:close(view);view=nil
+        UI:close(host)
+        FileManager.instance=previous
+        assert.is_true(ok,tostring(err))
+    end)
+    it('refreshes cached covers without opening over an active modal',function()
+        local books={};for i=1,20 do books[i]={bookId=tostring(i),title='封面测试 '..i} end
+        view=View.show({welite=true,mode='books',books=books,cover_mode=true,paged=true,page=1}, {})
+        overlay=require('ui/widget/infomessage'):new{text='搜索结果保持在上层'}
+        UI:show(overlay);UI:forceRePaint()
+        local calls=0
+        view:refreshCoverPaths({pathFor=function() calls=calls+1;return 'plugins/welite.koplugin/spec/fixtures/cover.png' end})
+        assert.equals(overlay,UI:getTopmostVisibleWidget())
+        assert.equals(#view:visibleItems(),calls)
+        assert.is_true(calls<=6)
+        assert.equals('plugins/welite.koplugin/spec/fixtures/cover.png',view.cover_paths['book:1'])
+        assert.is_not_true(view.welite_closed)
+        UI:close(view)
+        view:refreshCoverPaths({pathFor=function() error('closed shelf must not refresh') end})
+        view=nil
+    end)
     it('renders the home with six bounded covers and preserves explicit actions',function()
         local books={}
         for i=1,18 do books[i]={bookId=tostring(i),title='测试书籍 '..i,author='作者'} end
@@ -80,6 +132,7 @@ describe('WeLite community shelf integration',function()
         local now=os.time()
         local Reading=require('weread.ui.welite.reading')
         local plugin={shelf_view=view,welite_stats_worker=worker,
+            shelf_regular={{bookId="fixture",readUpdateTime=now}},
             settings={data_dir='/tmp',is_api_configured=function() return true end,
                 get=function(_,key,default) if key=='account' then return {user_vid='fixture'} end;return default end},
             requireLogin=function() return true end,

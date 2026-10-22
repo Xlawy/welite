@@ -1,10 +1,10 @@
 --[[--
-Centered thought popup widget (TextViewer style).
+Centered WeLite thought popup widget.
 
 Renders the same paginated review content as the bottom popup (shared
 PageRenderer) inside a centered, rounded white window with a title bar and an
-explicit Previous/Next page button row, mirroring KOReader's TextViewer look
-(the style of the original thought dialog on this branch).
+explicit Previous/Next page button row and neutral backdrop. The complete
+quote is paginated with the thoughts, keeping the title height bounded.
 
 Long content — including a single long thought — flows across multiple pages;
 there is no scrolling: navigation is page-index based (buttons, horizontal
@@ -41,6 +41,7 @@ local PADDING_BOTTOM = Size.padding.large
 local BUTTON_PADDING = Size.padding.default
 
 local CenterThoughtPopupWidget = InputContainer:extend{
+    modal = true,
     items = nil,
     doc_font_name = nil,
     doc_font_size = Screen:scaleBySize(18),
@@ -118,16 +119,20 @@ function CenterThoughtPopupWidget:init()
         height_ratio = self.height_ratio,
         content_width = self.width,
         contrast = self.contrast,
-        skip_quote = true,
+        skip_quote = false,
+        full_quote = true,
         hide_leading_separator = true,
     }
     self:_buildLayout()
 end
 
+function CenterThoughtPopupWidget:paintTo(bb, x, y)
+    bb:paintRect(x, y, Screen:getWidth(), Screen:getHeight(), Blitbuffer.Color8(0xCC))
+    InputContainer.paintTo(self, bb, x, y)
+end
+
 function CenterThoughtPopupWidget:onShow()
-    UIManager:setDirty(self, function()
-        return "partial", self.container.dimen
-    end)
+    UIManager:setDirty(self, "ui")
 end
 
 function CenterThoughtPopupWidget:_reopen(opts)
@@ -149,16 +154,6 @@ function CenterThoughtPopupWidget:_reopen(opts)
     self._pages:setContent(self.items, self.doc_font_name, self.doc_font_size,
         self.doc_margins, self.height_ratio, self.width, self.contrast)
     self:_buildLayout()
-end
-
---- Window title: the quoted abstract of the first review item (whitespace
---- collapsed, overflow truncated by TitleBar), or "Thoughts" when absent.
-function CenterThoughtPopupWidget:_title()
-    local abstract = self.items and self.items[1] and self.items[1].abstract
-    if type(abstract) == "string" and abstract ~= "" then
-        return abstract:gsub("%s+", " ")
-    end
-    return _("Thoughts")
 end
 
 --- Previous / page indicator / Next button row.
@@ -200,9 +195,9 @@ function CenterThoughtPopupWidget:_buildLayout()
         width = self.width,
         align = "left",
         with_bottom_line = true,
-        title = self:_title(),
-        title_multilines = true,
-        title_face = Font:getFace("x_smalltfont", 18),
+        title = "WeLite · " .. _("Thoughts"),
+        title_multilines = false,
+        title_face = Font:getFace("cfont", 20),
         close_callback = function()
             self:onClose()
         end,
@@ -251,7 +246,8 @@ function CenterThoughtPopupWidget:_buildLayout()
     }
 
     local frame = FrameContainer:new{
-        radius = Size.radius.window,
+        radius = Screen:scaleBySize(8),
+        bordersize = math.max(1, Screen:scaleBySize(2)),
         padding = 0,
         margin = 0,
         background = Blitbuffer.COLOR_WHITE,
@@ -310,9 +306,7 @@ function CenterThoughtPopupWidget:_syncButtons()
 end
 
 function CenterThoughtPopupWidget:onCloseWidget()
-    UIManager:setDirty(self, function()
-        return "partial", self.container.dimen
-    end)
+    UIManager:setDirty(nil, "ui")
     if self.close_callback then
         local callback = self.close_callback
         self.close_callback = nil

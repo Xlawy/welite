@@ -108,15 +108,26 @@ test("single chapter requires a known chapter", function()
     eq(reason, "current_chapter_not_found", "reason")
 end)
 
-test("remote offset is authoritative", function()
+test("remote percent and source offset are independent", function()
     local normalized = assert(Mapper.normalize_remote({
         progress = 99,
         chapterUid = 22,
         chapterIdx = 2,
         chapterOffset = 150,
     }, "book", "gateway", chapters))
-    near(normalized.percent, 25, 0.0001, "recomputed percent")
-    eq(normalized.position_basis, "chapter_offset", "basis")
+    near(normalized.percent, 99, 0.0001, "server percent retained")
+    eq(normalized.chapter_offset, 150, "source offset retained")
+    eq(normalized.position_basis, "raw_percent", "basis")
+end)
+
+test("source offsets exceeding chapter word counts do not alter progress", function()
+    local normalized=assert(Mapper.normalize_remote({progress=17,chapterUid=22,chapterOffset=2400},
+        "book","web",chapters))
+    eq(normalized.percent,17,"word count does not clamp percentage")
+    eq(normalized.chapter_offset,2400,"HTML offset is not clamped to words")
+    local without_catalog=assert(Mapper.normalize_remote({progress=17,chapterUid=22,chapterOffset=2400},
+        "book","web",{}))
+    eq(normalized.percent,without_catalog.percent,"catalog availability must not change remote progress")
 end)
 
 test("remote full book position maps to overall fraction", function()

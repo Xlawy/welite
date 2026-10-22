@@ -2,7 +2,7 @@ describe("welite background worker", function()
     local Worker, socket, worker
     setup(function()
         require("commonrequire")
-        package.path = "plugins/weread.koplugin/?.lua;" .. package.path
+        package.path = "plugins/welite.koplugin/?.lua;" .. package.path
         Worker = require("weread.ui.welite.worker"); socket = require("socket")
     end)
     local function drain()
