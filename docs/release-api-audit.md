@@ -54,7 +54,7 @@
 
 - v1.0.1：`/tmp/welite-v1.0.1-test.log`，92 个 Lua spec、9 个 Python tests 通过。191 个 KOReader 用例中唯一初次失败为新测试误把 PluginLoader 的可调用包装对象当普通函数；按宿主 HandlerSandbox 协议修正后，`/tmp/welite-v1.0.1-plugin.log` 和 `.dev/reports/release-plugin.xml` 的 3 个 PluginLoader 测试全部通过，其他 190 个用例在完整运行中已通过。
 - 静态检查 283 个 Lua 文件零告警；CI 敏感信息扫描、Python 编译和发行说明抽取通过。
-- 最终包：`dist/welite.koplugin-v1.0.1.zip`，154 个条目；根目录为 `welite.koplugin/`，保留 LICENSE/NOTICE/fonts/LICENSE，不含测试、开发依赖或缓存目录。SHA-256：`67c3ff8bda1a04d2dc9240921e691bc8409a2ccc46b80094f950e35e4f431c63`。
+- 最终包：`dist/welite.koplugin-v1.0.1.zip`，154 个条目；根目录为 `welite.koplugin/`，保留 LICENSE/NOTICE/fonts/LICENSE，不含测试、开发依赖或缓存目录。发行包的 SHA-256 随实际上传字节生成并作为独立资产发布；ZIP 时间戳可能使重打包后的校验和变化，上传前逐文件核对已提交源码与许可证。
 - 真机验收：用户于本会话明确回复“已测试，进度和时长均正常”，覆盖 Kindle 关书上传、手机续读、手机修改后 Kindle 拉取，以及阅读时间增长。此为用户验收结果，不是桌面测试推断。
 - GitHub 匿名 API 受限流影响；发布后需核验 v1.0.1 的 Release 页面、ZIP 和 SHA-256 资产。检查阶段没有触发真实账号进度或时长写入。
 - main 推送将触发 CI/KOReader 工作流；成功且版本标签不存在时自动创建 Release。用户已明确授权推送并发布 v1.0.1。
