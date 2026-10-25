@@ -567,12 +567,20 @@ describe('WeLite shelf-to-reader sync flow',function()
         if dialog then UI:close(dialog);dialog=nil end
         remote={progress=90,chapterUid=1,chapterIdx=1,chapterOffset=900}
         manager:showShelfView('books');wire(manager)
+        local message
+        local show_info=manager.showInfo
+        manager.showInfo=function(self,text,...)
+            message=text
+            return show_info(self,text,...)
+        end
         manager.shelf_view.collection_sync_button.callback()
         drain(function() return not manager.shelf_refreshing end)
         assert.equals(0,reports());assert.equals(900,remote.chapterOffset)
         assert.is_table(Settings:new():get('books').fixture.pending_upload_position)
         assert.is_nil(dialog)
         assert.equals('同步未完成',manager.welite_shelf_status)
+        assert.is_truthy(message:find('《Fixture》',1,true),'real shelf conflict must identify the book')
+        assert.is_truthy(message:find('请打开书籍选择进度',1,true))
     end)
 
     it('uploads the last page after the document closes using a bounded text snapshot',function()

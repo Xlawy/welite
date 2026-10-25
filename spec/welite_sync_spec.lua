@@ -115,3 +115,26 @@ assert(Sync.refresh(p,v,{}));complete()
 assert(p.welite_shelf_status=='同步未完成' and p.message:find('阅读进度'),
     'missing current-account progress must remain a failure, not be hidden by the filter')
 print('welite_sync_spec: retained foreign caches, shared-book write isolation, repeated sync and genuine failures passed')
+
+-- The close-sync callback must carry book details through the shelf worker.
+local closed=require('welite.lib.closed_progress_sync')
+local original_start=closed.start
+closed.start=function(_,done)
+ done(false,{conflicts={count=7,books={{id='1',title='冲突书 🌿\n第二行'},{id='missing'}}},
+  pending={count=1,books={{id='retry',title='网络失败书'}}}})
+end
+p,v=fixture();assert(Sync.refresh(p,v,{}));complete()
+assert(p.message:find('《冲突书 🌿 第二行》',1,true) and p.message:find('书籍 ID：missing',1,true))
+assert(p.message:find('另有 5 本未列出。',1,true) and p.message:find('《网络失败书》',1,true))
+assert(p.message:find('有冲突',1,true) and p.message:find('尚未上传',1,true))
+closed.start=function(_,done)
+ done(false,{conflicts={count=0,books={}},pending={count=1,books={{id='1',title=string.rep('长🌿',200)}}}})
+end
+p,v=fixture();assert(Sync.refresh(p,v,{}));complete()
+assert(not p.message:find('冲突',1,true) and p.message:find(string.rep('长🌿',30)..'…',1,true),
+ 'generic upload failure stays retryable and long Unicode titles are bounded')
+closed.start=function(_,done) done(false) end
+p,v=fixture();assert(Sync.refresh(p,v,{}));complete()
+assert(p.message:find('仍有本地进度未上传',1,true) and not p.message:find('冲突',1,true))
+closed.start=original_start
+print('welite_sync_spec: conflict book names, ID fallback, omission count, bounded Unicode and failure-specific guidance passed')

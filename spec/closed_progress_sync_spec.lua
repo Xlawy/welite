@@ -41,9 +41,9 @@ cloud=100;books.b.last_reported_position.account='two'
 assert(Sync.reconcile(p,'b',pending).conflict,'another account report cannot authorize upload')
 local function prepare()
  pending=position(500);pending.sync_base=position(100);books={b={pending_upload_position=pending}}
- local result
- Sync.start(p,function(ok) result=ok end)
- return function() return result end
+ local result,summary
+ Sync.start(p,function(ok,detail) result,summary=ok,detail end)
+ return function() return result,summary end
 end
 local result=prepare()
 -- A real child receives an independent address space; build its result explicitly.
@@ -111,3 +111,35 @@ assert(not receipt.position.source_snapshot and sent==prior_sent,'identical clou
 cached=Source.index(raw)
 assert(Sync.reconcile(p,'b',snapshot()).accepted and fetches==1,'current cache must work offline')
 print('closed_progress_sync_spec: outdated HTML snapshot upgrade and exact source readback passed')
+
+-- Details come from actual reconciliation, not a guessed UI conflict message.
+cloud=700;result=prepare();books.b.title='冲突书 🌿'
+books.foreign={title='另一账号私有书名',pending_upload_position={account_id='two'}}
+job.on_done{ok=true,value=job.task{checkCancelled=function() end}}
+local ok,summary=result()
+assert(ok==false and summary.conflicts.count==1 and summary.pending.count==0)
+assert(summary.conflicts.books[1].id=='b' and summary.conflicts.books[1].title=='冲突书 🌿')
+assert(books.b.last_sync_error=='cloud_progress_conflict','conflict remains protected')
+result=prepare();books.b.title='网络失败书'
+job.on_done{ok=false,error='timeout'}
+ok,summary=result()
+assert(not ok and summary.conflicts.count==0 and summary.pending.count==1)
+assert(summary.pending.books[1].title=='网络失败书','unknown writes must not be mislabeled as conflicts')
+result=prepare();books.b.pending_upload_position=position(600)
+job.on_done{ok=true,value={receipts={b={conflict=true}}}}
+ok,summary=result()
+assert(not ok and summary.conflicts.count==0 and summary.pending.count==1,'old receipt cannot classify a newer snapshot as conflict')
+result=prepare()
+for i=1,20 do books['pending'..i]={title='待同步 '..i,pending_upload_position=position(i)} end
+job.on_done{ok=false,error='timeout'}
+ok,summary=result()
+assert(not ok and summary.pending.count==21 and #summary.pending.books==Sync.MAX_DETAIL_BOOKS,
+ 'bounded names with exact omitted count; no extra worker or lookup')
+result=prepare();fingerprint='two';job.on_done{ok=false}
+ok,summary=result()
+assert(not ok and summary==nil,'changed account must never receive previous account book names')
+fingerprint='one';p.isNetworkConnected=function() return false end
+result=prepare();ok,summary=result()
+assert(not ok and summary.pending.books[1].id=='b' and summary.conflicts.count==0)
+p.isNetworkConnected=nil
+print('closed_progress_sync_spec: named conflict and pending results, bounded lists, newer snapshots and account privacy passed')

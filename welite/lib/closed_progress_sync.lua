@@ -1,9 +1,24 @@
 -- Reconcile closed-book snapshots before home data refresh. The existing
 -- ReadReport pipeline owns every write; a changed cloud baseline is deferred.
-local M={MAX_BOOKS=6,WAIT_INTERVAL=0.25,MAX_WAIT_CHECKS=120}
+local M={MAX_BOOKS=6,MAX_DETAIL_BOOKS=5,WAIT_INTERVAL=0.25,MAX_WAIT_CHECKS=120}
 local BookStore=require('welite.lib.book_store')
 local Auth=require('welite.lib.worker_settings')
 local Mapper=require('welite.lib.position_mapper')
+local function details()
+    return {conflicts={count=0,books={}},pending={count=0,books={}}}
+end
+local function add_detail(summary,kind,id,book)
+    local group=summary[kind]
+    group.count=group.count+1
+    if #group.books<M.MAX_DETAIL_BOOKS then
+        group.books[#group.books+1]={id=tostring(id),title=book.title or book.name}
+    end
+end
+local function pending_details(entries)
+    local summary=details()
+    for _,entry in ipairs(entries) do add_detail(summary,'pending',entry.id,entry) end
+    return summary
+end
 local function equal(a,b)
     if type(a)~=type(b) then return false end
     if type(a)~='table' then return a==b end
@@ -56,7 +71,7 @@ function M.start(plugin,done,wait_checks)
         local p=type(book)=="table" and book.pending_upload_position
         if type(p)=='table' and p.account_id==account
             and #entries<M.MAX_BOOKS then
-            entries[#entries+1]={id=tostring(id),position=p}
+            entries[#entries+1]={id=tostring(id),position=p,title=book.title or book.name}
         end
     end
     if #entries==0 then done(true);return end
@@ -64,7 +79,7 @@ function M.start(plugin,done,wait_checks)
     local active=reader and reader.welite and reader.welite:detectWeReadBook()
     for i=#entries,1,-1 do if entries[i].id==tostring(active) then table.remove(entries,i) end end
     if #entries==0 then done(true);return end
-    if plugin.isNetworkConnected and not plugin:isNetworkConnected() then done(false);return end
+    if plugin.isNetworkConnected and not plugin:isNetworkConnected() then done(false,pending_details(entries));return end
     local ledger=plugin.read_report.time_ledger
     local function busy()
         for _,entry in ipairs(entries) do
@@ -85,7 +100,10 @@ function M.start(plugin,done,wait_checks)
         function waiting:cancel()
             ui:unschedule(check)
             if plugin.welite_closed_progress_worker==waiting then
-                plugin.welite_closed_progress_worker=nil;done(false)
+                plugin.welite_closed_progress_worker=nil
+                local same_account=Auth.fingerprint(plugin.settings)==fingerprint
+                    and plugin.settings:get('account',{}).user_vid==account
+                done(false,same_account and pending_details(entries) or nil)
             end
         end
         check=function()
@@ -120,6 +138,7 @@ function M.start(plugin,done,wait_checks)
         if Auth.fingerprint(plugin.settings)~=fingerprint
             or plugin.settings:get('account',{}).user_vid~=account then return false end
         local success=outcome.ok==true
+        local conflicts={}
         local value=outcome.value or {}
         if outcome.ok then Auth.merge(plugin.settings,fingerprint,value.auth) end
         local books=plugin.settings:get('books',{})
@@ -135,23 +154,28 @@ function M.start(plugin,done,wait_checks)
                 else
                     success=false
                     book.last_sync_error=result and result.conflict and 'cloud_progress_conflict' or 'closed_progress_upload_failed'
+                    conflicts[entry.id]=result and result.conflict==true
                 end
                 BookStore.put(plugin.settings,entry.id,book)
             else success=false end
         end
-        for _,book in pairs(books) do
-            local pending=book.pending_upload_position
-            if type(pending)=='table' and pending.account_id==account then success=false end
+        local summary=details()
+        for id,book in pairs(books) do
+            local pending=type(book)=='table' and book.pending_upload_position
+            if type(pending)=='table' and pending.account_id==account then
+                success=false
+                add_detail(summary,conflicts[tostring(id)] and 'conflicts' or 'pending',id,book)
+            end
         end
         plugin.settings:flush()
-        return success
+        return success,summary
     end
     local function completed(outcome)
-        local ok,result=pcall(finish,outcome)
+        local ok,result,summary=pcall(finish,outcome)
         if not ok then
             require('welite.lib.logger').scoped('ClosedProgressSync').warn('persist outcome failed:',tostring(result))
             done(false)
-        elseif result~=nil then done(result) end
+        elseif result~=nil then done(result,summary) end
     end
     local started=worker:start{task=function(context)
         local capture=Auth.capture(plugin.settings)

@@ -4,15 +4,47 @@ local Reading=require('welite.ui.welite.reading')
 local Auth=require('welite.lib.worker_settings')
 local Scope=require('welite.lib.progress_scope')
 
-function M.refresh(plugin,view,options,closed_ok)
+-- Bound both Unicode title length and the number of displayed books. No extra
+-- storage or network lookup is needed: the close-sync result owns the details.
+local function short_text(value)
+    if type(value)~='string' and type(value)~='number' then return '' end
+    local text=tostring(value):sub(1,240):gsub('%c',' ')
+    local chars={}
+    for char in text:gmatch('[%z\1-\127\194-\244][\128-\191]*') do
+        if #chars==60 then return table.concat(chars)..'…' end
+        chars[#chars+1]=char
+    end
+    return table.concat(chars):match('^%s*(.-)%s*$')
+end
+local function failure_details(summary)
+    local lines={}
+    for _,kind in ipairs({'conflicts','pending'}) do
+        local group=summary and summary[kind]
+        if group and group.count>0 then
+            lines[#lines+1]=kind=='conflicts' and '以下书籍进度有冲突，请打开书籍选择进度：'
+                or '以下书籍进度尚未上传，请重试同步：'
+            for _,book in ipairs(group.books) do
+                local title=short_text(book.title)
+                lines[#lines+1]=title~='' and '《'..title..'》' or '书籍 ID：'..short_text(book.id)
+            end
+            if group.count>#group.books then
+                lines[#lines+1]='另有 '..(group.count-#group.books)..' 本未列出。'
+            end
+        end
+    end
+    if #lines==0 then return '仍有本地进度未上传，请重试同步。' end
+    return table.concat(lines,'\n')
+end
+
+function M.refresh(plugin,view,options,closed_ok,closed_details)
     if plugin.shelf_refreshing or not plugin:requireLogin(false,true) then return false end
     if closed_ok==nil then
         plugin.shelf_refreshing=true;view:setRefreshing(true)
         local started=true
-        require('welite.lib.closed_progress_sync').start(plugin,function(ok)
+        require('welite.lib.closed_progress_sync').start(plugin,function(ok,summary)
             plugin.shelf_refreshing=nil
             if plugin.shelf_view and not plugin.shelf_view.welite_closed then
-                started=M.refresh(plugin,plugin.shelf_view,options,ok)
+                started=M.refresh(plugin,plugin.shelf_view,options,ok,summary)
             end
         end)
         return started
@@ -153,7 +185,7 @@ function M.refresh(plugin,view,options,closed_ok)
         require('welite.ui.welite.reading_sync').queue(plugin,result.progress_books)
         if #failed>0 then
             local message='未能完成：'..table.concat(failed,'、')..'。请重试同步。'
-            if not closed_ok then message=message..'\n仍有本地进度未上传；云端也有变化时，请打开对应书籍选择进度。' end
+            if not closed_ok then message=message..'\n'..failure_details(closed_details) end
             plugin:showInfo(message)
         end
     end}
