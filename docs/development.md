@@ -37,3 +37,5 @@ KOREADER_RUNTIME=/绝对路径/koreader make test
 配置迁移仅复制有大小上限的设置文件，不扫描或复制书籍目录。生产配置为 `settings/welite-state.lua`，模拟配置为 `settings/welite-mock-state.lua`，环境选项为 `settings/welite-environment.lua`；原配置保留。更新暂存和进度文件在 `welite/update`，已有下载、数据库、收藏和阅读状态继续使用兼容路径。
 
 - [轻量化核心重构、同步审计与性能证据](lightweight-refactor.md)
+
+发布使用本地完整测试与候选包验证，推送后保留快速 CI；固定 KOReader 集成只手动或定期运行。验证完成后直接上传已验证的包，不等待远端重复构建。具体步骤见 [发布流程](releasing.md)。

@@ -4,16 +4,6 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "23 18 * * 1"
-  push:
-    branches:
-      - main
-    paths:
-      - main.lua
-      - _meta.lua
-      - "welite/**"
-      - "spec/koreader/**"
-      - scripts/run_koreader_integration.sh
-      - .github/workflows/koreader-integration.yml
 
 concurrency:
   group: koreader-integration-${{ github.ref }}
