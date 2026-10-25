@@ -1,3 +1,4 @@
+local BookStore = require("welite.lib.book_store")
 local PositionMapper = require("welite.lib.position_mapper")
 
 local logger = require("welite.lib.logger").scoped("ProgressSync")
@@ -29,6 +30,7 @@ local BUSY_RETRY_SECONDS = 2
 local BUSY_RETRY_LIMIT = 10
 local SAME_THRESHOLD_PERCENT = 2
 local SOURCE_CONFLICT_THRESHOLD_PERCENT = 2
+local CHAPTER_HANDOFF_SECONDS = 60
 
 local function log(level, ...)
     if type(logger[level]) == "function" then
@@ -51,6 +53,116 @@ local function document_path(document)
     if not document then return nil end
     return document.file
         or (type(document.getFilePath) == "function" and document:getFilePath())
+end
+
+-- A continuation needs exact cloud coordinates, not the normal display
+-- tolerance. Missing offsets cannot establish that another device stayed put.
+local function same_cloud_position(left, right, acknowledged)
+    if type(left) ~= "table" or type(right) ~= "table"
+        or left.has_chapter_offset == false or right.has_chapter_offset == false
+        or left.chapter_uid == nil or right.chapter_uid == nil
+        or left.chapter_offset == nil or right.chapter_offset == nil then return false end
+    return tostring(left.chapter_uid) == tostring(right.chapter_uid)
+        and left.chapter_offset == right.chapter_offset
+        and left.percent == right.percent
+        and (acknowledged or (left.updated_at or 0) == (right.updated_at or 0))
+end
+
+local function cloud_receipt(position)
+    if type(position) ~= "table" then return nil end
+    return {
+        percent = position.percent, chapter_uid = position.chapter_uid,
+        chapter_offset = position.chapter_offset, has_chapter_offset = position.has_chapter_offset,
+        updated_at = position.updated_at, account_id = position.account_id,
+        position_basis = position.position_basis,
+    }
+end
+
+local function cloud_sources(remote)
+    local result = {}
+    for _, source in ipairs({ "web", "gateway" }) do
+        local position = remote.sources and remote.sources[source]
+            or (remote.source == source and remote)
+        if position then result[source] = cloud_receipt(position) end
+    end
+    return result
+end
+
+local function reported_receipt(book, account)
+    local reported = book and book.last_reported_position
+    if type(reported) == "table" and reported.account == account then
+        return cloud_receipt(reported.position)
+    end
+end
+
+local function unchanged_cloud(handoff, remote)
+    if remote.conflict then return false end
+    local acknowledged = handoff.acknowledged
+    local own_upload = type(acknowledged) == "table" and acknowledged.account_id == handoff.account
+        and (acknowledged.position_basis == "source_utf16"
+            or acknowledged.position_basis == "confirmed_remote_offset")
+    local sources = cloud_sources(remote)
+    local checked = false
+    for _, source in ipairs({ "web", "gateway" }) do
+        local previous, current = handoff.sources[source], sources[source]
+        if previous or current then
+            if not previous or not current then return false end
+            if not same_cloud_position(previous, current)
+                and not (own_upload and same_cloud_position(acknowledged, current, true))
+                and not same_cloud_position(handoff.reported, current, true) then return false end
+            checked = true
+        end
+    end
+    return checked
+end
+
+-- Passed explicitly through KOReader's switchDocument callback. This small,
+-- single-use receipt belongs to one navigation, never to the book on disk.
+function ProgressSync:chapter_handoff(path)
+    self.outgoing_handoff = nil
+    if not self.verified or self.state ~= "verified" or self.pending_jump then return nil end
+    local position, _, context = self:capture_local()
+    if not position or context.is_full_book or path == context.path then return nil end
+    local index = context.position_catalog.by_uid[tostring(position.chapter_uid)]
+    local target_index, target, full = self.get_file_context(context.book, path)
+    if not index or full or not target or target_index ~= index.index + 1 then return nil end
+    local account = self.settings:get("account", {}).user_vid
+    if account == nil or not self.remote_position or self.remote_position.conflict then return nil end
+    local handoff = {
+        profile = self.settings.data_dir or self.settings,
+        account = account,
+        book_id = context.book_id,
+        path = path,
+        chapter_uid = target.chapterUid or target.chapterId,
+        previous_chapter_uid = position.chapter_uid,
+        created_at = self.now(),
+        sources = cloud_sources(self.remote_position),
+        acknowledged = cloud_receipt(self.last_uploaded_position),
+        report_baseline = copy(self.report_baseline),
+    }
+    self.outgoing_handoff = handoff
+    return handoff
+end
+
+function ProgressSync:accept_chapter_handoff(handoff)
+    if type(handoff) ~= "table" or handoff.consumed then return false end
+    handoff.consumed = true
+    local age = self.now() - handoff.created_at
+    if age < 0 or age > CHAPTER_HANDOFF_SECONDS
+        or handoff.profile ~= (self.settings.data_dir or self.settings)
+        or handoff.account ~= self.settings:get("account", {}).user_vid
+        or handoff.path ~= document_path(self.get_document())
+        or handoff.book_id ~= tostring(self.detect_book() or "")
+        or self.state ~= "waiting" then return false end
+    -- Time reports also carry a position. Accept only a receipt that changed
+    -- during the verified source session, including one drained on close.
+    local reported = reported_receipt(self.get_book(handoff.book_id), handoff.account)
+    if reported and tostring(reported.chapter_uid) == tostring(handoff.previous_chapter_uid)
+        and not same_cloud_position(handoff.report_baseline, reported, true) then
+        handoff.reported = reported
+    end
+    self.incoming_handoff = handoff
+    return true
 end
 
 function ProgressSync:new(options)
@@ -136,8 +248,7 @@ end
 function ProgressSync:_persist(book_id, patch)
     book_id = tostring(book_id or "")
     if book_id == "" or type(patch) ~= "table" then return false end
-    local books = self.settings:get("books", {})
-    local book = books[book_id] or { book_id = book_id }
+    local book = BookStore.get(self.settings, book_id) or { book_id = book_id }
     for key, value in pairs(patch) do
         if value == false then
             book[key] = nil
@@ -145,8 +256,7 @@ function ProgressSync:_persist(book_id, patch)
             book[key] = copy(value)
         end
     end
-    books[book_id] = book
-    self.settings:set("books", books)
+    BookStore.put(self.settings, book_id, book)
     self.settings:flush()
     return true
 end
@@ -321,6 +431,9 @@ function ProgressSync:_mark_verified(book_id, reason, local_position, remote)
     self.local_position = copy(local_position)
     self.remote_position = copy(remote)
     self.session_base = copy(remote)
+    self.last_uploaded_position = nil
+    self.report_baseline = reported_receipt(self.get_book(tostring(book_id)),
+        self.settings:get("account", {}).user_vid)
     self.state = "verified"
     self:_persist(book_id, {
         verified_at = self.verified_at,
@@ -576,6 +689,9 @@ function ProgressSync:_upload_snapshot(position, reason, show_result)
                 end
             end
             self.last_uploaded_position = copy(position)
+            if self.outgoing_handoff then
+                self.outgoing_handoff.acknowledged = cloud_receipt(position)
+            end
             self.session_base = copy(position)
             self.session_base.sync_base=nil
             self:_persist(book_id, {
@@ -673,6 +789,25 @@ end
 
 function ProgressSync:_resolve(local_position, remote, context, options)
     options = options or {}
+    local handoff = self.incoming_handoff
+    self.incoming_handoff = nil
+    local handoff_changed = options.handoff_changed == true
+    if handoff and not options.manual and self.now() - handoff.created_at >= 0
+        and self.now() - handoff.created_at <= CHAPTER_HANDOFF_SECONDS
+        and handoff.account == self.settings:get("account", {}).user_vid
+        and handoff.book_id == context.book_id and handoff.path == context.path
+        and not context.is_full_book
+        and tostring(handoff.chapter_uid) == tostring(local_position.chapter_uid) then
+        if unchanged_cloud(handoff, remote) then
+            self.dirty = true
+            self:_mark_verified(context.book_id, "chapter_continuation", local_position, remote)
+            return
+        end
+        -- A changed cloud offset must not disappear behind the ordinary 2%
+        -- automatic tolerance, even if it now lies in the chapter just opened.
+        handoff_changed = true
+    end
+    options.handoff_changed = handoff_changed
     -- Compare the same coordinate system used for uploads, including after a
     -- closed-book upload. A rendered-page estimate is not a source offset.
     local acknowledged=(self.get_book(context.book_id) or {}).last_uploaded_position
@@ -712,7 +847,9 @@ function ProgressSync:_resolve(local_position, remote, context, options)
 
     -- Explicit sync must not hide different pages behind the automatic 2%
     -- tolerance. Leave automatic conflict policy unchanged.
-    if options.manual and comparison == "same" and not source_match
+    if handoff_changed and comparison == "same" then
+        comparison = "different"
+    elseif options.manual and comparison == "same" and not source_match
         and not PositionMapper.same_position(local_position, remote) then
         comparison = "different"
     end
@@ -1010,6 +1147,9 @@ function ProgressSync:on_account_changed()
 end
 
 function ProgressSync:on_reader_ready()
+    self.incoming_handoff = nil
+    self.outgoing_handoff = nil
+    self.last_uploaded_position = nil
     self.resume_pull=nil
     self._report_mapping=nil
     self.source_capture=nil
@@ -1032,7 +1172,9 @@ function ProgressSync:on_reader_ready()
     self.verified_reason = nil
 
     self.scheduler:scheduleIn(OPEN_DELAY_SECONDS, function()
-        if generation ~= self.generation then return end
+        -- An explicit sync may already have resolved or opened a choice during
+        -- the render delay. Do not start a second automatic reconciliation.
+        if generation ~= self.generation or self.state ~= "waiting" then return end
         local book_id = self.detect_book()
         if not book_id or is_mp_book(book_id) then
             self.state = "unsupported"
@@ -1063,7 +1205,7 @@ function ProgressSync:on_reader_ready()
         if account~=nil and type(pending)=="table" and pending.account_id==account then
             -- Reconcile only after the user opens this book, never on the shelf.
             -- A newer cloud position still requires the usual conflict choice.
-            self:_pull({manual=true})
+            self:_pull({manual=self.incoming_handoff == nil})
             return
         end
         if self:_config().pull_on_open ~= true then
@@ -1093,15 +1235,10 @@ function ProgressSync:_cancel_source_upload()
     return true
 end
 
-function ProgressSync:on_close_document()
-    self:_cancel_source_upload()
-    self._report_mapping=nil
-    if self.cancel_pull then self.cancel_pull() end
-    self._pull_request=nil
-    self.pulling=false
-    self.resume_pull=nil
+-- Persist ordinary movement only at lifecycle boundaries, including offline sleep.
+function ProgressSync:_checkpoint_position(reason)
     local position = self:capture_local() or self.local_position
-    if position then self:_persist(position.book_id, { last_local_position = position }) end
+    local patch = position and { last_local_position = position }
     if position and (self.dirty or (self.local_position
         and not PositionMapper.same_position(position,self.local_position))) then
         position = copy(position)
@@ -1111,11 +1248,25 @@ function ProgressSync:on_close_document()
             local ok,snapshot = pcall(self.capture_local_snapshot,self.document_context,position)
             if ok then position.source_snapshot = snapshot end
         end
-        self:_persist(position.book_id,{pending_upload_position=position,
-            pending_upload_reason="document_close"})
-        if self.verified and self:_config().upload_on_close == true then
-            self:_upload_snapshot(position,"document_close",false)
-        end
+        self.dirty = true
+        patch.pending_upload_position = position
+        patch.pending_upload_reason = reason
+    end
+    if patch then self:_persist(position.book_id, patch) end
+    return position
+end
+
+function ProgressSync:on_close_document()
+    self.incoming_handoff = nil
+    self:_cancel_source_upload()
+    self._report_mapping=nil
+    if self.cancel_pull then self.cancel_pull() end
+    self._pull_request=nil
+    self.pulling=false
+    self.resume_pull=nil
+    local position = self:_checkpoint_position("document_close")
+    if position and self.dirty and self.verified and self:_config().upload_on_close == true then
+        self:_upload_snapshot(position,"document_close",false)
     end
     self.generation = self.generation + 1
     self.current_book_id = nil
@@ -1127,6 +1278,8 @@ function ProgressSync:on_close_document()
 end
 
 function ProgressSync:on_suspend()
+    self.incoming_handoff = nil
+    self.outgoing_handoff = nil
     self._report_mapping=nil
     self.resume_pull=self:_cancel_source_upload() or self.pulling or nil
     if self.resume_pull then self.state="unverified" end
@@ -1134,11 +1287,7 @@ function ProgressSync:on_suspend()
     self._pull_request=nil
     self.pulling=false
     self.suspended_at = self.now()
-    local position = self:capture_local() or self.local_position
-    if position and self.local_position
-        and not PositionMapper.same_position(position, self.local_position) then
-        self.dirty = true
-    end
+    local position = self:_checkpoint_position("suspend")
     if position and self.verified and self.dirty
         and self:_config().upload_on_close == true then
         self:_upload_snapshot(position, "suspend", false)
@@ -1158,6 +1307,7 @@ function ProgressSync:on_resume()
 end
 
 function ProgressSync:sync_now()
+    self.incoming_handoff = nil
     return self:_pull({ manual = true })
 end
 

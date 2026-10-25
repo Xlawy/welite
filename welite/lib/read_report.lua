@@ -1,4 +1,7 @@
+local Response = require("welite.lib.report_response")
+local BookStore = require("welite.lib.book_store")
 local Content = require("welite.lib.content")
+local WorkerSettings = require("welite.lib.worker_settings")
 local WeRead = require("welite.lib.protocol")
 
 local logger = require("welite.lib.logger").scoped("ReadReport")
@@ -64,112 +67,6 @@ local function make_subprocess_runner()
             return ffiutil.readAllFromFD(fd)
         end,
     }
-end
-
-local function book_record(books, book_id)
-    if type(books) ~= "table" then
-        return nil
-    end
-    return books[tostring(book_id)] or books[book_id]
-end
-
-local function response_body(result)
-    if type(result) ~= "table" then
-        return result
-    end
-    if result.succ ~= nil or result.synckey ~= nil then
-        return result
-    end
-    if type(result.data) == "table" then
-        return result.data
-    end
-    if type(result.result) == "table" then
-        return result.result
-    end
-    return result
-end
-
-local function table_keys(value)
-    if type(value) ~= "table" then
-        return ""
-    end
-    local keys = {}
-    for key in pairs(value) do
-        keys[#keys + 1] = tostring(key)
-    end
-    table.sort(keys)
-    return table.concat(keys, "|")
-end
-
-local function response_accepted(result, http_code)
-    local body = response_body(result)
-    if WeRead.is_success_response(body) then
-        return true, body
-    end
-    if type(body) ~= "table" then
-        return false, body
-    end
-    if body.synckey ~= nil then
-        return true, body
-    end
-    local error_code = body.errCode or body.errcode or body.errorCode
-        or result.errCode or result.errcode or result.errorCode
-    if error_code ~= nil then
-        return false, body
-    end
-    return false, body
-end
-
-local function response_rejected(result)
-    local body=response_body(result)
-    if type(body)~="table" then return false end
-    if body.succ==0 or body.succ==false then return true end
-    local code=tonumber(body.errCode or body.errcode or body.errorCode
-        or (type(result)=="table" and (result.errCode or result.errcode or result.errorCode)))
-    return code~=nil and code~=0
-end
-
-local function full_response_body(client, result)
-    if type(result) == "table" and client and type(client.json_encode) == "function" then
-        local ok, encoded = pcall(function()
-            return client:json_encode(result)
-        end)
-        if ok then
-            return encoded
-        end
-    end
-    return tostring(result)
-end
-
-local function response_summary(client, result, http_code)
-    if type(result) ~= "table" then
-        return "non_table_response, http=" .. tostring(http_code)
-            .. ", response_body=" .. full_response_body(client, result)
-    end
-    local body = response_body(result)
-    local parts = {
-        "http=" .. tostring(http_code),
-        "keys=" .. table_keys(result),
-        "body_keys=" .. table_keys(body),
-        "succ=" .. tostring(type(body) == "table" and body.succ or nil),
-        "has_synckey=" .. tostring(type(body) == "table" and body.synckey ~= nil or false),
-    }
-    local code = type(body) == "table" and (body.errCode or body.errcode or body.code)
-        or result.errCode or result.errcode or result.code
-    local message = type(body) == "table" and (body.errMsg or body.errmsg or body.message or body.msg)
-        or result.errMsg or result.errmsg or result.message or result.msg
-    if code ~= nil then
-        parts[#parts + 1] = "error_code=" .. tostring(code)
-    end
-    if message ~= nil then
-        parts[#parts + 1] = "error_message="
-            .. tostring(message):gsub("[%c]+", " "):sub(1, 160)
-    end
-    -- Only rejected reading reports call this function. Keep the complete
-    -- decoded response in the failure log so unexpected server replies can be
-    -- diagnosed without enabling verbose logging for successful reports.
-    parts[#parts + 1] = "response_body=" .. full_response_body(client, result)
-    return table.concat(parts, ", ")
 end
 
 function ReadReport:new(options)
@@ -244,7 +141,7 @@ function ReadReport:resolve_target()
             and tostring(self.current_book_title or "") ~= "" then
             return detected_id, self.current_book_title, "current_document"
         end
-        local book = book_record(self.settings:get("books", {}), detected_id)
+        local book = BookStore.get(self.settings, detected_id)
         return detected_id,
             type(book) == "table" and book.title or detected_id,
             "current_document"
@@ -325,7 +222,7 @@ function ReadReport:start(reason)
         return false
     end
 
-    if self.time_ledger then
+    if self.time_ledger and self.is_online() then
         local ok,started,err=pcall(self.time_ledger.start,self.time_ledger,self.settings:get("account",{}).user_vid,book_id)
         if not ok or not started then self:_set_error(ok and err or started,"accounting");return false end
     end
@@ -358,7 +255,8 @@ function ReadReport:stop(reason)
     reason = reason or "unspecified"
     local had_task = self.task ~= nil
     if self.time_ledger then
-        local ok,err=pcall(self.time_ledger.stop,self.time_ledger)
+        local finish = self.is_online() and self.time_ledger.stop or self.time_ledger.pause
+        local ok,err=pcall(finish,self.time_ledger)
         if not ok then self:_set_error(err,"accounting") end
     end
     self.generation = self.generation + 1
@@ -436,6 +334,34 @@ function ReadReport:on_close_document()
     self.current_book_source = nil
 end
 
+-- Host connectivity events provide the precise boundary; periodic checks
+-- cover devices that do not deliver an event. Neither path performs network I/O.
+function ReadReport:on_network_disconnected()
+    if self.time_ledger then
+        local ok,err=pcall(self.time_ledger.stop,self.time_ledger)
+        if not ok then self:_set_error(err,"accounting");return end
+    end
+    if self.task then self.state="offline" end
+end
+
+function ReadReport:_update_online_clock()
+    if not self.time_ledger then return true end
+    if not self.is_online() then
+        self.time_ledger:pause()
+        return true
+    end
+    if self.task and not self.suspended and not self.time_ledger.active then
+        local started,err=self.time_ledger:start(self.settings:get("account",{}).user_vid,self.current_book_id)
+        if not started then self:_set_error(err,"accounting");return false end
+    end
+    return true
+end
+
+function ReadReport:on_network_connected()
+    local ok,err=pcall(self._update_online_clock,self)
+    if not ok then self:_set_error(err,"accounting") end
+end
+
 -- ------------------------------------------------------------------
 -- Scheduled tick: cheap parent-side checks, then hand the network
 -- pipeline to a subprocess. A spawn failure must never run network on the UI.
@@ -449,6 +375,10 @@ end
 
 function ReadReport:_tick(generation, task)
     local ok, err = pcall(function()
+        if not self:_update_online_clock() then
+            self:_schedule_next(generation,task)
+            return
+        end
         if self.time_ledger then self.time_ledger:checkpoint() end
         local proceed, book_id, position = self:_precheck()
         if not proceed then
@@ -547,23 +477,11 @@ function ReadReport:_renewal_allowed()
 end
 
 function ReadReport:_auth_fingerprint()
-    local cookies = self.settings:get("cookies", {}) or {}
-    local keys = {}
-    for key in pairs(cookies) do
-        keys[#keys + 1] = tostring(key)
-    end
-    table.sort(keys)
-    local parts = {}
-    for _i, key in ipairs(keys) do
-        parts[#parts + 1] = key .. "=" .. tostring(cookies[key])
-    end
-    parts[#parts + 1] = "ticket=" .. tostring(self.settings:get("wr_ticket", ""))
-    parts[#parts + 1] = "wrpa=" .. tostring(self.settings:get("wr_wrpa", ""))
-    return table.concat(parts, ";")
+    return WorkerSettings.fingerprint(self.settings)
 end
 
 function ReadReport:_context_fingerprint(book_id)
-    local book = book_record(self.settings:get("books", {}), book_id) or {}
+    local book = BookStore.get(self.settings, book_id) or {}
     local parts = {}
     for _i, field in ipairs(CONTEXT_FIELDS) do
         parts[#parts + 1] = field .. "=" .. tostring(book[field])
@@ -674,23 +592,26 @@ function ReadReport:_abandon_job(job)
         self.scheduler:unschedule(job.poll)
     end
     runner.terminate(job.pid)
-    local collect
+    local collect, payload
     collect = function()
         if runner.is_done(job.pid) then
+            if job.read_fd then
+                payload = runner.read_all(job.read_fd)
+                job.read_fd = nil
+            end
             if job.time_batch and self.time_ledger then
-                local ok,err=pcall(self.time_ledger.settle,self.time_ledger,job.time_batch,"unknown")
+                -- Closing before the next poll must not discard an already
+                -- received acknowledgement or an explicit pre-send failure.
+                local result = Response.settlement(self:_decode_outcome(payload))
+                local ok,err=pcall(self.time_ledger.settle,self.time_ledger,job.time_batch,result)
                 if not ok then self:_set_error(err,"accounting") end
             end
             if job.upload and self.time_ledger then self.time_ledger:unlock_position(job.upload.lock) end
-            if job.read_fd then
-                runner.read_all(job.read_fd)
-                job.read_fd = nil
-            end
             return
         end
         if job.read_fd and (runner.read_size(job.read_fd) or 0) ~= 0 then
-            -- Drain the pipe so a child blocked on write() can exit.
-            runner.read_all(job.read_fd)
+            -- Drain and retain the receipt while the terminated child exits.
+            payload = runner.read_all(job.read_fd)
             job.read_fd = nil
         end
         self.scheduler:scheduleIn(JOB_COLLECT_INTERVAL_SECONDS, collect)
@@ -734,8 +655,7 @@ function ReadReport:_apply_job_outcome(job, outcome, context_only)
     local auth_matches=self:_auth_fingerprint()==job.auth_fingerprint
     local accounting_error
     if job.time_batch and self.time_ledger then
-        local result=outcome and outcome.accepted and "accepted"
-            or (outcome and (outcome.time_report_sent==false or outcome.time_rejected==true) and "retryable") or "unknown"
+        local result=Response.settlement(outcome)
         local ok,err=pcall(self.time_ledger.settle,self.time_ledger,job.time_batch,result)
         if not ok then accounting_error=err end
     end
@@ -756,7 +676,7 @@ function ReadReport:_apply_job_outcome(job, outcome, context_only)
                 end
             end
         end
-        if type(outcome.book) == "table" then
+        if auth_matches and type(outcome.book) == "table" then
             if self:_context_fingerprint(book_id) ~= job.context_fingerprint then
                 log("info", "skip report context write-back: parent record changed during job")
             else
@@ -804,8 +724,7 @@ function ReadReport:_context_snapshot(book)
 end
 
 function ReadReport:_persist_context(book_id, snapshot, accepted)
-    local books = self.settings:get("books", {})
-    local book = book_record(books, book_id) or { book_id = book_id }
+    local book = BookStore.get(self.settings, book_id) or { book_id = book_id }
     local changed = false
     -- Replace semantics, not merge: a refreshed context may legitimately
     -- clear session fields (notably pclts), and the old wholesale record
@@ -828,8 +747,7 @@ function ReadReport:_persist_context(book_id, snapshot, accepted)
         return
     end
     book.book_id = book.book_id or book_id
-    books[book_id] = book
-    self.settings:set("books", books)
+    BookStore.put(self.settings, book_id, book)
     self.settings:flush()
 end
 
@@ -840,25 +758,16 @@ end
 -- Child entry point. Neuters settings persistence inside the fork and
 -- captures auth changes (Set-Cookie merges, cookie renewal) so the parent
 -- can persist them from the outcome.
-function ReadReport:_child_report(book_id, allow_renewal, position, elapsed_seconds, cloud_position)
+function ReadReport:_child_report(book_id, allow_renewal, position, elapsed_seconds)
     self._no_persist = true
     self._time_report_sent = false
-    self.settings.flush = function() end
-    local auth_changed = false
-    local original_update_auth = self.settings.update_auth
-    self.settings.update_auth = function(settings_obj, credentials, options)
-        auth_changed = true
-        options = options or {}
-        options.flush = false
-        return original_update_auth(settings_obj, credentials, options)
-    end
+    local capture, restore = WorkerSettings.capture(self.settings)
 
     local ok, outcome = pcall(function()
         return self:_run_pipeline(book_id, {
             allow_renewal = allow_renewal,
             position = position,
             elapsed_seconds = elapsed_seconds,
-            cloud_position = cloud_position,
         })
     end)
     if not ok then
@@ -870,172 +779,15 @@ function ReadReport:_child_report(book_id, allow_renewal, position, elapsed_seco
         }
     end
     outcome.time_report_sent = self._time_report_sent == true
-    if auth_changed then
-        outcome.auth = {
-            cookies = self.settings:get("cookies", {}),
-            wr_ticket = self.settings:get("wr_ticket", ""),
-            wr_wrpa = self.settings:get("wr_wrpa", ""),
-        }
-    end
+    outcome.auth = capture()
+    restore()
     return outcome
 end
 
 -- Full report attempt: context, send, refresh-retry, renewal, final retry.
 -- Pure with respect to the parent state machine: everything the caller needs
 -- is described by the returned outcome table.
-function ReadReport:_run_pipeline(book_id, opts)
-    opts = opts or {}
-    local outcome = { accepted = false, renew_attempted = false }
-    self._time_send_count=0
-    local function send(book)
-        local position=opts.position
-        if opts.cloud_position then
-            -- A time-only catch-up must never reuse the closed reader's local
-            -- position. Validate a fresh service position before every attempt.
-            local data=self.client:get_progress(book_id)
-            local remote=type(data)=='table' and data.book
-            assert(type(remote)=='table','time catch-up: cloud progress unavailable')
-            local percent,offset=tonumber(remote.progress),tonumber(remote.chapterOffset)
-            assert(percent and percent>=0 and percent<=100 and offset and offset>=0
-                and offset<=100000000 and offset==math.floor(offset),
-                'time catch-up: incomplete cloud progress')
-            local chapter
-            for _,item in ipairs(book.chapters or {}) do
-                if tostring(item.chapterUid)==tostring(remote.chapterUid) then chapter=item;break end
-            end
-            assert(chapter and tonumber(chapter.chapterIdx),'time catch-up: cloud chapter unavailable')
-            position={chapter_uid=chapter.chapterUid,chapter_idx=chapter.chapterIdx,
-                chapter_offset=offset,percent=percent,
-                summary=type(remote.summary)=='string' and remote.summary or ''}
-        end
-        return self:_send(book_id,book,position,opts.elapsed_seconds)
-    end
-
-    local context_ok, book = pcall(function()
-        return self:ensure_context(book_id, false)
-    end)
-    if not context_ok then
-        outcome.error = tostring(book)
-        outcome.error_kind = "context"
-        outcome.error_prefix = "read report context initialization failed:"
-        return outcome
-    end
-    local ok, result, http_code = pcall(function()
-        return send(book)
-    end)
-    outcome.book = self:_context_snapshot(book)
-    local accepted, accepted_body = response_accepted(result, http_code)
-    if ok and accepted then
-        outcome.accepted = true
-        outcome.has_synckey = type(accepted_body) == "table"
-            and accepted_body.synckey ~= nil or false
-        return outcome
-    end
-    if not ok then
-        outcome.error = tostring(result)
-        outcome.error_kind = "transport"
-        outcome.error_prefix = "read report request failed:"
-        return outcome
-    end
-
-    if not response_rejected(result) then
-        outcome.error="reading report response did not confirm acceptance or rejection"
-        outcome.error_kind="transport"
-        return outcome
-    end
-    outcome.time_rejected=true
-    local failure = response_summary(self.client, result, http_code)
-    local refresh_ok, refreshed = pcall(function()
-        return self:ensure_context(book_id, true)
-    end)
-    if refresh_ok then
-        outcome.book = self:_context_snapshot(refreshed)
-        local sent_before_retry=self._time_send_count
-        local retry_ok, retry_result, retry_code = pcall(function()
-            return send(refreshed)
-        end)
-        outcome.book = self:_context_snapshot(refreshed)
-        local retry_accepted, retry_body = response_accepted(retry_result, retry_code)
-        if retry_ok and retry_accepted then
-            outcome.accepted = true
-            outcome.has_synckey = type(retry_body) == "table"
-                and retry_body.synckey ~= nil or false
-            return outcome
-        end
-        -- A missing response is not a rejection. The refreshed write may
-        -- already have been accepted; renewal must not replay that interval.
-        if not retry_ok then
-            -- A failed lookup/context entry before the time write cannot turn
-            -- the previous explicit rejection into an unknown time result.
-            outcome.time_rejected=self._time_send_count==sent_before_retry
-            outcome.error = "initial=" .. failure .. "; refreshed=" .. tostring(retry_result)
-            outcome.error_kind = "transport"
-            outcome.error_prefix = "read report refreshed request outcome unknown:"
-            return outcome
-        end
-        if not response_rejected(retry_result) then
-            outcome.time_rejected=false
-            outcome.error="refreshed reading report response was ambiguous"
-            outcome.error_kind="transport"
-            return outcome
-        end
-        failure = "initial=" .. failure .. "; refreshed="
-            .. response_summary(self.client, retry_result, retry_code)
-    else
-        failure = failure .. "; context_refresh=" .. tostring(refreshed)
-    end
-
-    if not opts.allow_renewal then
-        outcome.error = failure
-        outcome.error_kind = "server"
-        outcome.error_prefix = "read report server rejected:"
-        return outcome
-    end
-    outcome.renew_attempted = true
-
-    local renew_ok, renew_result = pcall(function()
-        return self.client:renew_cookie()
-    end)
-    if not renew_ok or not WeRead.is_success_response(renew_result) then
-        outcome.error = failure .. "; renewal=" .. (renew_ok
-            and response_summary(self.client, renew_result)
-            or tostring(renew_result))
-        outcome.error_kind = "authentication"
-        outcome.error_prefix = "read report cookie renewal failed:"
-        return outcome
-    end
-
-    local final_context_ok, final_book = pcall(function()
-        return self:ensure_context(book_id, true)
-    end)
-    if not final_context_ok then
-        outcome.error = failure .. "; final_context=" .. tostring(final_book)
-        outcome.error_kind = "context"
-        outcome.error_prefix = "read report final context refresh failed:"
-        return outcome
-    end
-    outcome.book = self:_context_snapshot(final_book)
-    local sent_before_final=self._time_send_count
-    local final_ok, final_result, final_code = pcall(function()
-        return send(final_book)
-    end)
-    outcome.book = self:_context_snapshot(final_book)
-    local final_accepted, final_body = response_accepted(final_result, final_code)
-    if final_ok and final_accepted then
-        outcome.accepted = true
-        outcome.has_synckey = type(final_body) == "table"
-            and final_body.synckey ~= nil or false
-        return outcome
-    end
-    outcome.time_rejected=(final_ok and response_rejected(final_result))
-        or (not final_ok and self._time_send_count==sent_before_final)
-    outcome.error = failure .. "; final=" .. (final_ok
-        and response_summary(self.client, final_result, final_code)
-        or tostring(final_result))
-    outcome.error_kind = final_ok and "server" or "transport"
-    outcome.error_prefix = "read report final retry failed:"
-    return outcome
-end
+ReadReport._run_pipeline = require("welite.lib.report_pipeline").run
 
 -- ------------------------------------------------------------------
 -- Report context
@@ -1148,8 +900,7 @@ function ReadReport:ensure_context(book_id, force)
         error("cookie not configured")
     end
 
-    local books = self.settings:get("books", {})
-    local book = book_record(books, book_id) or {
+    local book = BookStore.get(self.settings, book_id) or {
         book_id = book_id,
         title = self.current_book_title or book_id,
     }
@@ -1158,8 +909,7 @@ function ReadReport:ensure_context(book_id, force)
         -- Forked child: the parent persists the context from the outcome.
         return book
     end
-    books[book_id] = book
-    self.settings:set("books", books)
+    BookStore.put(self.settings, book_id, book)
     self.settings:flush()
     return book
 end

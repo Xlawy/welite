@@ -23,7 +23,7 @@ describe('WeLite shelf-to-reader sync flow',function()
         plugin.client.get_shelf=function() return {books={{bookId='fixture',title='Fixture',author='Author',progress=remote.progress}}} end
         plugin.client.get_read_stats=function() return {totalReadTime=120,readTimes={}} end
         -- Child uploads update the shared fake service, not the parent's Lua
-        -- table. Later reads must observe that acknowledgement before catch-up.
+        -- table. Later reads must observe the acknowledged cloud position.
         plugin.client.get_progress=function() reports();return {book=remote} end
         plugin.client.get_web_progress=function() reports();return {book=remote} end
         plugin.client.get_text=function() return '{"psvts":"fixture-session","token":"fixture-token"}' end
@@ -152,6 +152,23 @@ describe('WeLite shelf-to-reader sync flow',function()
         assert.equals(1,opened)
         assert.is_true(target.settings:get('welite_pending_progress_sync').books.fixture)
     end
+    it('persists offline movement but does not accrue offline reading time',function()
+        sync_and_open();dialog.cancel_callback();UI:close(dialog);dialog=nil
+        online=false;reading_clock=17
+        reader.rolling:onGotoPercent(42);target:onPageUpdate()
+        target:onSuspend()
+        local restored=Settings:new():get_book('fixture')
+        assert.is_table(restored.last_local_position)
+        assert.is_table(restored.pending_upload_position)
+        assert.equals('suspend',restored.pending_upload_reason)
+        assert.equals('123',restored.pending_upload_position.account_id)
+        assert.is_table(restored.pending_upload_position.source_snapshot)
+        assert.equals(0,reports(),'unverified offline position must not be uploaded')
+        local ledger=require('welite.lib.reading_time_ledger').open(target.settings,function() return reading_clock end)
+        assert.equals(0,ledger:status('123','fixture').pending)
+        reading_clock=1000
+        assert.equals(0,ledger:status('123','fixture').pending,'offline sleep contributes no reading time')
+    end)
     it('syncs the current account while retaining old account files and restoring them on switch-back',function()
         local books=manager.settings:get('books')
         local old_path=root..'/retained-old.epub'
@@ -481,8 +498,8 @@ describe('WeLite shelf-to-reader sync flow',function()
         assert.is_nil(Settings:new():get('books').fixture.pending_upload_position)
         assert.equals('数据已刷新',manager.welite_shelf_status)
         local sent=assert(io.open(root..'/server-report.json','r'))
-        assert.equals(45,require('json').decode(sent:read('*a')).read_seconds);sent:close()
-        assert.equals(0,manager.read_report.time_ledger:status('123','fixture').pending)
+        assert.equals(0,require('json').decode(sent:read('*a')).read_seconds);sent:close()
+        assert.equals(45,manager.read_report.time_ledger:status('123','fixture').pending,'home leaves online pending time to the next reader report')
         manager:openFile(bookpath);reader.rolling:onGotoPage(page)
         drain(function() return target.progress_sync:status().verified==true end)
         assert.is_nil(dialog,'acknowledged source position must not become a false conflict on reopening')
@@ -524,8 +541,8 @@ describe('WeLite shelf-to-reader sync flow',function()
         assert.equals(expected,remote.chapterOffset)
         assert.is_nil(Settings:new():get('books').fixture.pending_upload_position)
         local sent=assert(io.open(root..'/server-report.json','r'))
-        assert.equals(45,require('json').decode(sent:read('*a')).read_seconds);sent:close()
-        assert.equals(0,manager.read_report.time_ledger:status('123','fixture').pending)
+        assert.equals(0,require('json').decode(sent:read('*a')).read_seconds);sent:close()
+        assert.equals(45,manager.read_report.time_ledger:status('123','fixture').pending,'home leaves online pending time to the next reader report')
         assert.equals(1,opened);assert.is_nil(dialog)
     end)
     end

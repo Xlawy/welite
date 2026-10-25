@@ -354,6 +354,59 @@ function Settings:get(key, default)
     return books
 end
 
+-- Single-book operations keep progress/timer work independent of shelf size.
+-- Return fresh records so worker snapshots cannot mutate parent state implicitly.
+function Settings:get_book(book_id)
+    local indexes = self.store:readSetting("books", {})
+    local index = indexes[tostring(book_id)] or indexes[book_id]
+    if not index or has_retired_download(self, index) then return nil end
+    local book = BookStore.load(self, tostring(book_id), index)
+    clear_retired_download(self, book)
+    return book
+end
+
+function Settings:set_book(book_id, book)
+    book_id = tostring(book_id)
+    clear_retired_download(self, book)
+    local ok, index = BookStore.save(self, book_id, book)
+    if not ok then error("Could not save book data: " .. tostring(index)) end
+    local indexes = self.store:readSetting("books", {})
+    indexes[book_id] = index
+    self.store:saveSetting("books", indexes)
+    self._book_path_match = nil
+end
+
+-- The minimal index already owns the resolved directory. No metadata scans on
+-- page updates. Cache only one positive match and revalidate its index/roots.
+function Settings:find_book(file)
+    if type(file) ~= "string" then return nil end
+    local indexes = self.store:readSetting("books", {})
+    local match = self._book_path_match
+    if match and match.file == file and match.indexes == indexes
+        and match.root == self.cache_dir and indexes[match.id] == match.index
+        and match.dir == match.index.cache_dir and match.cached_file == match.index.cached_file
+        and not has_retired_download(self, match.index) then return match.id end
+    for id, index in pairs(indexes) do
+        if type(index) == "table" and not has_retired_download(self, index) then
+            local dir = index.cache_dir
+            if type(dir) ~= "string" or dir == "" then
+                -- Legacy indexes may contain cached paths; migration normally
+                -- replaces them before a reader opens.
+                dir = require("welite.lib.book_paths").book_resolved_dir(self, id, index)
+            end
+            local prefix = dir:gsub("/+$", "") .. "/"
+            if file == index.cached_file or file:sub(1,#prefix) == prefix then
+                self._book_path_match = {file=file,indexes=indexes,id=id,index=index,
+                    dir=index.cache_dir,cached_file=index.cached_file,root=self.cache_dir}
+                return id
+            end
+        end
+    end
+    self._book_path_match = nil
+    local prefix = self.cache_dir:gsub("/+$", "") .. "/"
+    if file:sub(1,#prefix) == prefix then return file:sub(#prefix+1):match("^([^/]+)") end
+end
+
 function Settings:set(key, value)
     if key == "books" and type(value) == "table" then
         local indexes = {}

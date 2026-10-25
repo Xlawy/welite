@@ -55,7 +55,7 @@ function M.start(plugin,task,done,valid)
 end
 function M.catalog(plugin,book_id,done,valid)
     local Content=require('welite.lib.content')
-    local book=plugin.settings:get('books',{})[tostring(book_id)]
+    local book=require('welite.lib.book_store').get(plugin.settings,book_id)
     if type(book)~='table' then done(nil,'book_not_found');return true end
     return M.start(plugin,function(check)
         local remote={book_id=book_id,title=book.title,format=book.format}
@@ -67,7 +67,7 @@ function M.catalog(plugin,book_id,done,valid)
     end,function(chapters,err)
         if not chapters then done(nil,err);return end
         local ok,reason=pcall(function()
-            local latest=assert(plugin.settings:get('books',{})[tostring(book_id)],'book disappeared')
+            local latest=assert(require('welite.lib.book_store').get(plugin.settings,book_id),'book disappeared')
             local saved,save_error=Content.save_catalog_cache(plugin.client,plugin.settings,latest,chapters)
             assert(saved,save_error)
             if plugin.library_db then

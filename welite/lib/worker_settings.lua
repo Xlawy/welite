@@ -6,17 +6,23 @@ local function auth_fingerprint(settings)
     local keys = {}
     for key in pairs(cookies) do keys[#keys + 1] = tostring(key) end
     table.sort(keys)
-    local parts = {}
-    for _, key in ipairs(keys) do
-        parts[#parts + 1] = key .. "=" .. tostring(cookies[key])
+    local function field(value)
+        value = tostring(value or "")
+        return #value .. ":" .. value
     end
-    parts[#parts + 1] = "ticket=" .. tostring(settings:get("wr_ticket", ""))
-    parts[#parts + 1] = "wrpa=" .. tostring(settings:get("wr_wrpa", ""))
+    local parts = {field(settings:get("account", {}).user_vid)}
+    for _, key in ipairs(keys) do
+        parts[#parts + 1] = field(key) .. field(cookies[key])
+    end
+    parts[#parts + 1] = field(settings:get("wr_ticket", ""))
+    parts[#parts + 1] = field(settings:get("wr_wrpa", ""))
     return table.concat(parts, ";")
 end
 
 function M.capture(settings)
     local changed = false
+    local original_flush = rawget(settings, "flush")
+    local original_update = rawget(settings, "update_auth")
     settings.flush = function() end
     local update_auth = settings.update_auth
     if type(update_auth) == "function" then
@@ -27,13 +33,17 @@ function M.capture(settings)
             return update_auth(object, credentials, options)
         end
     end
-    return function()
+    local function snapshot()
         if not changed or type(settings.get) ~= "function" then return nil end
         return {
             cookies = settings:get("cookies", {}),
             wr_ticket = settings:get("wr_ticket", ""),
             wr_wrpa = settings:get("wr_wrpa", ""),
         }
+    end
+    return snapshot, function()
+        settings.flush = original_flush
+        settings.update_auth = original_update
     end
 end
 

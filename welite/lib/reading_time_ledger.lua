@@ -1,4 +1,4 @@
--- Durable elapsed reading time; uncertain writes are never blindly replayed.
+-- Durable online reading time; uncertain writes are never blindly replayed.
 -- No credentials, text, per-page writes, or network calls live here.
 local M={}
 M.__index=M
@@ -17,7 +17,6 @@ local function reservation_key(ledger,account,book)
 end
 local function add_uncertain(entry,seconds)
     entry.uncertain=entry.uncertain+seconds
-    entry.uncertain_revision=(entry.uncertain_revision or 0)+1
 end
 local function copy(value)
     if type(value)~='table' then return value end
@@ -26,7 +25,9 @@ end
 -- Reuse KOReader's SQLite binding; keep time checkpoints out of the potentially
 -- large preferences/books file. One small transactional row, parent writes only.
 function M.open(settings,clock)
-    local path=settings.data_dir..'/reading-time.sqlite3'
+    -- The old ledger includes offline reading. Leave it untouched and never
+    -- import it into the online-only accounting stream.
+    local path=settings.data_dir..'/online-reading-time.sqlite3'
     local function database()
         local db=require('lua-ljsqlite3/init').open(path)
         db:exec('CREATE TABLE IF NOT EXISTS ledger (id INTEGER PRIMARY KEY, value TEXT NOT NULL)')
@@ -143,34 +144,18 @@ function M:stop()
     if self.storage_id and owners[self.storage_id]==self then owners[self.storage_id]=nil end
     if not ok then error(err) end
 end
+-- When no disconnect event was delivered, the interval since the last link
+-- check may contain offline time. Drop that unobserved interval, not balances
+-- already checkpointed while online. This pause does not write to disk.
+function M:pause()
+    self.active=nil
+    if self.storage_id and owners[self.storage_id]==self then owners[self.storage_id]=nil end
+end
 function M:begin(max_seconds)
     self:checkpoint()
     local active=self.active
     if not active then return nil,'time_not_running' end
     return self:_reserve(active.account,active.book,max_seconds)
-end
--- Enumerate only known-unsent time. No timer is started and no uncertain
--- request is replayed. The fixed ledger capacity bounds this scan.
-function M:pending_books(account,limit)
-    local state=self:_state()
-    local books=(state.accounts or {})[tostring(account or '')] or {}
-    local result={}
-    for book,entry in pairs(books) do
-        if not entry.inflight and entry.pending>=1 then result[#result+1]=book end
-    end
-    table.sort(result)
-    limit=math.min(M.MAX_ENTRIES,math.max(0,math.floor(limit or M.MAX_ENTRIES)))
-    while #result>limit do result[#result]=nil end
-    return result
-end
--- Parent-side reservation for closed books. An active timer retains ownership
--- of its book; callbacks settle the persisted batch before another can start.
-function M:begin_pending(account,book,max_seconds)
-    local owner=self.storage_id and owners[self.storage_id] or self
-    local active=owner and owner.active
-    if active and tostring(active.account)==tostring(account)
-        and active.book==tostring(book) then return nil,'reading_time_active' end
-    return self:_reserve(account,book,max_seconds)
 end
 function M:_reserve(account,book,max_seconds)
     if reservations[reservation_key(self,account,book)] then return nil,'time_report_busy' end
@@ -214,7 +199,7 @@ function M:settle(batch,result)
     return true
 end
 -- Position writes carry no elapsed time, but share the per-book network slot
--- with home catch-up and timer reports. Keep these locks in memory only.
+-- with closed-book position sync and timer reports. Keep these locks in memory only.
 function M:has_pending_report(account,book)
     return reservations[reservation_key(self,account,book)]~=nil
 end
@@ -249,30 +234,6 @@ function M:recover(account)
     end
     if count>0 or dirty_states[storage_key(self)] then self:_save(state) end
     return count
-end
-function M:unresolved(account)
-    local books=(self:_state().accounts or {})[tostring(account or '')] or {}
-    local result={}
-    for book,entry in pairs(books) do
-        if entry.uncertain>0 then result[#result+1]={book=book,seconds=entry.uncertain,revision=entry.uncertain_revision or 0} end
-    end
-    table.sort(result,function(a,b) return a.book<b.book end)
-    return result
-end
--- An explicit user decision, not a fabricated server acknowledgement. Compare
--- the displayed total so a stale dialog cannot consume newly uncertain time.
-function M:resolve(account,book,seconds,decision,revision)
-    if decision~='retry' and decision~='counted' then return false,'invalid_decision' end
-    local state=self:_state()
-    local entry=self:_entry(state,account,book,false)
-    if not entry or seconds<=0 or entry.uncertain~=seconds
-        or revision~=(entry.uncertain_revision or 0) then return false,'time_record_changed' end
-    entry.uncertain=0
-    entry.uncertain_revision=(entry.uncertain_revision or 0)+1
-    if decision=='retry' then entry.pending=entry.pending+seconds
-    else entry.reviewed=(entry.reviewed or 0)+seconds end
-    self:_save(state)
-    return true
 end
 function M:status(account,book)
     local entry=self:_entry(self:_state(),account,book,false) or {}

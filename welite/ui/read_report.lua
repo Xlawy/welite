@@ -53,13 +53,7 @@ function M:getReadReportMenuItems()
                 self:onShowWeLiteReportStatus()
             end),
         },
-        {
-            text = _("Review reading time"),
-            keep_menu_open = true,
-            callback = self:safeCallback(_("Review reading time"), function()
-                require("welite.ui.reading_time_review").show(self)
-            end),
-        },
+
     }
 end
 

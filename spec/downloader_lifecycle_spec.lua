@@ -89,6 +89,23 @@ end
 
 local Downloader = require("welite.lib.downloader")
 
+local recovered=0
+local recovery_failed=true
+package.loaded['welite.lib.content'].cleanup_stale_downloads=function()
+    recovered=recovered+1
+    if recovery_failed then error('synthetic recovery failure') end
+    return 1
+end
+local profile={}
+local first_recovery=Downloader:new{settings={store=profile}}
+expect(first_recovery:recover()==false,'failed recovery reports failure')
+recovery_failed=false
+expect(first_recovery:recover()==true and recovered==2,'failed recovery remains retryable')
+local second_recovery=Downloader:new{settings={store=profile}}
+expect(second_recovery:recover()==true and recovered==2,'reader instance cannot sweep an active profile again')
+expect(Downloader:new{settings={store={}}}:recover()==true and recovered==3,'different profiles recover independently')
+
+
 local completions = {}
 local messages = {}
 local downloader = Downloader:new{
@@ -118,6 +135,8 @@ started = downloader:start({}, {}, "book", {
     end,
 })
 expect(started == false, "offline download should not start")
+expect(Downloader:new{settings=downloader.settings}:recover()==true and recovered==3,
+    'scheduling new work seals startup recovery until the next process')
 expect(#completions == 2 and completions[2][2] == "offline",
     "offline completion result was wrong")
 

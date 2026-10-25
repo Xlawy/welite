@@ -4,7 +4,7 @@
 
 基于 **[finlater/weread.koplugin](https://github.com/finlater/weread.koplugin)** 开发，由 **Xlawy** 维护。感谢 finlater 及上游贡献者提供的功能实现。
 
-**当前版本：v1.0.6** · [下载最新版](https://github.com/Xlawy/welite/releases/latest) · [更新日志](CHANGELOG.md) · [问题反馈](https://github.com/Xlawy/welite/issues)
+**当前版本：v1.1.0** · [下载最新版](https://github.com/Xlawy/welite/releases/latest) · [更新日志](CHANGELOG.md) · [问题反馈](https://github.com/Xlawy/welite/issues)
 
 > **修改版本声明 · 2026-10-22**：WeLite 是上游的独立修改版本，提供自己的 UI、阅读位置适配与交互优化，并非上游官方发行版。保留上游版权与署名，继续采用 **AGPL-3.0-only**，详见 [NOTICE](NOTICE)。
 
@@ -39,7 +39,7 @@ koreader/plugins/welite.koplugin/
 - **WeLite 界面**：封面书架、本地分类、搜索筛选、书籍详情与统一设置，适配黑白墨水屏。
 - **书籍搜索与下载**：搜索微信读书，支持全书、多选章节下载、离线阅读与下一章预下载。
 - **精准进度同步**：精确阅读位置映射，默认开书拉取、关书上传；两端发生冲突时保留选择。
-- **阅读时间与统计**：首页展示本月、本周、今日阅读时长；同步刷新书架、进度与阅读时间。
+- **阅读时间与统计**：在线阅读时定时上报，断网停止计时；首页展示云端本月、本周、今日时长，不补报离线阅读时间。
 - **划线、想法与书评**：显示划线，查看对应想法、书评与评论；也支持公众号文章阅读。
 - **下拉快捷控制**：WIFI、背光、夜间模式、全屏刷新、章节跳转，以及 KOReader / WeLite 设置。
 
@@ -65,6 +65,8 @@ koreader/plugins/welite.koplugin/
 | WeLite 设置 → 退出到 KOReader | 关闭 WeLite，回到 KOReader |
 
 首页同步不会自动打开书籍；需要选择本地或云端进度时，等你打开对应书籍后再处理。自动拉取和关闭上传默认开启，已保存的手动关闭选择会保留。
+
+阅读时长默认每 30 秒上报一次，也可设为 60 秒。联网且书籍进度通过核验后才发送；未知回执不会自动重报。在线期间已记录的待发送秒数保留到下次在线阅读该书时处理。旧版离线时长账本不再读取或上传，首页同步只读取云端统计。
 
 ## 设置菜单
 

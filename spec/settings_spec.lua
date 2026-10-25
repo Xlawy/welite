@@ -64,10 +64,12 @@ package.preload["libs/libkoreader-lfs"] = function()
 end
 
 local saved_books = {}
+local loaded_books = 0
 local minimal_index_checked = false
 package.preload["welite.lib.book_store"] = function()
     return {
         load = function(_settings, book_id, index)
+            loaded_books = loaded_books + 1
             return {
                 book_id = book_id,
                 cache_dir = index.cache_dir,
@@ -266,3 +268,28 @@ expect(not values.welite_pending_progress_sync.books.old and values.welite_pendi
 local before = flush_count
 Settings:new()
 expect(flush_count == before, "cache transition must only run once")
+
+-- Hot reader work must be bounded by one book, independent of shelf size.
+local shelf={}
+for i=1,1000 do shelf[tostring(i)]={cache_dir='/bounded/'..i} end
+values.books=shelf
+loaded_books=0;saved_books={}
+local started=os.clock()
+for _=1,1000 do
+    expect(settings:find_book('/bounded/500/chapter.epub')=='500','indexed reader identity')
+end
+expect(loaded_books==0,'1000 page lookups must not hydrate any book')
+local book=settings:get_book('500')
+expect(book.book_id=='500' and loaded_books==1,'one-book read hydrates only one record')
+settings:set_book('500',{title='changed'})
+local saved_count=0;for _ in pairs(saved_books) do saved_count=saved_count+1 end
+expect(saved_count==1 and values.books['499'].cache_dir=='/bounded/499','one-book write preserves other indexes')
+expect(settings:find_book('/bounded/500/chapter.epub')==nil,'index move invalidates cached identity')
+values.books['500']={cache_dir='/bounded/500'}
+expect(settings:find_book('/bounded/500/chapter.epub')=='500','new index is immediately visible')
+values.books['500']=nil
+expect(settings:find_book('/bounded/500/chapter.epub')==nil,'deletion invalidates cached identity')
+expect(settings:find_book('/bounded/4999/chapter.epub')==nil,'directory boundary is strict')
+expect(settings:get_book('missing')==nil,'missing book does not hydrate a fake record')
+print(('settings bounded storage: shelf=1000 lookups=1000 hydrated=%d saved=%d elapsed=%.6fs'):format(
+    loaded_books,saved_count,os.clock()-started))

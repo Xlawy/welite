@@ -131,11 +131,12 @@ describe('welite native settings dialogs',function()
         find(menu.item_table,tr('Check for updates'));find(menu.item_table,tr('Mock service'));back()
 
         menu:onMenuSelect(root[2])
-        assert.equals(6,#menu.item_table,'progress and automatic reading time share one category')
+        assert.equals(5,#menu.item_table,'progress and online reading time share one category')
         for _,item in ipairs(menu.item_table) do
             local label=item.text or (item.text_func and item.text_func()) or ''
             assert.is_nil(label:find(tr('Select target book'),1,true),'fixed targets are no longer configurable')
             assert.is_not.equals(tr('Only report when reading'),label,'background counting cannot be enabled')
+            assert.is_not.equals('待核对阅读时间',label,'offline retry menu was removed')
         end
         assert.equals(0,login_checks,'opening preferences must not prompt for authentication')
         local interval

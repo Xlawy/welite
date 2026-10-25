@@ -1,4 +1,5 @@
 -- KOReader event lifecycle and reader-state orchestration.
+local BookStore = require("welite.lib.book_store")
 local Content = require("welite.lib.content")
 local logger = require("welite.lib.logger").scoped("Prefetch")
 local UIManager = require("ui/uimanager")
@@ -215,8 +216,7 @@ function M:maybePrefetchNextChapter(book_id)
         return false
     end
 
-    local books = self.settings:get("books", {})
-    local book = books[tostring(book_id)] or books[book_id]
+    local book = BookStore.get(self.settings, book_id)
     local chapters = self:ensureChaptersLoaded(book)
     local file = self.ui.document and self.ui.document.file
     if not book or not chapters or not file then
@@ -341,6 +341,14 @@ function M:onResume()
     self.read_report:on_resume()
 end
 
+function M:onNetworkConnected()
+    self.read_report:on_network_connected()
+end
+
+function M:onNetworkDisconnected()
+    self.read_report:on_network_disconnected()
+end
+
 function M:detectWeReadBook()
     if not self.ui.document then
         return nil
@@ -349,6 +357,7 @@ function M:detectWeReadBook()
     if not file then
         return nil
     end
+    if self.settings.find_book then return self.settings:find_book(file) end
     local books = self.settings:get("books", {})
     for book_id, book in pairs(books) do
         if type(book) == "table" then

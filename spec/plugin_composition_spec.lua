@@ -40,6 +40,7 @@ package.loaded["welite.lib.content"] = {
 package.loaded.logger = {
     info = function() end,
     err = function() end,
+    warn = function() end,
 }
 package.loaded["welite.lib.plugin_util"] = {
     log_error = tostring,
@@ -66,5 +67,31 @@ expect(saved_catalogs == 1, "legacy catalog was not persisted")
 expect(books["123"].chapters == nil,
     "legacy in-record chapter list was not removed")
 expect(writes == 2, "migrated settings were not saved and flushed")
+
+-- The shared store represents a process-local profile; a reader instance must
+-- not scan or rewrite every book after the file manager already migrated it.
+local shared = {}
+local reads = 0
+local first = {store=shared,get=function() reads=reads+1;return {} end,
+    has_legacy_book_records=function() return false end}
+expect(Migrations.run(first,{}) == true, "empty migration should succeed")
+local second = {store=shared,get=function() error("redundant all-book scan") end}
+expect(Migrations.run(second,{}) == true and reads == 1, "profile migration must run once")
+local original_save=package.loaded["welite.lib.content"].save_catalog_cache
+local fail=true
+package.loaded["welite.lib.content"].save_catalog_cache=function()
+    if fail then return false,'synthetic disk full' end
+    return true
+end
+local legacy={book={book_id='book',chapters={{chapterUid=7}}}}
+local attempted=0
+local retry={get=function() return legacy end,has_legacy_book_records=function() return true end,
+    set=function() attempted=attempted+1 end,flush=function() end}
+expect(Migrations.run(retry,{}) == false, "failed catalog save must defer migration")
+expect(legacy.book.chapters[1].chapterUid == 7 and attempted == 0, "failed migration retains legacy catalog")
+fail=false
+expect(Migrations.run(retry,{}) == true and attempted == 1, "failed profile remains retryable")
+expect(legacy.book.chapters == nil, "successful retry retires old catalog")
+package.loaded["welite.lib.content"].save_catalog_cache=original_save
 
 print(("plugin_composition_spec: %d checks"):format(checks))

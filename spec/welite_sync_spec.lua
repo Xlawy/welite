@@ -69,48 +69,21 @@ local result=job.task{checkCancelled=function() end,emit=function() emits=emits+
 assert(emits==3 and next(result.data.pending)==nil,'only ten recent books: two initial checkpoints plus one six-book batch')
 assert(#result.data.shelf.books==120 and result.data.progress_books['120'] and not result.data.progress_books['1'])
 print('welite_sync_spec: upstream calls, forced progress refresh, partial failure, duplicate suppression and stale account passed')
--- Home orchestration uses the real ledger adapter, even when launch fails
--- synchronously or a credential change invalidates display updates.
-local Ledger=require('welite.lib.reading_time_ledger')
-local function with_time()
- local plugin,view=fixture()
- local values,clock={},0
- local ledger=Ledger.new({get=function(_,k,d) return values[k] or d end,
-  set=function(_,k,value) values[k]=value end,flush=function() end},function() return clock end)
- ledger:start('one','1');clock=17;ledger:stop()
- plugin.read_report={time_ledger=ledger,_auth_fingerprint=function() return fp end,
-  _context_fingerprint=function() return 'book' end,_renewal_allowed=function() return false end,
-  _child_report=function(_,id,renew,position,seconds,cloud)
-   assert(id=='1' and seconds==17 and cloud and position==nil)
-   requests[#requests+1]='time';return {accepted=true,time_report_sent=true}
-  end,_apply_job_outcome=function() end}
- return plugin,view,ledger
+-- Shelf refresh must not inspect or upload historical reading time.
+for _, pending in ipairs({0,5338.75091}) do
+ p,v=fixture();requests={}
+ p.read_report={time_ledger=setmetatable({}, {__index=function() error('shelf touched reading-time ledger') end}),
+  _child_report=function() error('shelf attempted time upload') end}
+ p.historical_time=pending
+ assert(Sync.refresh(p,v,{}));complete()
+ assert(p.welite_shelf_status=='数据已刷新' and not p.message)
+ assert(#requests==4 and p.historical_time==pending,'refresh must only read shelf, stats and progress')
 end
-local ledger
-p,v,ledger=with_time();requests={};Sync.refresh(p,v,{});complete()
-assert(requests[1]=='shelf' and requests[2]=='time' and requests[3]=='monthly')
-assert(ledger:status('one','1').acknowledged==17 and p.welite_shelf_status=='数据已刷新')
-p,v,ledger=with_time();Sync.refresh(p,v,{});job.on_done{ok=false,cancelled=true}
-assert(ledger:status('one','1').uncertain==17 and not p.books)
-p,v,ledger=with_time();Sync.refresh(p,v,{});fp='two';complete()
-assert(ledger:status('one','1').acknowledged==17 and not p.books,'old-account receipt settles only its own ledger')
-fp='one'
 local worker=require('welite.lib.background_worker');local original_new=worker.new
 worker.new=function() return {start=function(_,options) options.on_done{ok=false,error='low_memory'};return false end} end
-p,v,ledger=with_time();assert(not Sync.refresh(p,v,{}))
-assert(ledger:status('one','1').pending==17 and ledger:status('one','1').uncertain==0)
+p,v=fixture();assert(not Sync.refresh(p,v,{}));assert(p.welite_shelf_status=='同步失败')
 worker.new=original_new
-print('welite_sync_spec: catch-up ordering, cancellation, stale account receipts and synchronous launch failure passed')
-
-p,v,ledger=with_time()
-local flush=ledger.settings.flush
-ledger.settings.flush=function() error('synthetic disk full') end
-Sync.refresh(p,v,{});complete()
-assert(p.welite_shelf_status=='同步未完成')
-assert(p.message:find('synthetic disk full',1,true),'preserve the actual local storage failure for diagnosis')
-ledger.settings.flush=flush;ledger:recover('one')
-assert(ledger:status('one','1').pending==17,'failed reservation must retain all elapsed time')
-print('welite_sync_spec: local storage errors retain pending time and expose the actual failure')
+print('welite_sync_spec: legacy time is ignored and shelf failures remain visible')
 
 -- Current cloud records are authoritative; foreign local-only records are not.
 p,v=fixture();requests={}

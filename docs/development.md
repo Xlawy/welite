@@ -35,3 +35,5 @@ KOREADER_RUNTIME=/绝对路径/koreader make test
 运行时模块位于 `welite/lib`、`welite/ui` 和 `welite/integrations`。版本和仓库身份由 `welite/identity.lua` 声明；`make check` 对所有运行时 Lua 模块检查测试映射，并拒绝旧 `weread.*` / `integrations.*` 导入。
 
 配置迁移仅复制有大小上限的设置文件，不扫描或复制书籍目录。生产配置为 `settings/welite-state.lua`，模拟配置为 `settings/welite-mock-state.lua`，环境选项为 `settings/welite-environment.lua`；原配置保留。更新暂存和进度文件在 `welite/update`，已有下载、数据库、收藏和阅读状态继续使用兼容路径。
+
+- [轻量化核心重构、同步审计与性能证据](lightweight-refactor.md)

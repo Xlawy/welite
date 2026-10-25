@@ -4,57 +4,15 @@ local WeRead = require("welite.lib.protocol")
 local logger = require("welite.lib.logger")
 
 local Content = {}
-local b64chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 -- Forward declarations used by the resumable-download checkpoint helpers.
 local xml_escape
 local body_fragment
 
-local function basename_safe(value)
-    value = tostring(value or ""):gsub("[^%w%._-]", "_")
-    if value == "" then
-        value = "weread"
-    end
-    return value
-end
-
--- Directory name a book is stored under (sanitized book id). Exposed so the
--- local-cache scanner can match on-disk directory names against shelf book ids.
-function Content.book_dir_name(book_id)
-    return basename_safe(book_id)
-end
-
-function Content.book_cache_dir(settings, book_id)
-    return settings.cache_dir .. "/" .. Content.book_dir_name(book_id)
-end
-
--- Resolve where a book's files actually live. The current settings.cache_dir may
--- differ from where a book was downloaded (the user changed it since), so prefer
--- concrete evidence of the real location: an explicit book.cache_dir (set when any
--- file — chapter or MP article — is written), then the directory of a stored
--- cached_file/chapter path, and only as a last resort the path recomputed under
--- the current root. This keeps deletion, stats and moves on the real files instead
--- of orphaning them. MP article-only books have no cached_file, so book.cache_dir
--- is the only thing that pins them down.
-function Content.book_resolved_dir(settings, book_id, book)
-    if book and type(book.cache_dir) == "string" and book.cache_dir ~= "" then
-        return book.cache_dir
-    end
-    local function dirname(path)
-        if type(path) == "string" then
-            return path:match("^(.*)/[^/]+$")
-        end
-    end
-    local dir = book and dirname(book.cached_full_book or book.cached_file)
-    if not dir and book and type(book.cached_chapters) == "table" then
-        for _i, chapter_path in pairs(book.cached_chapters) do
-            dir = dirname(chapter_path)
-            if dir then
-                break
-            end
-        end
-    end
-    return dir or Content.book_cache_dir(settings, book_id)
-end
+local BookPaths = require("welite.lib.book_paths")
+local basename_safe = BookPaths.book_dir_name
+Content.book_dir_name = BookPaths.book_dir_name
+Content.book_cache_dir = BookPaths.book_cache_dir
+Content.book_resolved_dir = BookPaths.book_resolved_dir
 
 function Content.catalog_cache_path(settings, book)
     local book_id = book and (book.book_id or book.bookId)
@@ -694,119 +652,12 @@ body_fragment = function(xhtml)
     return xhtml
 end
 
-local function checked_body(response_text)
-    if not response_text or #response_text <= 32 then
-        return ""
-    end
-    local expected = response_text:sub(1, 32)
-    local body = response_text:sub(33)
-    local actual = Crypto.md5_hex(body):upper()
-    if actual ~= expected then
-        error("Shard MD5 mismatch")
-    end
-    return body
+function Content.decode_content_shards(...)
+    return require("welite.lib.content_codec").decode_content_shards(...)
 end
 
-local function base64_decode(data)
-    data = data:gsub("-", "+"):gsub("_", "/")
-    local pad = #data % 4
-    if pad > 0 then
-        data = data .. string.rep("=", 4 - pad)
-    end
-    data = data:gsub("[^" .. b64chars .. "=]", "")
-    return (data:gsub(".", function(char)
-        if char == "=" then
-            return ""
-        end
-        local bits = ""
-        local index = b64chars:find(char, 1, true) - 1
-        for bit = 6, 1, -1 do
-            bits = bits .. (index % 2 ^ bit - index % 2 ^ (bit - 1) > 0 and "1" or "0")
-        end
-        return bits
-    end):gsub("%d%d%d?%d?%d?%d?%d?%d?", function(bits)
-        if #bits ~= 8 then
-            return ""
-        end
-        local byte = 0
-        for i = 1, 8 do
-            if bits:sub(i, i) == "1" then
-                byte = byte + 2 ^ (8 - i)
-            end
-        end
-        return string.char(byte)
-    end))
-end
-
-local function swap_positions(encoded)
-    local length = #encoded
-    if length < 4 then
-        return {}
-    end
-    if length < 11 then
-        return {0, 2}
-    end
-
-    local n = math.min(4, math.floor((length + 9) / 10))
-    local tmp = {}
-    for i = length, length - n + 1, -1 do
-        local byte = encoded:byte(i)
-        local bin = {}
-        repeat
-            table.insert(bin, 1, tostring(byte % 2))
-            byte = math.floor(byte / 2)
-        until byte == 0
-        local value = tonumber(table.concat(bin), 4) or 0
-        table.insert(tmp, tostring(value))
-    end
-    tmp = table.concat(tmp)
-
-    local result = {}
-    local m = length - n - 2
-    local step = #tostring(m)
-    local i = 1
-    while #result < 10 and i + step - 1 < #tmp do
-        table.insert(result, (tonumber(tmp:sub(i, i + step - 1)) or 0) % m)
-        local end2 = math.min(i + step, #tmp)
-        if i + 1 <= #tmp then
-            table.insert(result, (tonumber(tmp:sub(i + 1, end2)) or 0) % m)
-        end
-        i = i + step
-    end
-    return result
-end
-
-local function reverse_swaps(encoded, positions)
-    local chars = {}
-    for i = 1, #encoded do
-        chars[i] = encoded:sub(i, i)
-    end
-    for i = #positions, 1, -2 do
-        for k = 1, 0, -1 do
-            local left = positions[i] + k + 1
-            local right = positions[i - 1] + k + 1
-            chars[left], chars[right] = chars[right], chars[left]
-        end
-    end
-    return table.concat(chars)
-end
-
-local function decode_encoded_body(body)
-    if #body == 0 then
-        return ""
-    end
-    local encoded = body:sub(2)
-    local restored = reverse_swaps(encoded, swap_positions(encoded))
-    return base64_decode(restored)
-end
-
-function Content.decode_content_shards(e0, e1, e3)
-    local body = checked_body(e0) .. checked_body(e1) .. checked_body(e3)
-    return decode_encoded_body(body)
-end
-
-function Content.decode_content_shard(e0)
-    return decode_encoded_body(checked_body(e0))
+function Content.decode_content_shard(...)
+    return require("welite.lib.content_codec").decode_content_shard(...)
 end
 
 function Content.extract_reader_state(html, json_decode)
@@ -1602,96 +1453,8 @@ function Content.fetch_chapter_xhtml(client, settings, book, chapter, options)
     )
 end
 
--- True when the text following the literal "0" of a font-size declaration
--- (already captured by the caller's pattern) is only an optional unit plus
--- whitespace and an optional !important flag, i.e. the declared size really is
--- zero. Zero times any unit is still zero length, so an empty tail (bare 0) and
--- every letter-unit form (px/em/rem/vh/...) count; fractional sizes such as
--- 0.5rem never match because "." is not a letter.
-local function is_zero_font_size(tail)
-    local value = tail:lower():match("^%s*(.-)%s*$")
-    if value:sub(-10) == "!important" then
-        value = (value:match("^(.-)%s*!important$") or ""):match("^%s*(.-)%s*$")
-    end
-    return value == "" or value == "%" or value:match("^%a+$") ~= nil
-end
-
--- Known limitations: property-name matching is case-sensitive (all observed
--- WeRead shards are lowercase), a CSS comment containing exactly
--- "font-size: 0" may have its interior rewritten without structural harm, and
--- only top-level rules naming exactly html/body are touched (:root,
--- descendant selectors and @media-wrapped rules are left as-is).
-
--- True when the selector list names nothing but the root elements, i.e. every
--- comma-separated selector is exactly html or body (case- and
--- whitespace-insensitive). Compound selectors such as "body p" or
--- "body, .wrapper" also style other content, so they never qualify.
-local function is_root_selector_list(selectors)
-    local count = 0
-    for selector in (selectors or ""):gmatch("[^,]+") do
-        count = count + 1
-        local name = selector:lower():gsub("^%s+", ""):gsub("%s+$", "")
-        if name ~= "html" and name ~= "body" then return false end
-    end
-    return count > 0
-end
-
--- Remove every zero `font-size` declaration from one braceless declaration
--- block. The sentinel "{" guarantees the boundary capture below always has a
--- character to inspect, even when the declaration opens the block.
-local function strip_zero_font_sizes(block)
-    local removed = 0
-    local cleaned = ("{" .. block):gsub("([^%w%-])(%s*)font%-size%s*:%s*0([^;}]*)(;?)", function(boundary, leading, tail, _terminator)
-        if not is_zero_font_size(tail) then
-            return nil -- keep fractional sizes such as 0.5rem untouched
-        end
-        removed = removed + 1
-        return boundary .. leading
-    end)
-    return cleaned:sub(2), removed
-end
-
--- Strip hostile `font-size: 0` declarations from server-provided book css, but
--- only inside rules whose selector list is exactly `html` and/or `body`.
--- WeRead shards occasionally ship `html, body { ... font-size: 0; }`; WeRead's
--- own apps ignore root-element sizing but crengine honors it, collapsing the
--- whole book to a near-zero font size on device. Elsewhere `font-size: 0` can
--- be intentional (e.g. hiding whitespace between inline-block items), so every
--- other rule passes through verbatim.
-local function sanitize_book_css_pass(css)
-    local removed = 0
-    -- Scan whole `selector { block }` units (balanced braces); untouched units
-    -- are returned verbatim so no other declaration can be disturbed.
-    local sanitized = css:gsub("([^{}]*)(%b{})", function(prelude, block)
-        -- Text before the last ";" belongs to an at-rule or a previous
-        -- statement, not to this block's selector list.
-        local selectors = prelude:match("[^;]*$") or ""
-        if not is_root_selector_list(selectors) then
-            return prelude .. block
-        end
-        local cleaned, dropped = strip_zero_font_sizes(block:sub(2, -2))
-        removed = removed + dropped
-        return prelude .. "{" .. cleaned .. "}"
-    end)
-    return sanitized, removed
-end
-
 function Content.sanitize_book_css(css)
-    if type(css) ~= "string" or css == "" then
-        return css, 0
-    end
-    -- Each pass consumes one boundary character per match, so adjacent zero
-    -- declarations ("font-size:0;font-size:0") need repeated passes until the
-    -- fixpoint; the cap only guards pathological input.
-    local removed_total = 0
-    local sanitized = css
-    for _i = 1, 16 do
-        local removed
-        sanitized, removed = sanitize_book_css_pass(sanitized)
-        removed_total = removed_total + removed
-        if removed == 0 then break end
-    end
-    return sanitized, removed_total
+    return require("welite.lib.content_css").sanitize(css)
 end
 
 function Content.fetch_chapter_css(client, settings, book, chapter)
@@ -1708,11 +1471,6 @@ function Content.fetch_chapter_css(client, settings, book, chapter)
     return nil
 end
 
-
--- Downloads always contain clean text. Annotation data is synchronized later.
-local function apply_chapter_annotations(_client, _settings, _book, _chapter, xhtml, css)
-    return xhtml, css
-end
 
 function Content.cache_annotation_source(settings, book, chapter, xhtml, raw_text)
     if book._content_format == "txt" and not raw_text then return end
@@ -1742,7 +1500,6 @@ function Content.fetch_chapter_epub(client, settings, book, chapter)
     local xhtml = Content.fetch_chapter_xhtml(client, settings, book, chapter)
     Content.cache_annotation_source(settings, book, chapter, xhtml)
     local css = Content.fetch_chapter_css(client, settings, book, chapter)
-    xhtml, css = apply_chapter_annotations(client, settings, book, chapter, xhtml, css)
     local assets = {}
     local cache = settings:get("cache", {})
     if cache.download_book_images then
@@ -1766,34 +1523,7 @@ function Content.fetch_chapter_epub(client, settings, book, chapter)
     return path, chapter
 end
 
-function Content.fetch_single_chapter_content(client, settings, book, chapter, state)
-    state = state or {}
-    local xhtml = Content.fetch_chapter_xhtml(client, settings, book, chapter)
-    Content.cache_annotation_source(settings, book, chapter, xhtml)
-    if not state.css then
-        state.css = Content.fetch_chapter_css(client, settings, book, chapter)
-    end
-    xhtml, state.css = apply_chapter_annotations(client, settings, book, chapter, xhtml, state.css)
-    local chapter_assets = {}
-    local cache = settings:get("cache", {})
-    if cache.download_book_images then
-        state.used_asset_names = state.used_asset_names or {}
-        local tar_assets, src_map = Content.download_chapter_assets(client, book, chapter, state.used_asset_names)
-        for _, asset in ipairs(tar_assets) do
-            table.insert(chapter_assets, asset)
-        end
-        xhtml = Content.rewrite_image_sources(xhtml, src_map)
-        local inline_xhtml, inline_assets = Content.download_remote_images(client, xhtml, state.used_asset_names)
-        xhtml = inline_xhtml
-        for _, a in ipairs(inline_assets) do
-            table.insert(chapter_assets, a)
-        end
-    end
-    return xhtml, chapter_assets
-end
-
--- Split chapter downloading around annotation fetching so the UI can request
--- thought batches cooperatively instead of blocking inside Thoughts.apply().
+-- Download source and assets in distinct worker stages.
 function Content.fetch_single_chapter_source(client, settings, book, chapter, state)
     state = state or {}
     local xhtml = Content.fetch_chapter_xhtml(client, settings, book, chapter)
@@ -1856,7 +1586,6 @@ function Content.fetch_chapters_epub(client, settings, book, chapters, options)
         if not css then
             css = Content.fetch_chapter_css(client, settings, book, chapter)
         end
-        xhtml, css = apply_chapter_annotations(client, settings, book, chapter, xhtml, css)
         if cache.download_book_images then
             if options.progress then
                 options.progress(chapter_index, #chapters, chapter, "images")
@@ -1887,20 +1616,6 @@ function Content.fetch_chapters_epub(client, settings, book, chapters, options)
     book.cached_file = path
     book.reader_url = book.reader_url or WeRead.reader_url(book.book_id or book.bookId)
     return path, selected
-end
-
-function Content.fetch_first_chapter(client, settings, book)
-    Content.ensure_reader_state(client, book)
-    local chapters = book.chapters or Content.load_catalog_cache(client, settings, book)
-    if not chapters then
-        chapters = Content.fetch_catalog(client, book)
-        Content.save_catalog_cache(client, settings, book, chapters)
-    end
-    local chapter = Content.first_readable_chapter(chapters)
-    if not chapter then
-        error("No readable chapter found")
-    end
-    return Content.fetch_chapter_epub(client, settings, book, chapter)
 end
 
 function Content.parse_mp_articles(data)
@@ -1952,18 +1667,6 @@ function Content.extract_mp_body(html)
     body = body:gsub(" src=''", "")
     body = body:gsub("data%-src=", "src=")
     return body
-end
-
-local function normalize_void_elements(html)
-    html = html:gsub("<(br)%s*>", "<%1/>")
-    html = html:gsub("<(hr)%s*>", "<%1/>")
-    html = html:gsub("<(img)(%s[^>]-)>", function(tag, attrs)
-        if not attrs:match("/$") then
-            return "<" .. tag .. attrs .. "/>"
-        end
-        return "<" .. tag .. attrs .. ">"
-    end)
-    return html
 end
 
 local function strip_mp_reader_font_styles(html)

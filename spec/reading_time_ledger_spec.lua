@@ -1,5 +1,12 @@
 package.path='./?.lua;'..package.path
 local Ledger=require('welite.lib.reading_time_ledger')
+local function reserve(ledger,account,book,limit)
+ local ok,err=ledger:start(account,book)
+ if not ok then return nil,err end
+ local batch,reason=ledger:begin(limit)
+ ledger:stop()
+ return batch,reason
+end
 local values,clock,writes={},0,0
 local settings={get=function(_,k,d) return values[k] or d end,set=function(_,k,v) values[k]=v end,
  flush=function() writes=writes+1 end}
@@ -47,97 +54,22 @@ settings.flush=function() error('reservation write failed') end
 assert(not pcall(ledger.begin,ledger));assert(ledger:status('one','book').inflight==0)
 settings.flush=flush
 batch=assert(ledger:begin());assert(batch.seconds==3,'failed reservation lost or duplicated elapsed time')
+assert(ledger:settle(batch,'accepted'));ledger:stop()
 print('reading_time_ledger_spec: fractional sessions and persistence failure recovery passed')
 
--- Closed books can be drained without starting a timer, opening a document,
--- or selecting a reading position. Reservations remain durable and bounded.
-values={};clock=0;ledger=new()
-assert(ledger:start('one','b'));clock=450;ledger:stop()
-assert(ledger:start('one','a'));clock=460;ledger:stop()
-assert(ledger:start('two','a'));clock=480;ledger:stop()
-local books=ledger:pending_books('one',1)
-assert(#books==1 and books[1]=='a')
-assert(#ledger:pending_books('missing')==0 and #ledger:pending_books('one',0)==0)
-batch=assert(ledger:begin_pending('one','b',300));assert(batch.seconds==300)
-assert(ledger.active==nil,'backlog reservation must not start a reading timer')
-assert(not ledger:begin_pending('one','b'),'duplicate in-flight reservation')
-assert(#ledger:pending_books('one')==1,'in-flight book must not be queued twice')
-local fresh=new()
-assert(fresh:status('one','b').inflight==300,'reservation must persist before sending')
-assert(fresh:settle(batch,'accepted'));assert(not ledger:settle(batch,'accepted'))
-assert(ledger:status('one','b').pending==150)
-batch=assert(ledger:begin_pending('one','b'));assert(batch.seconds==150)
-assert(ledger:settle(batch,'unknown'))
-assert(#ledger:pending_books('one')==1,'uncertain time must not become retryable')
-batch=assert(ledger:begin_pending('one','a'));assert(batch.seconds==10)
-assert(ledger:settle(batch,'retryable'))
-assert(ledger:status('two','a').pending==20,'another account must remain untouched')
-assert(ledger:start('one','a'))
-local _,busy=ledger:begin_pending('one','a');assert(busy=='reading_time_active')
-ledger:stop()
-settings.flush=function() error('backlog reservation write failed') end
-assert(not pcall(ledger.begin_pending,ledger,'one','a'))
-assert(ledger:status('one','a').pending==10 and ledger:status('one','a').inflight==0)
-settings.flush=flush
-batch=assert(ledger:begin_pending('one','a'));assert(batch.seconds==10)
-assert(ledger:settle(batch,'accepted'))
-assert(#ledger:pending_books('one')==0 and #ledger:pending_books('two')==1)
-print('reading_time_ledger_spec: closed-book batches, durable ownership, retry and account isolation passed')
-
-values={};clock=0;ledger=new()
-ledger:start('one','recover');clock=40;ledger:stop()
-local live=assert(ledger:begin_pending('one','recover',30))
-assert(new():recover('one')==0,'live request must retain ownership')
-local old_id=live.id;live=nil;assert(live==nil);collectgarbage('collect')
-local recovered=new()
-assert(recovered:recover('other')==0 and recovered:recover('one')==1)
-assert(recovered:recover('one')==0,'recovery must be idempotent')
-assert(recovered:status('one','recover').pending==10 and recovered:status('one','recover').uncertain==30)
-assert(not recovered:settle({id=old_id,account='one',book='recover'},'accepted'))
-local item=recovered:unresolved('one')[1]
-assert(item.book=='recover' and item.seconds==30)
-assert(not recovered:resolve('other',item.book,30,'counted',item.revision))
-assert(not recovered:resolve('one',item.book,29,'counted',item.revision))
-assert(recovered:resolve('one',item.book,30,'counted',item.revision))
-assert(recovered:status('one','recover').acknowledged==0,'manual review is not a server receipt')
-assert(#recovered:unresolved('one')==0)
--- Same duration in a newer unknown batch cannot be consumed by an old dialog.
-recovered:start('one','recover');clock=60;recovered:stop()
-live=assert(recovered:begin_pending('one','recover',30));recovered:settle(live,'unknown')
-assert(not recovered:resolve('one',item.book,30,'counted',item.revision))
-item=recovered:unresolved('one')[1]
-assert(recovered:resolve('one',item.book,item.seconds,'retry',item.revision))
-assert(recovered:status('one','recover').pending==30 and #recovered:unresolved('one')==0)
-assert(not recovered:resolve('one',item.book,item.seconds,'retry',item.revision))
-print('reading_time_ledger_spec: orphan recovery, explicit review, revision guards and no false acknowledgements passed')
-
-values={};clock=0;ledger=new()
-ledger:start('one','book');clock=20;ledger:stop()
-local home=assert(ledger:begin_pending('one','book'))
-assert(new():has_pending_report('one','book'),'home catch-up is visible across handles')
-assert(not new():has_pending_report('two','book') and not new():has_pending_report('one','other'))
-assert(ledger:start('one','book'),'home reporting must not block a new reading clock')
-clock=35;ledger:checkpoint()
-assert(ledger:status('one','book').pending==15 and ledger:status('one','book').inflight==20)
-assert(not ledger:begin() and not ledger:lock_position('one','book'))
-assert(ledger:settle(home,'accepted'));ledger:stop()
-assert(not new():has_pending_report('one','book'),'settlement releases the shared slot')
+-- Explicit online checkpoints survive a conservative pause; unobserved
+-- disconnected time never becomes an uploadable balance.
+values={};clock=0;ledger=new();ledger:start('one','book')
+clock=10;ledger:checkpoint();clock=20;ledger:pause()
+clock=600;ledger:checkpoint();assert(ledger:status('one','book').pending==10)
+ledger:start('one','book');clock=610;batch=assert(ledger:begin())
+assert(batch.seconds==20);ledger:settle(batch,'accepted');ledger:stop()
+assert(ledger:status('one','book').acknowledged==20)
 local lock=assert(ledger:lock_position('one','book'))
-local before_poll=writes
-assert(new():has_pending_report('one','book'),'position writes are visible before shelf reservation')
-assert(writes==before_poll,'checking a live request must not write the ledger')
-assert(not ledger:begin_pending('one','book'),'progress write must block home time write')
-assert(new():recover('one')==0)
-assert(not new():lock_position('one','book'),'another reader must share the same write slot')
-local other=assert(ledger:lock_position('two','book'));ledger:unlock_position(other)
+assert(new():has_pending_report('one','book'));assert(not new():lock_position('one','book'))
 ledger:unlock_position(lock)
-local newer=assert(ledger:lock_position('one','book'));ledger:unlock_position(lock)
-assert(not ledger:begin_pending('one','book'),'late unlock must not release a newer write')
-ledger:unlock_position(newer)
-assert(not new():has_pending_report('one','book'),'unlock releases the shared slot')
-batch=assert(ledger:begin_pending('one','book'));assert(batch.seconds==15)
-ledger:settle(batch,'accepted');assert(ledger:status('one','book').acknowledged==35)
-print('reading_time_ledger_spec: uninterrupted timer and shared per-book network ownership passed')
+assert(not new():has_pending_report('one','book'))
+print('reading_time_ledger_spec: online pause and shared position ownership passed')
 
 -- Independent storage handles must share failed writes for one profile. The
 -- fake disk changes only on successful flush, matching SQLite transactions.
@@ -162,7 +94,7 @@ assert(second:status('one','a').pending==10,'another handle lost the failed chec
 second:start('one','b');wall=15;second:stop()
 first:start('one','a');wall=20;first:stop()
 assert(handle():status('one','a').pending==15 and handle():status('one','b').pending==5)
-local accepted=assert(first:begin_pending('one','a',10));fail_disk=true
+local accepted=assert(reserve(first,'one','a',10));fail_disk=true
 assert(not pcall(first.settle,first,accepted,'accepted'));fail_disk=false
 second:start('two','c');wall=23;second:stop()
 assert(not first:settle(accepted,'accepted'))
@@ -170,7 +102,7 @@ assert(handle():status('one','a').acknowledged==10)
 assert(handle():status('one','b').pending==5 and handle():status('two','c').pending==3)
 -- Recovery must retry an unsaved acknowledgement even when no orphan needs
 -- converting; otherwise the home screen can report success with a dirty ledger.
-accepted=assert(first:begin_pending('one','a'));fail_disk=true
+accepted=assert(reserve(first,'one','a'));fail_disk=true
 assert(not pcall(first.settle,first,accepted,'accepted'))
 assert(not pcall(second.recover,second,'one'),'persistent failure must not become silent success')
 assert(not pcall(second.lock_position,second,'one','a'),'new position writes must wait for the dirty acknowledgement to persist')
@@ -195,9 +127,9 @@ print('reading_time_ledger_spec: completed bookkeeping does not exhaust the boun
 values={};clock=0;ledger=new()
 ledger:start('one','fraction');clock=0.25;ledger:stop()
 ledger:start('two','unknown');clock=1.25;ledger:stop()
-local ambiguous=assert(ledger:begin_pending('two','unknown'));ledger:settle(ambiguous,'unknown')
+local ambiguous=assert(reserve(ledger,'two','unknown'));ledger:settle(ambiguous,'unknown')
 ledger:start('one','flight');clock=2.25;ledger:stop()
-local flying=assert(ledger:begin_pending('one','flight'))
+local flying=assert(reserve(ledger,'one','flight'))
 ledger:start('one','locked');ledger:stop()
 local held=assert(ledger:lock_position('one','locked'))
 for i=1,Ledger.MAX_ENTRIES-4 do

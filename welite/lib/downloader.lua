@@ -81,10 +81,14 @@ function Downloader:new(o)
     return o
 end
 
+local recovered_profiles = setmetatable({}, { __mode = "k" })
+
 function Downloader:recover()
-    -- A SIGKILL/OOM cannot run the normal finally path. A fresh plugin process
-    -- owns no active download, so it is safe to clear the persistent Kindle
-    -- powerd flag and remove disk artifacts left by the previous process.
+    -- ReaderUI and the file manager share a profile in one process. Only the
+    -- first successful recovery may sweep it; later instances may coexist with
+    -- a live download. Failed recovery remains eligible for a later attempt.
+    local owner = self.settings.store or self.settings
+    if recovered_profiles[owner] then return true end
     StandbyGuard.recover()
     local ok, removed = pcall(Content.cleanup_stale_downloads, self.settings)
     if not ok then
@@ -94,6 +98,7 @@ function Downloader:recover()
     if tonumber(removed) and removed > 0 then
         logger.info("stale download artifacts removed:", tostring(removed))
     end
+    recovered_profiles[owner] = true
     return true
 end
 
@@ -616,6 +621,9 @@ function Downloader:start(book, chapters, suffix, options)
         auth_fingerprint = WorkerSettings.fingerprint(self.settings),
     }
     self._active_job = dl
+    -- Even if startup cleanup failed, new work makes a later sweep unsafe.
+    -- Any remaining stale artifacts can be recovered on the next process start.
+    recovered_profiles[self.settings.store or self.settings] = true
 
     local task_label = options.single_chapter and _("Download chapter and read") or _("Download full book")
     local task_runner = function(callback)

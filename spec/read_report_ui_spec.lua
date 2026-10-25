@@ -54,7 +54,7 @@ local host = setmetatable({
 }, { __index = ReadReportUI })
 
 local report_items = host:getReadReportMenuItems()
-expect(#report_items == 4, "only enable, interval, status and time review remain")
+expect(#report_items == 3, "only enable, interval and online report status remain")
 expect(report_items[1].keep_menu_open == true
         and report_items[2].keep_menu_open == true
         and report_items[3].keep_menu_open == true,
@@ -136,8 +136,5 @@ expect(status_text:find("Pending reading time: 42 s",1,true), "pending duration 
 expect(status_text:find("Unconfirmed reading time: 30 s (not retried)",1,true), "ambiguous duration hidden")
 
 
-local reviewed=false
-package.preload['welite.ui.reading_time_review']=function() return {show=function(plugin) reviewed=plugin==host end} end
-report_items[4].callback()
-expect(reviewed,'review menu must reach the account time-review controller')
+expect(#report_items==3,'offline catch-up review menu removed')
 print(("read_report_ui_spec: %d checks"):format(checks))

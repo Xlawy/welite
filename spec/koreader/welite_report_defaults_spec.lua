@@ -17,7 +17,7 @@ describe('WeLite default reading reports with native storage and scheduler',func
         ledger=require('welite.lib.reading_time_ledger').open(settings,function() return clock end)
         report=require('welite.lib.read_report'):new{settings=settings,client={},scheduler=UI,time_ledger=ledger,
             get_document=function() return document end,detect_book=function() return book end,
-            is_online=function() return false end}
+            is_online=function() return true end}
     end)
     after_each(function()
         if report then report:stop('test_cleanup') end

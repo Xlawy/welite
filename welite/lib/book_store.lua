@@ -38,31 +38,7 @@ local article_fields = {
     mp_articles_time = true,
 }
 
-local function basename_safe(value)
-    value = tostring(value or ""):gsub("[^%w%._-]", "_")
-    return value ~= "" and value or "weread"
-end
-
-local function dirname(path)
-    if type(path) == "string" then
-        return path:match("^(.*)/[^/]+$")
-    end
-end
-
-local function resolved_dir(settings, book_id, book)
-    if type(book) == "table" and type(book.cache_dir) == "string" and book.cache_dir ~= "" then
-        return book.cache_dir
-    end
-    local dir = type(book) == "table"
-        and dirname(book.cached_full_book or book.cached_file) or nil
-    if not dir and type(book) == "table" and type(book.cached_chapters) == "table" then
-        for _uid, path in pairs(book.cached_chapters) do
-            dir = dirname(path)
-            if dir then break end
-        end
-    end
-    return dir or (settings.cache_dir .. "/" .. basename_safe(book_id))
-end
+local resolved_dir = require("welite.lib.book_paths").book_resolved_dir
 
 local function encode(value)
     if not ok_json then
@@ -168,6 +144,21 @@ function BookStore.save(settings, book_id, book)
         os.remove(dir .. "/articles.json")
     end
     return true, { cache_dir = dir }
+end
+
+-- Keep injected/legacy settings adapters usable while the runtime uses bounded
+-- single-book storage. Full shelf enumeration remains an explicit get("books").
+function BookStore.get(settings, book_id)
+    if settings.get_book then return settings:get_book(book_id) end
+    local books = settings:get("books", {})
+    return books[tostring(book_id)] or books[book_id]
+end
+
+function BookStore.put(settings, book_id, book)
+    if settings.set_book then return settings:set_book(book_id, book) end
+    local books = settings:get("books", {})
+    books[tostring(book_id)] = book
+    settings:set("books", books)
 end
 
 function BookStore.is_minimal_index(books)

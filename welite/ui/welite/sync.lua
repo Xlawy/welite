@@ -2,7 +2,6 @@
 local M={}
 local Reading=require('welite.ui.welite.reading')
 local Auth=require('welite.lib.worker_settings')
-local TimeSync=require('welite.lib.reading_time_sync')
 local Scope=require('welite.lib.progress_scope')
 
 function M.refresh(plugin,view,options,closed_ok)
@@ -41,9 +40,7 @@ function M.refresh(plugin,view,options,closed_ok)
             current:setRefreshing(false)
         end
     end
-    local time_task=TimeSync.prepare(plugin.read_report,account)
     local checkpoint
-    local launch_returned=false
     local started=worker:start{task=function(context)
         local capture=Auth.capture(plugin.settings)
         local result={overview={},failed={},progress_books={},remote_positions={},pending={['阅读时间']=true,['阅读进度']=true}}
@@ -62,9 +59,6 @@ function M.refresh(plugin,view,options,closed_ok)
             return shelf
         end)
         publish()
-        result.time_receipts=TimeSync.run(time_task,context,function(receipts)
-            result.time_receipts=receipts;publish()
-        end)
         -- Fetch even when the shelf fails so independent statistics can refresh.
         for _,mode in ipairs({'monthly','weekly'}) do
             result.overview[mode]=fetch('阅读时间',function()
@@ -107,16 +101,9 @@ function M.refresh(plugin,view,options,closed_ok)
     end,on_progress=function(progress)
         if plugin.welite_sync_worker==worker then
             checkpoint=progress.value
-            TimeSync.apply(time_task,checkpoint and checkpoint.data.time_receipts,
-                plugin.settings:get('account',{}).user_vid==account
-                and Auth.fingerprint(plugin.settings)==fingerprint)
         end
     end,on_done=function(outcome)
         local value=outcome.ok and outcome.value or checkpoint
-        TimeSync.apply(time_task,value and value.data.time_receipts,
-            plugin.settings:get('account',{}).user_vid==account
-            and Auth.fingerprint(plugin.settings)==fingerprint)
-        local time_ok=TimeSync.finish(time_task,not launch_returned)
         if plugin.welite_sync_worker~=worker then return end
         plugin.welite_sync_worker=nil
         if plugin.settings:get('account',{}).user_vid~=account
@@ -126,7 +113,6 @@ function M.refresh(plugin,view,options,closed_ok)
         if not value or outcome.cancelled then finish('同步失败');return end
         Auth.merge(plugin.settings,fingerprint,value.auth)
         local result=value.data
-        if not time_ok then result.failed['阅读时间']=true end
         if not closed_ok then result.failed['阅读进度']=true end
         for name in pairs(result.pending or {}) do result.failed[name]=true end
         plugin.welite_overview=plugin.welite_overview or {}
@@ -168,17 +154,10 @@ function M.refresh(plugin,view,options,closed_ok)
         if #failed>0 then
             local message='未能完成：'..table.concat(failed,'、')..'。请重试同步。'
             if not closed_ok then message=message..'\n仍有本地进度未上传；云端也有变化时，请打开对应书籍选择进度。' end
-            if time_task.error then
-                message=message..'\n本地阅读时间记录处理失败：'..tostring(time_task.error):sub(1,300)
-            end
-            if (time_task.uncertain_seconds or 0)>0 then
-                message=message..'\n另有 '..math.floor(time_task.uncertain_seconds)..' 秒阅读时间回执不明；请在阅读上报菜单的“待核对阅读时间”中处理，重复同步不会重报这些记录。'
-            end
             plugin:showInfo(message)
         end
     end}
-    launch_returned=true
-    if not started then TimeSync.finish(time_task,true);plugin.welite_sync_worker=nil;finish('同步失败') end
+    if not started then plugin.welite_sync_worker=nil;finish('同步失败') end
     return started
 end
 return M

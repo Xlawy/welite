@@ -123,10 +123,6 @@ expect(#closed == 0 and host.shelf_view == shelf_view,
     "invalid open request unexpectedly closed the bookshelf")
 
 
-local review_closed=false
-host._time_review_session={close=function() review_closed=true end}
-require("welite.ui.library").closeWeReadUI(host)
-expect(review_closed,'closing plugin UI must close time review and its confirmation')
 closed = {}
 host.shelf_view = shelf_view
 local settings_closed = 0
@@ -137,5 +133,23 @@ expect(host.shelf_view == nil and closed[1] == shelf_view,
 expect(settings_closed == 1, 'host teardown must close plugin settings')
 host:onCloseWidget()
 expect(#closed == 1, 'repeated host cleanup must not close stale shelf references')
+
+-- Use the host's documented after-open callback to reach the new plugin;
+-- keeping state on the old plugin would be lost when KOReader replaces it.
+local receipt = {}
+local accepted, callback_seen
+host.progress_sync = {chapter_handoff=function(_, path)
+    expect(path == "/cache/chapter-2.epub", "handoff receives the actual opened path")
+    return receipt
+end}
+host.ui.document = {file="/cache/chapter-1.epub"}
+host.ui.switchDocument = function(_, path, seamless, callback)
+    expect(path == "/cache/chapter-2.epub" and seamless == nil, "normal host switch preserved")
+    callback_seen = callback
+    callback({welite={progress_sync={accept_chapter_handoff=function(_, value) accepted=value end}}})
+end
+host:openFile("/cache/chapter-2.epub")
+expect(accepted == receipt, "receipt must reach the replacement reader service")
+expect(pcall(callback_seen, {}), "missing replacement plugin falls back safely")
 
 print(("library_ui_cleanup_spec: %d checks"):format(checks))

@@ -186,5 +186,17 @@ test("missing remote offset falls back to raw percent", function()
     eq(normalized.percent, 40, "raw percent preserved")
 end)
 
+test("invalid cloud coordinates cannot become fabricated chapter starts", function()
+    for _,offset in ipairs({-1,0.5,math.huge,0/0,100000001,'bad'}) do
+        local value,reason=Mapper.normalize_remote({progress=20,chapterUid=11,chapterOffset=offset},'book')
+        eq(value,nil,'invalid offset rejected');eq(reason,'progress_offset_invalid','offset error retained')
+    end
+    for _,percent in ipairs({-1,101,math.huge,0/0}) do
+        eq(Mapper.normalize_remote({progress=percent,chapterUid=11,chapterOffset=0},'book'),nil,'invalid percentage rejected')
+    end
+    local zero=assert(Mapper.normalize_remote({progress=0,chapterUid=11,chapterOffset=0},'book'))
+    eq(zero.has_chapter_offset,true,'genuine zero is retained')
+end)
+
 print(string.format("position_mapper_spec: %d checks, %d failure(s)", checks, failures))
 os.exit(failures == 0 and 0 or 1)

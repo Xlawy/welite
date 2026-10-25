@@ -97,7 +97,6 @@ function M:showBookshelf()
 end
 
 function M:closeWeReadUI()
-    if self._time_review_session then self._time_review_session:close() end
     if self._chapter_catalog_session then self._chapter_catalog_session:close() end
     if self._book_info_session then self._book_info_session:close() end
     if self._mp_session then self._mp_session:close() end
@@ -1267,7 +1266,12 @@ function M:openFile(path)
     end
     self:closeWeReadUI()
     if self.ui.document then
-        self.ui:switchDocument(path)
+        local handoff = self.progress_sync and self.progress_sync:chapter_handoff(path)
+        self.ui:switchDocument(path, nil, handoff and function(reader)
+            if reader.welite and reader.welite.progress_sync then
+                reader.welite.progress_sync:accept_chapter_handoff(handoff)
+            end
+        end)
     else
         self.ui:openFile(path)
     end

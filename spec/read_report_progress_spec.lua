@@ -392,58 +392,19 @@ test("ambiguous HTTP replies cannot trigger a second reading-time write", functi
     end
 end)
 
-test("time catch-up reads fresh cloud coordinates before each bounded attempt",function()
-    local report=fixture()
-    local reads,writes=0,0
-    local book={book_id='book',chapter_uid=11,chapter_offset=2,progress=1,psvts='fixture',
-        chapters={{chapterUid=11,chapterIdx=1}},read_session_id=report.session_id,read_session_entered_at=100}
-    report.ensure_context=function() return book end
-    report.client.get_progress=function()
-        reads=reads+1
-        return {book={chapterUid=11,chapterOffset=reads*100,progress=reads*10}}
-    end
-    report.client.report_read=function(_,payload)
-        writes=writes+1
-        eq(payload.chapter_offset,reads*100,'fresh cloud offset, never stale local offset')
-        eq(payload.progress,reads*10,'fresh cloud percentage')
-        eq(payload.elapsed_seconds,17,'only actual pending seconds')
-        return writes==1 and {errCode=-1} or {succ=1},200
-    end
-    local result=report:_run_pipeline('book',{cloud_position=true,elapsed_seconds=17})
-    eq(result.accepted,true,'catch-up acknowledged');eq(reads,2,'refresh cloud on explicit retry')
-end)
-test("missing cloud coordinates never fall back to the closed reader position",function()
-    for _,remote in ipairs({{}, {book={progress=50}},
-        {book={chapterUid=99,chapterOffset=10,progress=20}},
-        {book={chapterUid=11,chapterOffset=-1,progress=20}}}) do
-        local report=fixture()
-        report.ensure_context=function() return {book_id='book',chapters={{chapterUid=11,chapterIdx=1}}} end
-        report.client.get_progress=function() return remote end
-        local writes=0;report.client.report_read=function() writes=writes+1 end
-        local result=report:_child_report('book',false,nil,17,true)
-        eq(writes,0,'no write without a valid cloud position')
-        eq(result.time_report_sent,false,'unsent duration remains retryable')
-        eq(result.accepted,false,'incomplete cloud data is not success')
-    end
-end)
-
 test("rejected time remains retryable when a later attempt fails before its time write",function()
     for _,stage in ipairs({2,3}) do
         for _,failure in ipairs({'lookup','entry','write'}) do
             local report=fixture()
-            local contexts,writes,reads=0,0,0
+            local contexts,writes=0,0
             local book={book_id='book',chapter_uid=11,psvts='fixture',
                 chapters={{chapterUid=11,chapterIdx=1}},
                 read_session_id=report.session_id,read_session_entered_at=100}
             report.ensure_context=function()
                 contexts=contexts+1
+                if contexts>=stage and failure=='lookup' then error('synthetic context lookup failed') end
                 if contexts==stage and failure=='entry' then book.read_session_entered_at=nil end
                 return book
-            end
-            report.client.get_progress=function()
-                reads=reads+1
-                if reads==stage and failure=='lookup' then error('synthetic progress fetch failed') end
-                return {book={chapterUid=11,chapterOffset=10,progress=20}}
             end
             report.client.renew_cookie=function() return {succ=1} end
             report.client.report_read=function(_,payload)
@@ -452,12 +413,55 @@ test("rejected time remains retryable when a later attempt fails before its time
                 if writes==stage and failure=='write' then error('synthetic response lost') end
                 return {errCode=-1},200
             end
-            local result=report:_child_report('book',true,nil,17,true)
+            local result=report:_child_report('book',true,{chapter_uid=11,chapter_idx=1,chapter_offset=10,percent=20},17)
             eq(result.accepted,false,'failure cannot report success')
             eq(result.time_rejected,failure~='write','only an attempted time write can become unknown')
             eq(writes,failure=='write' and stage or stage-1,'no unexpected time request')
             eq(result.time_report_sent,true,'earlier explicitly rejected writes are still recorded')
         end
+    end
+end)
+
+test("stale report context cannot overwrite another account with unchanged book fields", function()
+    local report=fixture()
+    local persisted=0
+    report._persist_context=function() persisted=persisted+1 end
+    local job={book_id='book',auth_fingerprint='old-account',context_fingerprint=report:_context_fingerprint('book')}
+    report:_apply_job_outcome(job,{accepted=true,book={book_id='book',token='old-context'}},true)
+    eq(persisted,0,'context fingerprint alone cannot authorize stale account writes')
+end)
+
+test("closing before the next poll retains receipts already returned by the child", function()
+    for _,case in ipairs({{accepted=true}, {accepted=false,time_report_sent=false}, {accepted=false}}) do
+        local report=fixture()
+        local result
+        report.time_ledger={stop=function() end,settle=function(_,_,value) result=value end}
+        report.client.json_decode=function(_,payload) assert(payload=='receipt');return case end
+        report.subprocess={terminate=function() end,is_done=function() return true end,
+            read_all=function() return 'receipt' end}
+        report.job={pid=123,read_fd=456,time_batch={id=1}}
+        report:stop('document_closed')
+        eq(result,case.accepted and 'accepted' or case.time_report_sent==false and 'retryable' or 'unknown',
+            'receipt controls settlement even when close precedes polling')
+    end
+end)
+
+test("rate limiting stops the retry pipeline without losing known-unsent time", function()
+    for _,rate_at in ipairs({1,2}) do
+        local report=fixture()
+        local writes,renewals=0,0
+        local book={book_id='book',chapter_uid=11,psvts='fixture',
+            read_session_id=report.session_id,read_session_entered_at=100}
+        report.ensure_context=function() return book end
+        report.client.report_read=function()
+            writes=writes+1;return {succ=0},writes==rate_at and 429 or 200
+        end
+        report.client.renew_cookie=function() renewals=renewals+1;return {succ=1} end
+        local outcome=report:_child_report('book',true,nil,30)
+        eq(writes,rate_at,'no immediate writes after throttling')
+        eq(renewals,0,'throttling is not credential expiry')
+        eq(outcome.time_rejected,true,'explicit rejection remains retryable next interval')
+        eq(outcome.error_kind,'rate_limit','failure stage retained')
     end
 end)
 

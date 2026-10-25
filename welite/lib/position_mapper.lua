@@ -88,11 +88,18 @@ function PositionMapper.normalize_remote(value, book_id, source, chapters)
     local percent = tonumber(raw_field(
         node, "progress", "readingProgress", "bookProgress"
     ))
-    if not percent then return nil, "progress_invalid" end
+    if not percent or percent ~= percent or percent < 0 or percent > 100 then
+        return nil, "progress_invalid"
+    end
 
     local raw_offset = raw_field(
         node, "chapterOffset", "chapterPos", "offset", "chapter_offset"
     )
+    local offset = tonumber(raw_offset)
+    if raw_offset ~= nil and (not offset or offset ~= offset or offset < 0
+        or offset > 100000000 or offset ~= math.floor(offset)) then
+        return nil, "progress_offset_invalid"
+    end
     local remote = {
         book_id = raw_field(node, "bookId", "book_id") or book_id,
         percent = clamp(percent, 0, 100),
@@ -103,9 +110,8 @@ function PositionMapper.normalize_remote(value, book_id, source, chapters)
         chapter_idx = tonumber(raw_field(
             node, "chapterIdx", "chapterIndex", "chapter_idx"
         )) or 0,
-        chapter_offset = math.max(0, tonumber(raw_offset) or 0),
-        has_chapter_offset = raw_offset ~= nil
-            and tonumber(raw_offset) ~= nil,
+        chapter_offset = offset or 0,
+        has_chapter_offset = offset ~= nil,
         updated_at = tonumber(raw_field(
             node, "updateTime", "updatedAt", "update_time"
         )) or 0,

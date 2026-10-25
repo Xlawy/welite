@@ -20,12 +20,6 @@ files["welite/lib/client.lua"] = {
     ignore = { "211/_status" },
 }
 
-files["welite/lib/content.lua"] = {
-    ignore = {
-        "211/normalize_void_elements",
-    },
-}
-
 files["welite/lib/i18n.lua"] = {
     -- Translation catalogs intentionally repeat a key in two grouped sections.
     ignore = { "314" },

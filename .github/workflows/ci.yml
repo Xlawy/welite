@@ -21,7 +21,7 @@ jobs:
       - name: Install Lua tooling
         run: |
           sudo apt-get update
-          sudo apt-get install -y luajit luarocks ripgrep libsqlite3-0
+          sudo apt-get install -y luajit luarocks lua-socket ripgrep libsqlite3-0
           sudo luarocks install luacheck
 
       - name: Lua namespace policy

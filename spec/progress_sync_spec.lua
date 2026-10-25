@@ -1136,6 +1136,252 @@ test("pending close uploads reconcile on book open only for the same account", f
     end
 end)
 
+test("offline unverified suspend durably checkpoints movement without a network request", function()
+    local f=fixture({progress=25,chapterUid=22,chapterOffset=150},{is_online=function() return false end})
+    f.values.account={user_vid='one'}
+    f.values.sync.pull_on_open=false
+    f.sync:on_reader_ready();f.drain()
+    f.document.page=48;f.sync:on_page_update()
+    local flushes=0
+    f.sync.settings.flush=function() flushes=flushes+1 end
+    f.sync.capture_local_snapshot=function() return {text='source anchor'} end
+    f.sync:on_suspend()
+    local saved=f.values.books.book.pending_upload_position
+    eq(type(saved),'table','suspend saves unverified progress')
+    eq(saved.percent,48,'latest page survives restart')
+    eq(saved.account_id,'one','snapshot owns its account')
+    eq(saved.source_snapshot.text,'source anchor','closed recovery retains source anchor')
+    eq(flushes,1,'one boundary write instead of separate local/pending writes')
+    eq(#f.uploads,0,'offline unverified suspension does not upload')
+end)
+
+-- A chapter switch creates a new plugin/ProgressSync instance in KOReader.
+-- Explicit navigation carries one receipt; fresh cloud reads still gate reports.
+local function chapter_fixture(remote, options)
+    local f = fixture(remote, options)
+    f.values.account = { user_vid = 'reader' }
+    f.document.file = '/cache/book/11.epub'
+    f.document.page = 100
+    f.sync.get_file_context = function(_, path)
+        for index, chapter in ipairs(chapters) do
+            if path == '/cache/book/' .. chapter.chapterUid .. '.epub' then
+                return index, chapter, false
+            end
+        end
+        return nil, nil, true
+    end
+    return f
+end
+
+local function next_reader(f, index, remote, handoff, options)
+    f.sync:on_close_document()
+    local g = chapter_fixture(remote, options)
+    g.values = f.values
+    g.sync.settings = f.sync.settings
+    g.sync.get_book = f.sync.get_book
+    g.document.file = '/cache/book/' .. chapters[index].chapterUid .. '.epub'
+    g.document.page = 1
+    g.sync:on_reader_ready()
+    if handoff then
+        eq(g.sync:accept_chapter_handoff(handoff), true, 'new reader accepts explicit handoff')
+    end
+    return g
+end
+
+local function verified_chapter(remote, options)
+    local f = chapter_fixture(remote, options)
+    f.sync:on_reader_ready(); f.drain()
+    eq(f.sync.verified, true, 'starting chapter verified')
+    return f
+end
+
+test('consecutive chapter files keep reading with fresh unchanged cloud checks', function()
+    local remote = { progress = 10, chapterUid = 11, chapterOffset = 100 }
+    local f = verified_chapter(remote)
+    for index = 2, 3 do
+        local handoff = f.sync:chapter_handoff('/cache/book/' .. chapters[index].chapterUid .. '.epub')
+        eq(type(handoff), 'table', 'adjacent navigation creates receipt')
+        f = next_reader(f, index, remote, handoff)
+        local pulls = 0
+        f.sync.client.get_progress = function() pulls = pulls + 1; return { book = remote } end
+        f.sync.client.get_web_progress = function() pulls = pulls + 1; return remote end
+        eq(f.sync.verified, false, 'reading reports wait for fresh cloud check')
+        f.drain()
+        eq(pulls, 2, 'one normal pull checks both configured sources')
+        eq(#f.choices, 0, 'unchanged cloud does not prompt each chapter')
+        eq(#f.uploads, 0, 'handoff does not trigger an immediate position write')
+        eq(f.sync.verified_reason, 'chapter_continuation', 'continuation verified')
+        eq(f.sync.dirty, true, 'new chapter movement remains pending for upload')
+        eq(f.sync:capture_local().chapter_uid, chapters[index].chapterUid, 'new chapter retained')
+        eq(f.sync:accept_chapter_handoff(handoff), false, 'receipt is single use')
+        f.document.page = 100; f.sync:on_page_update()
+    end
+    f.sync:on_suspend()
+    eq(#f.uploads, 1, 'normal lifecycle still uploads continued reading')
+    eq(f.uploads[1].chapter_uid, 33, 'latest chapter uploaded')
+end)
+
+test('a confirmed source upload at close can advance the continuation baseline', function()
+    local remote = { progress = 9, chapterUid = 11, chapterOffset = 90 }
+    local f = verified_chapter(remote)
+    f.sync.dirty = true
+    local original_capture = f.sync.capture_local
+    f.sync.capture_local = function(self)
+        local position, err, context = original_capture(self)
+        position.position_basis = 'source_utf16'
+        return position, err, context
+    end
+    local handoff = f.sync:chapter_handoff('/cache/book/22.epub')
+    local g = next_reader(f, 2, { progress = 10, chapterUid = 11, chapterOffset = 100 }, handoff)
+    eq(#f.uploads, 1, 'old reader confirmed its final source coordinate')
+    g.drain()
+    eq(#g.choices, 0, 'acknowledged final coordinate is safe')
+    eq(g.sync.verified, true, 'new chapter verified')
+end)
+
+for name, changed in pairs({
+    another_chapter = { progress = 70, chapterUid = 33, chapterOffset = 300 },
+    backward = { progress = 8, chapterUid = 11, chapterOffset = 80 },
+    same_percent_different_offset = { progress = 10, chapterUid = 11, chapterOffset = 99 },
+    near_new_local_page = { progress = 10, chapterUid = 22, chapterOffset = 2 },
+    changed_timestamp = { progress = 10, chapterUid = 11, chapterOffset = 100, updateTime = 9 },
+    missing_offset = { progress = 10, chapterUid = 11 },
+}) do
+    test('chapter continuation protects cloud change: ' .. name, function()
+        local f = verified_chapter({ progress = 10, chapterUid = 11, chapterOffset = 100 })
+        local handoff = f.sync:chapter_handoff('/cache/book/22.epub')
+        local g = next_reader(f, 2, changed, handoff)
+        g.drain()
+        eq(#g.choices, 1, 'changed or incomplete cloud coordinates require choice')
+        eq(g.sync.verified, false, 'conflict blocks reports')
+        eq(#g.uploads, 0, 'conflict never silently overwrites cloud')
+    end)
+end
+
+test('unknown close upload result is not an acknowledgement', function()
+    local f = verified_chapter({ progress = 9, chapterUid = 11, chapterOffset = 90 })
+    f.sync.dirty = true
+    f.sync.upload_position = function() return false, { error = 'unknown write outcome' } end
+    local handoff = f.sync:chapter_handoff('/cache/book/22.epub')
+    local g = next_reader(f, 2, { progress = 10, chapterUid = 11, chapterOffset = 100 }, handoff)
+    g.drain()
+    eq(#g.choices, 1, 'unconfirmed write cannot suppress a conflict')
+end)
+
+test('conflicting cloud sources still require a chapter choice', function()
+    local remote = { progress = 10, chapterUid = 11, chapterOffset = 100 }
+    local f = verified_chapter(remote)
+    local g = next_reader(f, 2, remote, f.sync:chapter_handoff('/cache/book/22.epub'))
+    g.sync.client.get_progress = function() return {book={progress=80,chapterUid=33,chapterOffset=400}} end
+    g.drain()
+    eq(#g.choices, 1, 'source conflict preserved')
+    eq(g.choices[1].source_conflict, true, 'source conflict disclosed')
+end)
+
+test('handoff is limited to verified adjacent chapter navigation', function()
+    local remote = { progress = 10, chapterUid = 11, chapterOffset = 100 }
+    local f = chapter_fixture(remote)
+    eq(f.sync:chapter_handoff('/cache/book/22.epub'), nil, 'unverified reader cannot grant continuation')
+    f.sync:on_reader_ready(); f.drain()
+    eq(f.sync:chapter_handoff('/cache/book/33.epub'), nil, 'skipping chapter uses normal reconciliation')
+    eq(f.sync:chapter_handoff('/cache/book/11.epub'), nil, 'reopen is not continuation')
+    eq(f.sync:chapter_handoff('/other/22.epub'), nil, 'unrecognized target rejected')
+    local g = next_reader(f, 2, remote)
+    g.drain()
+    eq(#g.choices, 1, 'ordinary reopen without navigation receipt keeps conflict protection')
+end)
+
+for _, mismatch in ipairs({'account', 'profile', 'path', 'book', 'expired', 'clock_backwards'}) do
+    test('handoff rejects mismatched lifetime: ' .. mismatch, function()
+        local now = 100
+        local remote = { progress = 10, chapterUid = 11, chapterOffset = 100 }
+        local f = verified_chapter(remote, { now = function() return now end })
+        local handoff = f.sync:chapter_handoff('/cache/book/22.epub')
+        local g = next_reader(f, 2, remote, nil, { now = function() return now end })
+        if mismatch == 'account' then g.values.account.user_vid = 'other'
+        elseif mismatch == 'profile' then g.sync.settings.data_dir = '/other-profile'
+        elseif mismatch == 'path' then g.document.file = '/cache/book/33.epub'
+        elseif mismatch == 'book' then g.sync.detect_book = function() return 'other' end
+        elseif mismatch == 'expired' then now = 161
+        elseif mismatch == 'clock_backwards' then now = 99 end
+        eq(g.sync:accept_chapter_handoff(handoff), false, 'wrong lifetime cannot inherit verification')
+        eq(g.sync.verified, false, 'still unverified')
+    end)
+end
+
+test('manual synchronization and suspend revoke a waiting continuation', function()
+    for _, action in ipairs({'manual', 'suspend', 'account', 'slow_pull'}) do
+        local now = 100
+        local remote = { progress = 10, chapterUid = 11, chapterOffset = 100 }
+        local f = verified_chapter(remote, { now = function() return now end })
+        local g = next_reader(f, 2, remote, f.sync:chapter_handoff('/cache/book/22.epub'),
+            { now = function() return now end })
+        if action == 'manual' then g.sync:sync_now()
+        elseif action == 'suspend' then g.sync:on_suspend()
+        elseif action == 'account' then g.sync:on_account_changed()
+        else now = 161 end
+        g.drain()
+        eq(#g.choices, 1, action .. ' does not reuse continuation')
+    end
+end)
+
+test('offline continuation never grants verification before the cloud returns', function()
+    local remote = { progress = 10, chapterUid = 11, chapterOffset = 100 }
+    local f = verified_chapter(remote)
+    local g = next_reader(f, 2, remote, f.sync:chapter_handoff('/cache/book/22.epub'),
+        { is_online = function() return false end })
+    g.drain()
+    eq(g.sync.verified, false, 'offline reader remains unverified')
+    eq(#g.choices, 0, 'no fabricated offline conflict')
+    eq(#g.uploads, 0, 'no unverified upload')
+    eq(g.sync:position_for_report('book'), nil, 'reading report cannot bypass progress verification')
+end)
+
+for _, changed in ipairs({'small_offset', 'missing_source'}) do
+    test('continuation checks both sources even when selected web progress is unchanged: ' .. changed, function()
+        local remote={progress=10,chapterUid=11,chapterOffset=100}
+        local f=verified_chapter(remote)
+        local g=next_reader(f,2,remote,f.sync:chapter_handoff('/cache/book/22.epub'))
+        g.sync.client.get_progress=function()
+            if changed=='missing_source' then error('gateway timeout') end
+            return {book={progress=10,chapterUid=11,chapterOffset=99}}
+        end
+        g.drain()
+        eq(#g.choices,1,'partial or subtly changed source cannot inherit verification')
+        eq(g.sync.verified,false,'cloud comparison remains protected')
+    end)
+end
+
+for _, timing in ipairs({'during_reading', 'drained_on_close', 'old_session', 'other_account'}) do
+    test('continuation recognizes only current-session acknowledged time report: ' .. timing, function()
+        local remote={progress=9,chapterUid=11,chapterOffset=90}
+        local reported={account='reader',position={percent=10,chapter_uid=11,chapter_offset=100}}
+        local f=chapter_fixture(remote)
+        if timing=='old_session' then f.values.books.book.last_reported_position=reported end
+        f.sync:on_reader_ready();f.drain()
+        if timing=='during_reading' then f.values.books.book.last_reported_position=reported end
+        local handoff=f.sync:chapter_handoff('/cache/book/22.epub')
+        if timing=='drained_on_close' or timing=='other_account' then
+            if timing=='other_account' then reported.account='another' end
+            f.values.books.book.last_reported_position=reported
+        end
+        local g=next_reader(f,2,{progress=10,chapterUid=11,chapterOffset=100},handoff)
+        g.drain()
+        local safe=timing=='during_reading' or timing=='drained_on_close'
+        eq(#g.choices,safe and 0 or 1,'only newly acknowledged own reports can suppress the choice')
+        eq(g.sync.verified,safe,'verification follows the receipt')
+    end)
+end
+
+test('full-book EPUB page updates remain local across chapter boundaries', function()
+    local f=fixture({progress=25,chapterUid=22,chapterOffset=150})
+    f.sync:on_reader_ready();f.drain()
+    f.document.page=41;f.sync:on_page_update();f.drain()
+    eq(#f.choices,0,'ordinary page update has no new conflict')
+    eq(#f.uploads,0,'ordinary page update does not upload')
+    eq(f.sync:chapter_handoff('/cache/book/22.epub'),nil,'full book cannot create chapter receipt')
+end)
+
 print(string.format(
     "progress_sync_spec: %d checks, %d failure(s)", checks, failures))
 os.exit(failures == 0 and 0 or 1)
